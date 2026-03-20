@@ -1,13 +1,13 @@
-package com.example.h4h;
+package com.example.tms;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class H4hApplication {
+public class TmsApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(H4hApplication.class, args);
+		SpringApplication.run(TmsApplication.class, args);
 	}
 
 }
