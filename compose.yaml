@@ -1,46 +1,73 @@
 services:
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/nginx/Dockerfile
+      args:
+        REACT_APP_API_URL: /api
+        REACT_APP_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "80:80"
+    networks:
+      - tms-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8081:8080"
+    expose:
+      - "8081"
     depends_on:
       postgres-db:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/tms_db
-      SPRING_DATASOURCE_USERNAME: tms_user
-      SPRING_DATASOURCE_PASSWORD: tms_password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${POSTGRES_DB:-tms_db}
+      SPRING_DATASOURCE_USERNAME: ${DATABASE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD}
+      SERVER_PORT: ${SERVER_PORT:-8081}
     networks:
       - tms-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
   postgres-db:
-    image: postgres:latest
+    image: postgres:16.4-alpine
     container_name: postgres-db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: tms_db
-      POSTGRES_USER: tms_user
-      POSTGRES_PASSWORD: tms_password
+      POSTGRES_DB: ${POSTGRES_DB:-tms_db}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql
-    ports:
-      - "5433:5432"
+    expose:
+      - "5432"
     networks:
       - tms-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U tms_user -d tms_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${POSTGRES_DB:-tms_db}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   pgadmin:
+    profiles:
+      - dev-tools
     image: dpage/pgadmin4:latest
     container_name: pgadmin
-    restart: always
+    restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change-this-password}
     ports:
       - "5050:80"
     networks:

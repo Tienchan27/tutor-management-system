@@ -4,7 +4,6 @@ import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.DashboardService;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,17 +25,17 @@ public class DashboardController {
     }
 
     @GetMapping("/admin/tutors/summary")
-    public List<TutorSummaryResponse> adminSummary(@RequestParam String month, HttpServletRequest request) {
-        return dashboardService.adminTutorSummary(currentUserResolver.requireUser(request), YearMonth.parse(month));
+    public List<TutorSummaryResponse> adminSummary(@RequestParam String month) {
+        return dashboardService.adminTutorSummary(currentUserResolver.requireUser(), YearMonth.parse(month));
     }
 
     @GetMapping("/admin/tutors/detail")
-    public TutorDashboardResponse adminTutorDetail(@RequestParam UUID tutorId, @RequestParam String month, HttpServletRequest request) {
-        return dashboardService.adminTutorDetail(currentUserResolver.requireUser(request), tutorId, YearMonth.parse(month));
+    public TutorDashboardResponse adminTutorDetail(@RequestParam UUID tutorId, @RequestParam String month) {
+        return dashboardService.adminTutorDetail(currentUserResolver.requireUser(), tutorId, YearMonth.parse(month));
     }
 
     @GetMapping("/tutor/me")
-    public List<TutorDashboardResponse> tutorMe(HttpServletRequest request) {
-        return dashboardService.tutorSelf(currentUserResolver.requireUser(request));
+    public List<TutorDashboardResponse> tutorMe() {
+        return dashboardService.tutorSelf(currentUserResolver.requireUser());
     }
 }

@@ -3,7 +3,8 @@ package com.example.tms.security;
 import com.example.tms.entity.User;
 import com.example.tms.exception.ApiException;
 import com.example.tms.repository.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -16,12 +17,22 @@ public class CurrentUserResolver {
         this.userRepository = userRepository;
     }
 
-    public User requireUser(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId == null || userId.isBlank()) {
-            throw new ApiException("Missing X-User-Id header");
+    public User requireUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ApiException("Not authenticated");
         }
-        return userRepository.findById(UUID.fromString(userId))
+
+        UUID userId = (UUID) authentication.getPrincipal();
+        return userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException("User not found"));
+    }
+
+    public UUID requireUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ApiException("Not authenticated");
+        }
+        return (UUID) authentication.getPrincipal();
     }
 }

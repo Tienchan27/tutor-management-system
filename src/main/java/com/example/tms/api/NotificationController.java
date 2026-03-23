@@ -3,8 +3,11 @@ package com.example.tms.api;
 import com.example.tms.entity.Notification;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.NotificationService;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,8 +24,8 @@ public class NotificationController {
     }
 
     @GetMapping("/me")
-    public List<Notification> myNotifications(HttpServletRequest request) {
-        return notificationService.getMyNotifications(currentUserResolver.requireUser(request).getId());
+    public List<Notification> myNotifications() {
+        return notificationService.getMyNotifications(currentUserResolver.requireUserId());
     }
 
     @PostMapping("/{id}/read")

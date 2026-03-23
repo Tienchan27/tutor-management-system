@@ -5,9 +5,15 @@ import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
 import com.example.tms.entity.Session;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.SessionService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,17 +30,16 @@ public class SessionController {
     }
 
     @PostMapping
-    public Session create(@Valid @RequestBody CreateSessionRequest request, HttpServletRequest httpRequest) {
-        return sessionService.create(currentUserResolver.requireUser(httpRequest), request);
+    public Session create(@Valid @RequestBody CreateSessionRequest request) {
+        return sessionService.create(currentUserResolver.requireUser(), request);
     }
 
     @PatchMapping("/{sessionId}/financial")
     public Session updateFinancial(
             @PathVariable UUID sessionId,
-            @Valid @RequestBody UpdateSessionFinancialRequest request,
-            HttpServletRequest httpRequest
+            @Valid @RequestBody UpdateSessionFinancialRequest request
     ) {
-        return sessionService.updateFinancial(currentUserResolver.requireUser(httpRequest), sessionId, request);
+        return sessionService.updateFinancial(currentUserResolver.requireUser(), sessionId, request);
     }
 
     @GetMapping
