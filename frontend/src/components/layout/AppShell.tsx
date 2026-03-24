@@ -4,6 +4,7 @@ import { navigationItems } from '../../config/navigation';
 import { AppRole } from '../../types/app';
 import { clearAuthSession, getAuthUser } from '../../utils/storage';
 import { logout } from '../../services/authService';
+import { clearRoleCache } from '../../services/accessService';
 
 interface AppShellProps {
   roles: AppRole[];
@@ -23,6 +24,7 @@ function AppShell({ roles, children }: AppShellProps) {
     try {
       await logout();
     } finally {
+      clearRoleCache();
       clearAuthSession();
       navigate('/');
     }

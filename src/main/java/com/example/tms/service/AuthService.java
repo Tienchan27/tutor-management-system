@@ -34,6 +34,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.jpa.JpaObjectRetrievalFailureException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -309,10 +310,17 @@ public class AuthService {
         String picture = Optional.ofNullable(payload.get("picture")).map(Object::toString).orElse(null);
         String name = sanitizeName((String) payload.get("name"));
 
-        Optional<UserProvider> providerOptional = userProviderRepository.findByProviderAndProviderId(
+        Optional<UserProvider> providerOptional = userProviderRepository.findValidByProviderAndProviderId(
                 ProviderType.GOOGLE,
                 googleUserId
         );
+
+        // Historical data may contain orphan provider rows (provider record exists but user row was removed).
+        // Clean those rows up to avoid INTERNAL_ERROR and let login continue through normal email linking flow.
+        if (providerOptional.isEmpty()
+                && userProviderRepository.existsByProviderAndProviderId(ProviderType.GOOGLE, googleUserId)) {
+            userProviderRepository.deleteByProviderAndProviderId(ProviderType.GOOGLE, googleUserId);
+        }
 
         if (providerOptional.isPresent()) {
             User user = providerOptional.get().getUser();
@@ -434,7 +442,11 @@ public class AuthService {
         user.setEmail(email);
         user.setPassword(null);
         user.setStatus(UserStatus.ACTIVE);
-        user = userRepository.save(user);
+        try {
+            user = userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ApiException("Email already exists");
+        }
         assignRole(user, RoleName.STUDENT);
         return user;
     }
@@ -447,7 +459,11 @@ public class AuthService {
         provider.setUser(user);
         provider.setProvider(ProviderType.GOOGLE);
         provider.setProviderId(googleUserId);
-        userProviderRepository.save(provider);
+        try {
+            userProviderRepository.saveAndFlush(provider);
+        } catch (DataIntegrityViolationException | JpaObjectRetrievalFailureException ex) {
+            throw new ApiException("Google account is already linked");
+        }
     }
 
     private boolean needsProfileCompletion(User user) {
