@@ -1,20 +1,25 @@
+import { ReactElement } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ProfileCompletionPage from './pages/ProfileCompletionPage';
 import DashboardPage from './pages/DashboardPage';
 import ApiTesterPage from './pages/ApiTesterPage';
-import { isAuthenticated, getAuthUser } from './utils/storage';
+import { getAuthUser, isAuthenticated } from './utils/storage';
 
-function RequireAuth({ children }) {
+interface RouteGuardProps {
+  children: ReactElement;
+}
+
+function RequireAuth({ children }: RouteGuardProps) {
   return isAuthenticated() ? children : <Navigate to="/" replace />;
 }
 
-function RequireProfileCompletion({ children }) {
+function RequireProfileCompletion({ children }: RouteGuardProps) {
   const user = getAuthUser();
   return user?.needsProfileCompletion !== false ? children : <Navigate to="/dashboard" replace />;
 }
 
-function RequireCompletedProfile({ children }) {
+function RequireCompletedProfile({ children }: RouteGuardProps) {
   const user = getAuthUser();
   return user?.needsProfileCompletion !== false ? <Navigate to="/profile-completion" replace /> : children;
 }

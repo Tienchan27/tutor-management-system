@@ -40,9 +40,14 @@
     ]
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.6.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
+    "typescript": "4.9.5",
     "yaml": "^2.8.3"
   }
 }

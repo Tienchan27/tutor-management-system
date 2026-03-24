@@ -1,4 +1,6 @@
-export const apiCatalog = [
+import { ApiDomainGroup } from '../types/apiCatalog';
+
+export const apiCatalog: ApiDomainGroup[] = [
   {
     domain: 'Authentication',
     endpoints: [

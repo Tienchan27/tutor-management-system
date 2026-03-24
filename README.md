@@ -97,6 +97,13 @@ MAIL_PORT=1025
   - `server.error.include-message=never` (unless overridden)
   - SQL logging off by default
 
+## Troubleshooting
+
+- Docker build fails at frontend `npm ci` with `ERESOLVE`:
+  - This project currently uses `react-scripts@5`, which is compatible with `typescript@4.x`.
+  - Keep `typescript` pinned to `4.9.5` in `frontend/package.json`.
+  - If lockfile drift occurs, run `npm install` inside `frontend/` and rebuild with `docker compose up --build -d`.
+
 ## OAuth setup (Google)
 
 Use your frontend public origin in Google Cloud Console:

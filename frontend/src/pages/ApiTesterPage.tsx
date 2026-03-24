@@ -1,71 +1,72 @@
 import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError, Method } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { apiCatalog } from '../services/apiCatalog';
 import { getAccessToken } from '../utils/storage';
 import { colors } from '../styles/colors';
+import { ApiDomainGroup, ApiEndpoint, ApiHistoryItem, ApiTesterResult, AuthMode, HttpMethod } from '../types/apiCatalog';
 
 const HISTORY_KEY = 'apiTesterHistory';
 
-function safeParseJson(input, fallback) {
+function safeParseJson(input: string, fallback: Record<string, unknown>): Record<string, unknown> | null {
   try {
-    return input?.trim() ? JSON.parse(input) : fallback;
+    return input?.trim() ? (JSON.parse(input) as Record<string, unknown>) : fallback;
   } catch {
     return null;
   }
 }
 
-function formatJson(value) {
+function formatJson(value: unknown): string {
   if (value == null) {
     return '';
   }
   return JSON.stringify(value, null, 2);
 }
 
-function loadHistory() {
+function loadHistory(): ApiHistoryItem[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as ApiHistoryItem[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveHistory(items) {
+function saveHistory(items: ApiHistoryItem[]): void {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 10)));
 }
 
-function applyPathParams(path, params) {
-  return path.replace(/\{([^}]+)\}/g, (_, key) => params[key] ?? `{${key}}`);
+function applyPathParams(path: string, params: Record<string, unknown>): string {
+  return path.replace(/\{([^}]+)\}/g, (_, key: string) => String(params[key] ?? `{${key}}`));
 }
 
 function ApiTesterPage() {
   const navigate = useNavigate();
-  const [domainIndex, setDomainIndex] = useState(0);
-  const [endpointIndex, setEndpointIndex] = useState(0);
-  const [history, setHistory] = useState(loadHistory());
-  const [authMode, setAuthMode] = useState('none');
-  const [token, setToken] = useState(getAccessToken() || '');
-  const [method, setMethod] = useState('GET');
-  const [path, setPath] = useState('');
-  const [pathParamsJson, setPathParamsJson] = useState('{}');
-  const [queryJson, setQueryJson] = useState('{}');
-  const [bodyJson, setBodyJson] = useState('{}');
-  const [headersJson, setHeadersJson] = useState('{}');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
+  const [domainIndex, setDomainIndex] = useState<number>(0);
+  const [endpointIndex, setEndpointIndex] = useState<number>(0);
+  const [history, setHistory] = useState<ApiHistoryItem[]>(loadHistory());
+  const [authMode, setAuthMode] = useState<AuthMode>('none');
+  const [token, setToken] = useState<string>(getAccessToken() || '');
+  const [method, setMethod] = useState<HttpMethod>('GET');
+  const [path, setPath] = useState<string>('');
+  const [pathParamsJson, setPathParamsJson] = useState<string>('{}');
+  const [queryJson, setQueryJson] = useState<string>('{}');
+  const [bodyJson, setBodyJson] = useState<string>('{}');
+  const [headersJson, setHeadersJson] = useState<string>('{}');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [result, setResult] = useState<ApiTesterResult | null>(null);
+  const [error, setError] = useState<string>('');
 
-  const selectedDomain = apiCatalog[domainIndex];
+  const selectedDomain: ApiDomainGroup | undefined = apiCatalog[domainIndex];
   const baseURL = process.env.REACT_APP_API_URL || '/api';
 
-  const canSendBody = useMemo(() => ['POST', 'PUT', 'PATCH'].includes(method), [method]);
+  const canSendBody = useMemo<boolean>(() => ['POST', 'PUT', 'PATCH'].includes(method), [method]);
 
-  function loadTemplate(item) {
+  function loadTemplate(item: ApiEndpoint): void {
     setMethod(item.method);
     setPath(item.path);
     setAuthMode(item.auth === 'bearer' ? 'bearer' : 'none');
@@ -77,7 +78,7 @@ function ApiTesterPage() {
     setResult(null);
   }
 
-  function selectDomain(index) {
+  function selectDomain(index: number): void {
     setDomainIndex(index);
     setEndpointIndex(0);
     const first = apiCatalog[index]?.endpoints?.[0];
@@ -86,7 +87,7 @@ function ApiTesterPage() {
     }
   }
 
-  function selectEndpoint(index) {
+  function selectEndpoint(index: number): void {
     setEndpointIndex(index);
     const item = selectedDomain?.endpoints?.[index];
     if (item) {
@@ -94,7 +95,7 @@ function ApiTesterPage() {
     }
   }
 
-  async function sendRequest() {
+  async function sendRequest(): Promise<void> {
     setLoading(true);
     setError('');
     setResult(null);
@@ -111,7 +112,13 @@ function ApiTesterPage() {
     }
 
     const resolvedPath = applyPathParams(path, parsedPathParams);
-    const mergedHeaders = { ...(parsedHeaders || {}) };
+    const mergedHeaders: Record<string, string> = Object.entries(parsedHeaders || {}).reduce<Record<string, string>>(
+      (acc, [key, value]) => {
+        acc[key] = String(value);
+        return acc;
+      },
+      {}
+    );
     if (authMode === 'bearer' && token.trim()) {
       mergedHeaders.Authorization = `Bearer ${token.trim()}`;
     }
@@ -119,14 +126,14 @@ function ApiTesterPage() {
     try {
       const response = await axios.request({
         baseURL,
-        method,
+        method: method as Method,
         url: resolvedPath,
         params: parsedQuery,
         data: canSendBody ? parsedBody : undefined,
         headers: mergedHeaders,
       });
 
-      const nextResult = {
+      const nextResult: ApiTesterResult = {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
@@ -134,15 +141,15 @@ function ApiTesterPage() {
       };
       setResult(nextResult);
 
-      const nextHistory = [
+      const nextHistory: ApiHistoryItem[] = [
         { method, path: resolvedPath, status: response.status, at: new Date().toISOString() },
         ...history,
       ];
       setHistory(nextHistory);
       saveHistory(nextHistory);
-    } catch (requestError) {
-      const response = requestError?.response;
-      const nextResult = response
+    } catch (requestError: unknown) {
+      const response = (requestError as AxiosError)?.response;
+      const nextResult: ApiTesterResult | null = response
         ? {
             status: response.status,
             statusText: response.statusText,
@@ -154,7 +161,7 @@ function ApiTesterPage() {
       if (nextResult) {
         setResult(nextResult);
       } else {
-        setError(requestError?.message || 'Request failed');
+        setError((requestError as Error)?.message || 'Request failed');
       }
     } finally {
       setLoading(false);
@@ -233,14 +240,14 @@ function ApiTesterPage() {
               Request Builder
             </h2>
             <div className="toolbar">
-              <select value={method} onChange={(event) => setMethod(event.target.value)} style={{ padding: 8 }}>
+              <select value={method} onChange={(event) => setMethod(event.target.value as HttpMethod)} style={{ padding: 8 }}>
                 {['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].map((item) => (
                   <option key={item} value={item}>
                     {item}
                   </option>
                 ))}
               </select>
-              <select value={authMode} onChange={(event) => setAuthMode(event.target.value)} style={{ padding: 8 }}>
+              <select value={authMode} onChange={(event) => setAuthMode(event.target.value as AuthMode)} style={{ padding: 8 }}>
                 <option value="none">No Auth</option>
                 <option value="bearer">Bearer Token</option>
               </select>
@@ -346,11 +353,15 @@ function ApiTesterPage() {
                   <strong>Status:</strong> {result.status} {result.statusText}
                 </p>
                 <div className="panel">
-                  <p style={{ marginTop: 0 }}><strong>Headers</strong></p>
+                  <p style={{ marginTop: 0 }}>
+                    <strong>Headers</strong>
+                  </p>
                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{formatJson(result.headers)}</pre>
                 </div>
                 <div className="panel" style={{ marginTop: 10 }}>
-                  <p style={{ marginTop: 0 }}><strong>Body</strong></p>
+                  <p style={{ marginTop: 0 }}>
+                    <strong>Body</strong>
+                  </p>
                   <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{formatJson(result.data)}</pre>
                 </div>
               </>

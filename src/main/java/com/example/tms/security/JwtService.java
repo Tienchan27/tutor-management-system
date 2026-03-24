@@ -46,6 +46,8 @@ public class JwtService {
                 .subject(userId.toString())
                 .claim("email", email)
                 .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
+                // Ensure each refresh token is unique even for back-to-back issuance.
+                .id(UUID.randomUUID().toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(REFRESH_TOKEN_TTL_SECONDS)))
                 .signWith(key)

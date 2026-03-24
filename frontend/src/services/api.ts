@@ -1,5 +1,14 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { clearAuthSession, getAccessToken, getRefreshToken } from '../utils/storage';
+
+interface RetryRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+}
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
@@ -14,7 +23,7 @@ const PUBLIC_AUTH_ENDPOINTS = new Set([
   '/auth/google',
 ]);
 
-function normalizePath(url) {
+function normalizePath(url?: string): string {
   if (!url) {
     return '';
   }
@@ -29,24 +38,24 @@ function normalizePath(url) {
   return url.startsWith('/') ? url : `/${url}`;
 }
 
-function isPublicAuthEndpoint(url) {
+function isPublicAuthEndpoint(url?: string): boolean {
   const path = normalizePath(url);
   return PUBLIC_AUTH_ENDPOINTS.has(path);
 }
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   const token = getAccessToken();
-  if (token && !isPublicAuthEndpoint(config.url || '')) {
+  if (token && !isPublicAuthEndpoint(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+  (response: AxiosResponse): AxiosResponse => response,
+  async (error: AxiosError): Promise<AxiosResponse> => {
+    const originalRequest = (error.config || {}) as RetryRequestConfig;
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         const refreshToken = getRefreshToken();
@@ -54,7 +63,7 @@ api.interceptors.response.use(
           clearAuthSession();
           return Promise.reject(error);
         }
-        const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
+        const response = await axios.post<RefreshTokenResponse>(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
         const { accessToken, refreshToken: rotatedRefreshToken } = response.data;
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', rotatedRefreshToken);

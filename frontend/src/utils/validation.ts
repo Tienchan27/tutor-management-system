@@ -1,10 +1,24 @@
-export function requirePhoneOrFacebook(phoneNumber, facebookUrl) {
+interface ProfileFormInput {
+  phoneNumber: string;
+  facebookUrl: string;
+  parentPhone: string;
+  address: string;
+}
+
+export interface NormalizedProfilePayload {
+  phoneNumber: string | null;
+  facebookUrl: string | null;
+  parentPhone: string | null;
+  address: string | null;
+}
+
+export function requirePhoneOrFacebook(phoneNumber: string, facebookUrl: string): boolean {
   const hasPhone = !!phoneNumber?.trim();
   const hasFacebook = !!facebookUrl?.trim();
   return hasPhone || hasFacebook;
 }
 
-function normalizePhoneValue(value) {
+function normalizePhoneValue(value: string): string | null {
   if (!value) {
     return null;
   }
@@ -12,7 +26,7 @@ function normalizePhoneValue(value) {
   return cleaned || null;
 }
 
-function normalizeFacebookUrl(value) {
+function normalizeFacebookUrl(value: string): string | null {
   if (!value) {
     return null;
   }
@@ -26,7 +40,7 @@ function normalizeFacebookUrl(value) {
   return `https://${trimmed}`;
 }
 
-export function normalizeProfilePayload(form) {
+export function normalizeProfilePayload(form: ProfileFormInput): NormalizedProfilePayload {
   return {
     phoneNumber: normalizePhoneValue(form.phoneNumber),
     facebookUrl: normalizeFacebookUrl(form.facebookUrl),

@@ -1,14 +1,23 @@
+import { AxiosResponse } from 'axios';
 import api from './api';
 import { saveAuthSession, setNeedsProfileCompletion } from '../utils/storage';
+import {
+  ApiErrorResponse,
+  AuthTokensResponse,
+  LoginPayload,
+  RegisterPayload,
+  UserProfile,
+  VerifyOtpPayload,
+} from '../types/auth';
 
-function inferNeedsProfileCompletion(profile) {
+function inferNeedsProfileCompletion(profile: UserProfile): boolean {
   const hasPhone = !!profile?.phoneNumber?.trim?.();
   const hasFacebook = !!profile?.facebookUrl?.trim?.();
   return !(hasPhone || hasFacebook);
 }
 
-export async function login(payload) {
-  const response = await api.post('/auth/login', payload);
+export async function login(payload: LoginPayload): Promise<AuthTokensResponse> {
+  const response = await api.post<AuthTokensResponse>('/auth/login', payload);
   const data = response.data;
   saveAuthSession({
     userId: data.userId,
@@ -20,7 +29,7 @@ export async function login(payload) {
   });
 
   try {
-    const profileResponse = await api.get('/users/me/profile');
+    const profileResponse = await api.get<UserProfile>('/users/me/profile');
     setNeedsProfileCompletion(inferNeedsProfileCompletion(profileResponse.data));
   } catch {
     // Keep conservative default (true) if profile fetch fails.
@@ -28,12 +37,12 @@ export async function login(payload) {
   return data;
 }
 
-export async function register(payload) {
+export async function register(payload: RegisterPayload): Promise<AxiosResponse<unknown>> {
   return api.post('/auth/register', payload);
 }
 
-export async function verifyOtp(payload) {
-  const response = await api.post('/auth/verify-otp', payload);
+export async function verifyOtp(payload: VerifyOtpPayload): Promise<AuthTokensResponse> {
+  const response = await api.post<AuthTokensResponse>('/auth/verify-otp', payload);
   const data = response.data;
   saveAuthSession({
     userId: data.userId,
@@ -46,6 +55,11 @@ export async function verifyOtp(payload) {
   return data;
 }
 
-export async function logout() {
+export async function logout(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export function extractApiErrorMessage(error: unknown, fallback: string): string {
+  const maybeError = error as { response?: { data?: ApiErrorResponse } };
+  return maybeError?.response?.data?.message || fallback;
 }
