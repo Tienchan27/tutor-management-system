@@ -32,7 +32,7 @@ function LandingPage() {
       navigate('/profile-completion');
       return;
     }
-    navigate('/dashboard');
+    navigate('/app');
   }
 
   async function handleGoogleLogin(idToken: string): Promise<void> {
@@ -77,9 +77,6 @@ function LandingPage() {
             >
               Sign Up
             </button>
-            <button type="button" onClick={() => navigate('/api-tester')} className="auth-link-button">
-              API Tester
-            </button>
           </div>
 
           {otpEmail ? (
@@ -98,7 +95,7 @@ function LandingPage() {
 
         <aside className="auth-side">
           <h2 className="title title-lg">Tutor Management System</h2>
-          <p className="subtitle">A clean workspace for authentication, profile setup, and API testing.</p>
+          <p className="subtitle">A clean operational workspace for admin, tutor, and student workflows.</p>
           <div className="feature-list">
             <div className="feature-item">
               <Badge>Email + Password</Badge>
@@ -109,8 +106,8 @@ function LandingPage() {
               <span className="muted">One-click OAuth with conflict handling.</span>
             </div>
             <div className="feature-item">
-              <Badge>API Testing</Badge>
-              <span className="muted">Fast endpoint validation from the UI.</span>
+              <Badge>Role-Based Portal</Badge>
+              <span className="muted">Dedicated navigation and workspaces by user role.</span>
             </div>
           </div>
         </aside>

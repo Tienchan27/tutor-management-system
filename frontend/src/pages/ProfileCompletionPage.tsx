@@ -12,7 +12,7 @@ function ProfileCompletionPage() {
         <p style={{ fontWeight: 600, marginBottom: 16 }} className="muted">
           Step 2 of 3: Complete your profile
         </p>
-        <ProfileCompletion user={user} onCompleted={() => navigate('/dashboard')} onError={(message) => window.alert(message)} />
+        <ProfileCompletion user={user} onCompleted={() => navigate('/app')} onError={(message) => window.alert(message)} />
       </div>
     </div>
   );
