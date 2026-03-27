@@ -25,6 +25,7 @@ import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.security.RoleGuard;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +67,7 @@ public class ClassAssignmentService {
         this.mailService = mailService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<SubjectOptionResponse> listSubjects() {
         return subjectRepository.findAll()
                 .stream()
@@ -73,8 +75,8 @@ public class ClassAssignmentService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public StudentLookupResponse lookupStudent(User admin, String email) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         String normalizedEmail = normalizeEmail(email);
         User user = userRepository.findByEmail(normalizedEmail).orElse(null);
         if (user == null) {
@@ -84,9 +86,8 @@ public class ClassAssignmentService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public PublishedClassResponse publishClass(User admin, PublishClassRequest request) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
-
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new ApiException("Subject not found"));
         List<PublishClassStudentRequest> students = request.students();
@@ -135,16 +136,16 @@ public class ClassAssignmentService {
         return mapPublishedClassResponse(savedClass, enrollments, List.of());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<PublishedClassResponse> listPublishedClasses(User admin) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         return tutorClassRepository.findByStatusOrderByCreatedAtDesc(ClassStatus.AVAILABLE)
                 .stream()
                 .map(this::toPublishedClassResponse)
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<TutorClassApplicationResponse> listClassApplications(User admin, UUID classId) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         tutorClassRepository.findById(classId).orElseThrow(() -> new ApiException("Class not found"));
         return classApplicationRepository.findByClassIdOrderByAppliedAtAsc(classId)
                 .stream()
@@ -153,8 +154,8 @@ public class ClassAssignmentService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public PublishedClassResponse approveApplication(User admin, UUID applicationId) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         TutorClassApplication approved = classApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ApiException("Application not found"));
 
@@ -188,8 +189,8 @@ public class ClassAssignmentService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public TutorClassApplicationResponse rejectApplication(User admin, UUID applicationId, String reason) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         TutorClassApplication application = classApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ApiException("Application not found"));
 
@@ -205,8 +206,8 @@ public class ClassAssignmentService {
         return toApplicationResponse(application);
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
     public List<AvailableClassResponse> listAvailableClasses(User tutor) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         return tutorClassRepository.findByStatusOrderByCreatedAtDesc(ClassStatus.AVAILABLE)
                 .stream()
                 .map(tutorClass -> toAvailableClassResponse(tutorClass, tutor))
@@ -214,8 +215,8 @@ public class ClassAssignmentService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('TUTOR')")
     public ApplyClassResponse applyClass(User tutor, UUID classId) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
                 .orElseThrow(() -> new ApiException("Class not found"));
         if (tutorClass.getStatus() != ClassStatus.AVAILABLE) {
@@ -247,6 +248,7 @@ public class ClassAssignmentService {
     }
 
     @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN','TUTOR')")
     public PublishedClassResponse updateClassDisplayName(User actor, UUID classId, String displayName) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
                 .orElseThrow(() -> new ApiException("Class not found"));

@@ -21,7 +21,7 @@ import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
-import com.example.tms.security.RoleGuard;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -37,7 +37,6 @@ public class DashboardService {
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
-    private final RoleGuard roleGuard;
 
     public DashboardService(
             TutorPayoutRepository tutorPayoutRepository,
@@ -45,8 +44,7 @@ public class DashboardService {
             TutorBankAccountRepository tutorBankAccountRepository,
             SessionRepository sessionRepository,
             UserRepository userRepository,
-            UserRoleRepository userRoleRepository,
-            RoleGuard roleGuard
+            UserRoleRepository userRoleRepository
     ) {
         this.tutorPayoutRepository = tutorPayoutRepository;
         this.tutorClassRepository = tutorClassRepository;
@@ -54,11 +52,10 @@ public class DashboardService {
         this.sessionRepository = sessionRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
-        this.roleGuard = roleGuard;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<TutorSummaryResponse> adminTutorSummary(User admin, YearMonth month) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         List<UserRole> tutorRoles = userRoleRepository.findByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE);
         return tutorRoles.stream()
                 .map(UserRole::getUser)
@@ -66,8 +63,8 @@ public class DashboardService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public AdminTutorDetailResponse adminTutorDetail(User admin, UUID tutorId, YearMonth month) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         User tutor = userRepository.findById(tutorId)
                 .orElseThrow(() -> new ApiException("Tutor not found"));
 
@@ -101,16 +98,16 @@ public class DashboardService {
         );
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
     public List<TutorDashboardResponse> tutorSelf(User tutor) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         return tutorPayoutRepository.findByTutorIdOrderByYearDescMonthDesc(tutor.getId())
                 .stream()
                 .map(this::toDashboard)
                 .toList();
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
     public List<TutorClassOverviewResponse> tutorClassOverview(User tutor) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         return tutorClassRepository.findByTutorId(tutor.getId())
                 .stream()
                 .map(this::toClassOverview)

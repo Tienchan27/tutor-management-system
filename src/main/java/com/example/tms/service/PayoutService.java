@@ -7,13 +7,12 @@ import com.example.tms.entity.User;
 import com.example.tms.entity.enums.NotificationType;
 import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.entity.enums.PaymentStatus;
-import com.example.tms.entity.enums.RoleName;
 import com.example.tms.exception.ApiException;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.TutorPayoutPaymentRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
-import com.example.tms.security.RoleGuard;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +34,6 @@ public class PayoutService {
     private final TutorPayoutRepository tutorPayoutRepository;
     private final TutorPayoutPaymentRepository payoutPaymentRepository;
     private final UserRepository userRepository;
-    private final RoleGuard roleGuard;
     private final NotificationService notificationService;
 
     public PayoutService(
@@ -43,20 +41,18 @@ public class PayoutService {
             TutorPayoutRepository tutorPayoutRepository,
             TutorPayoutPaymentRepository payoutPaymentRepository,
             UserRepository userRepository,
-            RoleGuard roleGuard,
             NotificationService notificationService
     ) {
         this.sessionRepository = sessionRepository;
         this.tutorPayoutRepository = tutorPayoutRepository;
         this.payoutPaymentRepository = payoutPaymentRepository;
         this.userRepository = userRepository;
-        this.roleGuard = roleGuard;
         this.notificationService = notificationService;
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public List<TutorPayout> generateMonthlyPayouts(User admin, YearMonth month) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         String payrollMonth = month.toString();
         List<Session> sessions = sessionRepository.findByPayrollMonth(payrollMonth);
         Map<UUID, List<Session>> byTutor = sessions.stream()
@@ -104,8 +100,8 @@ public class PayoutService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public TutorPayoutPayment generateQr(User admin, UUID payoutId) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> new ApiException("Payout not found"));
         String qrRef = "PAYOUT-" + payout.getYear() + "-" + String.format("%02d", payout.getMonth()) + "-" + payout.getId();
@@ -120,8 +116,8 @@ public class PayoutService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public TutorPayout confirmPaid(User admin, UUID payoutId) {
-        roleGuard.requireRole(admin, RoleName.ADMIN);
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> new ApiException("Payout not found"));
         payout.setStatus(PayoutStatus.PAID);

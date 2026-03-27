@@ -19,7 +19,7 @@ import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRoleRepository;
-import com.example.tms.security.RoleGuard;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +35,6 @@ public class SessionService {
     private final UserRoleRepository userRoleRepository;
     private final SessionFinancialEditAuditRepository auditRepository;
     private final NotificationService notificationService;
-    private final RoleGuard roleGuard;
 
     public SessionService(
             SessionRepository sessionRepository,
@@ -43,8 +42,7 @@ public class SessionService {
             EnrollmentRepository enrollmentRepository,
             UserRoleRepository userRoleRepository,
             SessionFinancialEditAuditRepository auditRepository,
-            NotificationService notificationService,
-            RoleGuard roleGuard
+            NotificationService notificationService
     ) {
         this.sessionRepository = sessionRepository;
         this.tutorClassRepository = tutorClassRepository;
@@ -52,12 +50,11 @@ public class SessionService {
         this.userRoleRepository = userRoleRepository;
         this.auditRepository = auditRepository;
         this.notificationService = notificationService;
-        this.roleGuard = roleGuard;
     }
 
     @Transactional
+    @PreAuthorize("hasRole('TUTOR')")
     public Session create(User tutor, CreateSessionRequest request) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         TutorClass tutorClass = tutorClassRepository.findById(request.classId())
                 .orElseThrow(() -> new ApiException("Class not found"));
         if (!tutorClass.getTutor().getId().equals(tutor.getId())) {
@@ -81,8 +78,8 @@ public class SessionService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('TUTOR')")
     public Session updateFinancial(User tutor, UUID sessionId, UpdateSessionFinancialRequest request) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ApiException("Session not found"));
         if (!session.getTutorClass().getTutor().getId().equals(tutor.getId())) {
@@ -124,8 +121,8 @@ public class SessionService {
         return sessionRepository.findByPayrollMonth(payrollMonth);
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
     public List<TutorSessionClassOptionResponse> getTutorClasses(User tutor) {
-        roleGuard.requireRole(tutor, RoleName.TUTOR);
         return tutorClassRepository.findByTutorId(tutor.getId())
                 .stream()
                 .map(this::toClassOptionResponse)

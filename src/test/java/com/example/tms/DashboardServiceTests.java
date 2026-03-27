@@ -6,14 +6,12 @@ import com.example.tms.entity.Subject;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.ClassStatus;
-import com.example.tms.entity.enums.RoleName;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
-import com.example.tms.security.RoleGuard;
 import com.example.tms.service.DashboardService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +26,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,9 +42,6 @@ class DashboardServiceTests {
     private UserRepository userRepository;
     @Mock
     private UserRoleRepository userRoleRepository;
-    @Mock
-    private RoleGuard roleGuard;
-
     private DashboardService dashboardService;
 
     @BeforeEach
@@ -58,8 +52,7 @@ class DashboardServiceTests {
                 tutorBankAccountRepository,
                 sessionRepository,
                 userRepository,
-                userRoleRepository,
-                roleGuard
+                userRoleRepository
         );
     }
 
@@ -88,7 +81,6 @@ class DashboardServiceTests {
 
         List<TutorClassOverviewResponse> response = dashboardService.tutorClassOverview(tutor);
 
-        verify(roleGuard).requireRole(tutor, RoleName.TUTOR);
         assertEquals(1, response.size());
         assertEquals("Math", response.getFirst().subjectName());
         assertEquals("ACTIVE", response.getFirst().classStatus());

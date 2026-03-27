@@ -96,6 +96,7 @@ class ClassAssignmentServiceTests {
         when(userRepository.findByEmail("student@example.com")).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(pendingStudent);
         when(tutorClassRepository.save(any(TutorClass.class))).thenReturn(savedClass);
+        when(enrollmentRepository.save(any(Enrollment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PublishedClassResponse response = classAssignmentService.publishClass(
                 admin,
@@ -108,7 +109,6 @@ class ClassAssignmentServiceTests {
                 )
         );
 
-        verify(roleGuard).requireRole(admin, RoleName.ADMIN);
         verify(enrollmentRepository).save(any(Enrollment.class));
         verify(mailService).sendStudentInvitationEmail("student@example.com");
         verify(userRoleService).ensureActiveRole(pendingStudent, RoleName.STUDENT, admin);
@@ -142,7 +142,6 @@ class ClassAssignmentServiceTests {
 
         var response = classAssignmentService.applyClass(tutor, tutorClass.getId());
 
-        verify(roleGuard).requireRole(tutor, RoleName.TUTOR);
         assertEquals("PENDING", response.status());
         assertEquals(tutorClass.getId(), response.classId());
     }
