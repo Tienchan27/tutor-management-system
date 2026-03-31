@@ -4,6 +4,7 @@ export interface TutorSummaryResponse {
   tutorEmail: string;
   grossRevenue: number;
   netSalary: number;
+  classesReceivingThisMonth: number;
   payoutStatus: string;
 }
 
@@ -25,7 +26,19 @@ export interface TutorClassOverviewResponse {
   latestSessionDate: string | null;
 }
 
+export interface TutorClassRosterStudentResponse {
+  studentId: string;
+  studentName: string;
+  tuitionAtLog: number;
+}
+
+export interface TutorClassRosterResponse {
+  classId: string;
+  students: TutorClassRosterStudentResponse[];
+}
+
 export interface AdminTutorPayoutSnapshotResponse {
+  payoutId: string;
   year: number;
   month: number;
   grossRevenue: number;

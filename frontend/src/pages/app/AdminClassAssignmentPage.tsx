@@ -187,7 +187,7 @@ function AdminClassAssignmentPage() {
       await publishClass({
         students,
         subjectId,
-        pricePerHour: pricePerHour ? Number(pricePerHour) : null,
+        pricePerHour: pricePerHour ? Math.round(Number(pricePerHour)) : null,
         displayName: displayName.trim() || null,
         note: note.trim() || null,
       });
@@ -326,9 +326,9 @@ function AdminClassAssignmentPage() {
               ))}
             </select>
             <input
-              className="text-input"
+              className="text-input money-number"
               type="number"
-              step="0.01"
+              step="1"
               placeholder="Tuition fee"
               value={pricePerHour}
               onChange={(event) => {
@@ -363,9 +363,11 @@ function AdminClassAssignmentPage() {
             onChange={(event) => setNote(event.target.value)}
           />
 
-          <button className="btn btn-primary compact-btn" type="submit" disabled={publishing}>
-            {publishing ? 'Publishing...' : 'Publish'}
-          </button>
+          <div className="form-actions">
+            <button className="btn btn-primary compact-btn" type="submit" disabled={publishing}>
+              {publishing ? 'Publishing...' : 'Publish'}
+            </button>
+          </div>
         </form>
       </div>
 

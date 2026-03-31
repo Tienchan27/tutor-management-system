@@ -8,8 +8,8 @@ public record TutorSessionClassOptionResponse(
         UUID id,
         String className,
         String subjectName,
-        BigDecimal pricePerHour,
+        Long pricePerHour,
         BigDecimal defaultSalaryRate,
-        List<String> studentNames
+        List<TutorSessionStudentOptionResponse> students
 ) {
 }

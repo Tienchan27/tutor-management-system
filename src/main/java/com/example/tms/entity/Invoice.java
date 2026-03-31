@@ -55,8 +55,9 @@ public class Invoice {
     @Column(name = "total_hours", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalHours;
 
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount;
+    // Money in VND integer.
+    @Column(name = "total_amount", nullable = false)
+    private Long totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

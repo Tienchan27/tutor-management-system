@@ -44,8 +44,9 @@ public class Session {
     @Column(name = "duration_hours", nullable = false, precision = 5, scale = 2)
     private BigDecimal durationHours;
 
-    @Column(name = "tuition_at_log", nullable = false, precision = 10, scale = 2)
-    private BigDecimal tuitionAtLog;
+    // Money in VND integer.
+    @Column(name = "tuition_at_log", nullable = false)
+    private Long tuitionAtLog;
 
     @Column(name = "salary_rate_at_log", nullable = false, precision = 5, scale = 4)
     private BigDecimal salaryRateAtLog;

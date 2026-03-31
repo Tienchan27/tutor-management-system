@@ -1,14 +1,14 @@
 package com.example.tms.api.dto.dashboard;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 public record TutorSummaryResponse(
         UUID tutorId,
         String tutorName,
         String tutorEmail,
-        BigDecimal grossRevenue,
-        BigDecimal netSalary,
+        Long grossRevenue,
+        Long netSalary,
+        Long classesReceivingThisMonth,
         String payoutStatus
 ) {
 }

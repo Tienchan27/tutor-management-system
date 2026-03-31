@@ -45,8 +45,8 @@ public class TutorClass {
     @JoinColumn(name = "tutor_id")
     private User tutor;
 
-    @Column(name = "price_per_hour", nullable = false, precision = 10, scale = 2)
-    private BigDecimal pricePerHour;
+    @Column(name = "price_per_hour", nullable = false)
+    private Long pricePerHour;
 
     @Column(name = "default_salary_rate", nullable = false, precision = 5, scale = 4)
     private BigDecimal defaultSalaryRate = new BigDecimal("0.7500");

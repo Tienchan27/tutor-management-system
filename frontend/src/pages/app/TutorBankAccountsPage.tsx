@@ -77,31 +77,35 @@ function TutorBankAccountsPage() {
       <div className="card">
         <h2 className="title title-lg">Bank Accounts</h2>
         <p className="subtitle">Manage payout destination accounts for salary transfers.</p>
-        <form onSubmit={handleCreate} className="grid-form">
-          <input
-            className="text-input"
-            placeholder="Bank name"
-            value={form.bankName}
-            onChange={(event) => setForm((prev) => ({ ...prev, bankName: event.target.value }))}
-            required
-          />
-          <input
-            className="text-input"
-            placeholder="Account number"
-            value={form.accountNumber}
-            onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
-            required
-          />
-          <input
-            className="text-input"
-            placeholder="Account holder name"
-            value={form.accountHolderName}
-            onChange={(event) => setForm((prev) => ({ ...prev, accountHolderName: event.target.value }))}
-            required
-          />
-          <button type="submit" className="btn btn-primary compact-btn">
-            Add Account
-          </button>
+        <form onSubmit={handleCreate} className="stack-16">
+          <div className="grid-form">
+            <input
+              className="text-input"
+              placeholder="Bank name"
+              value={form.bankName}
+              onChange={(event) => setForm((prev) => ({ ...prev, bankName: event.target.value }))}
+              required
+            />
+            <input
+              className="text-input"
+              placeholder="Account number"
+              value={form.accountNumber}
+              onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
+              required
+            />
+            <input
+              className="text-input"
+              placeholder="Account holder name"
+              value={form.accountHolderName}
+              onChange={(event) => setForm((prev) => ({ ...prev, accountHolderName: event.target.value }))}
+              required
+            />
+          </div>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary compact-btn">
+              Add Account
+            </button>
+          </div>
         </form>
         {error ? <p className="error-text">{error}</p> : null}
         {success ? <p className="success-text">{success}</p> : null}

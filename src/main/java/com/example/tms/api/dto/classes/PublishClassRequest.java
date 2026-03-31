@@ -1,6 +1,7 @@
 package com.example.tms.api.dto.classes;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
@@ -17,8 +18,8 @@ public record PublishClassRequest(
         @NotNull
         UUID subjectId,
 
-        @DecimalMin(value = "0.00", inclusive = true)
-        BigDecimal pricePerHour,
+        @Min(0)
+        Long pricePerHour,
 
         @Size(max = 255)
         String displayName,

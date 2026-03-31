@@ -72,38 +72,44 @@ function AccountPage() {
               <p><strong>Email:</strong> {profile.email}</p>
               <p><strong>Status:</strong> {profile.status}</p>
             </div>
-            <form onSubmit={handleSubmit} className="grid-form">
-              <input
-                className="text-input"
-                placeholder="Name"
-                value={form.name || ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              />
-              <input
-                className="text-input"
-                placeholder="Phone number"
-                value={form.phoneNumber || ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
-              />
-              <input
-                className="text-input"
-                placeholder="Facebook URL"
-                value={form.facebookUrl || ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, facebookUrl: event.target.value }))}
-              />
-              <input
-                className="text-input"
-                placeholder="Parent phone"
-                value={form.parentPhone || ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
-              />
-              <input
-                className="text-input"
-                placeholder="Address"
-                value={form.address || ''}
-                onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-              />
-              <button type="submit" className="btn btn-primary compact-btn">Save Changes</button>
+            <form onSubmit={handleSubmit} className="stack-16">
+              <div className="grid-form">
+                <input
+                  className="text-input"
+                  placeholder="Name"
+                  value={form.name || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Phone number"
+                  value={form.phoneNumber || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Facebook URL"
+                  value={form.facebookUrl || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, facebookUrl: event.target.value }))}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Parent phone"
+                  value={form.parentPhone || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Address"
+                  value={form.address || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary compact-btn">
+                  Save Changes
+                </button>
+              </div>
             </form>
           </div>
         ) : null}

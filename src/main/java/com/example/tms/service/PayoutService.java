@@ -53,6 +53,11 @@ public class PayoutService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public List<TutorPayout> generateMonthlyPayouts(User admin, YearMonth month) {
+        return generateMonthlyPayoutsInternal(month);
+    }
+
+    @Transactional
+    List<TutorPayout> generateMonthlyPayoutsInternal(YearMonth month) {
         String payrollMonth = month.toString();
         List<Session> sessions = sessionRepository.findByPayrollMonth(payrollMonth);
         Map<UUID, List<Session>> byTutor = sessions.stream()
@@ -72,20 +77,21 @@ public class PayoutService {
                         newPayout.setMonth(month.getMonthValue());
                         return newPayout;
                     });
-            if (payout.getStatus() == PayoutStatus.PAID) {
+            // Preserve manual overrides (status LOCKED) and keep idempotency.
+            if (payout.getStatus() == PayoutStatus.PAID || payout.getStatus() == PayoutStatus.LOCKED) {
                 continue;
             }
 
-            BigDecimal gross = BigDecimal.ZERO;
+            long gross = 0L;
             BigDecimal net = BigDecimal.ZERO;
             for (Session session : tutorSessions) {
-                BigDecimal tuition = session.getTuitionAtLog();
                 BigDecimal rate = resolveRate(session);
-                gross = gross.add(tuition);
-                net = net.add(tuition.multiply(rate));
+                long tuition = session.getTuitionAtLog();
+                gross += tuition;
+                net = net.add(BigDecimal.valueOf(tuition).multiply(rate));
             }
-            payout.setGrossRevenue(gross.setScale(2, RoundingMode.HALF_UP));
-            payout.setNetSalary(net.setScale(2, RoundingMode.HALF_UP));
+            payout.setGrossRevenue(gross);
+            payout.setNetSalary(net.setScale(0, RoundingMode.HALF_UP).longValueExact());
             payout.setStatus(PayoutStatus.LOCKED);
             generated.add(tutorPayoutRepository.save(payout));
 
@@ -97,6 +103,29 @@ public class PayoutService {
             );
         }
         return generated;
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public TutorPayout overrideNetSalary(User admin, UUID payoutId, Long netSalary) {
+        TutorPayout payout = tutorPayoutRepository.findById(payoutId)
+                .orElseThrow(() -> new ApiException("Payout not found"));
+
+        if (payout.getStatus() != PayoutStatus.LOCKED) {
+            throw new ApiException("Payout net salary can only be overridden while LOCKED");
+        }
+
+        payout.setNetSalary(netSalary);
+        TutorPayout saved = tutorPayoutRepository.save(payout);
+
+        notificationService.notifyUser(
+                payout.getTutor(),
+                NotificationType.PAYOUT_UPDATED,
+                "Payout net salary updated",
+                "Admin updated net salary for payout " + payout.getId() + "."
+        );
+
+        return saved;
     }
 
     @Transactional

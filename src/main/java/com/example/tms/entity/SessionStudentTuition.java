@@ -1,34 +1,32 @@
 package com.example.tms.entity;
 
-import com.example.tms.entity.enums.PayoutStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import jakarta.persistence.GenerationType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "tutor_payouts",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"tutor_id", "year", "month"}))
-public class TutorPayout {
+@Table(
+        name = "session_student_tuitions",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"session_id", "student_id"})
+)
+public class SessionStudentTuition {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @UuidGenerator
@@ -36,32 +34,15 @@ public class TutorPayout {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tutor_id", nullable = false)
-    private User tutor;
-
-    @Column(nullable = false)
-    private Integer year;
-
-    @Column(nullable = false)
-    private Integer month;
-
-    // Money in VND integer.
-    @Column(name = "gross_revenue", nullable = false)
-    private Long grossRevenue = 0L;
-
-    @Column(name = "net_salary", nullable = false)
-    private Long netSalary = 0L;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private PayoutStatus status = PayoutStatus.OPEN;
-
-    @Column(name = "paid_at")
-    private LocalDateTime paidAt;
+    @JoinColumn(name = "session_id", nullable = false)
+    private Session session;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "paid_by")
-    private User paidBy;
+    @JoinColumn(name = "student_id", nullable = false)
+    private User student;
+
+    @Column(name = "tuition_at_log", nullable = false)
+    private Long tuitionAtLog = 0L;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -71,3 +52,4 @@ public class TutorPayout {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }
+

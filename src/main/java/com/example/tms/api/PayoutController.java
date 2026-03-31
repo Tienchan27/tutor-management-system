@@ -3,12 +3,16 @@ package com.example.tms.api;
 import com.example.tms.entity.TutorPayout;
 import com.example.tms.entity.TutorPayoutPayment;
 import com.example.tms.security.CurrentUserResolver;
+import com.example.tms.api.dto.payout.OverrideNetSalaryRequest;
 import com.example.tms.service.PayoutService;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -41,5 +45,13 @@ public class PayoutController {
     @PostMapping("/{payoutId}/confirm-paid")
     public TutorPayout confirmPaid(@PathVariable UUID payoutId) {
         return payoutService.confirmPaid(currentUserResolver.requireUser(), payoutId);
+    }
+
+    @PatchMapping("/{payoutId}/override-net-salary")
+    public TutorPayout overrideNetSalary(
+            @PathVariable UUID payoutId,
+            @Valid @RequestBody OverrideNetSalaryRequest request
+    ) {
+        return payoutService.overrideNetSalary(currentUserResolver.requireUser(), payoutId, request.netSalary());
     }
 }

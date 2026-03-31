@@ -17,3 +17,8 @@ export async function confirmPayoutPaid(payoutId: string): Promise<TutorPayout> 
   const response = await api.post<TutorPayout>(`/payouts/${payoutId}/confirm-paid`);
   return response.data;
 }
+
+export async function overrideNetSalary(payoutId: string, netSalaryVnd: number): Promise<TutorPayout> {
+  const response = await api.patch<TutorPayout>(`/payouts/${payoutId}/override-net-salary`, { netSalary: netSalaryVnd });
+  return response.data;
+}

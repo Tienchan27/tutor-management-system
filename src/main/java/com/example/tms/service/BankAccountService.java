@@ -2,7 +2,6 @@ package com.example.tms.service;
 
 import com.example.tms.api.dto.bank.BankAccountResponse;
 import com.example.tms.api.dto.bank.CreateBankAccountRequest;
-import com.example.tms.api.dto.bank.VerifyBankAccountRequest;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.User;
 import com.example.tms.exception.ApiException;
@@ -40,7 +39,9 @@ public class BankAccountService {
         account.setAccountNumber(request.accountNumber());
         account.setAccountHolderName(request.accountHolderName());
         account.setPrimary(!hasPrimary); // First account is primary, others are not
-        account.setVerified(false);
+        // Soft-transition: tutors no longer require admin verification.
+        account.setVerified(true);
+        account.setVerifiedAt(LocalDateTime.now());
 
         account = bankAccountRepository.save(account);
         return mapToResponse(account);
@@ -101,34 +102,6 @@ public class BankAccountService {
     }
 
     // === ADMIN METHODS ===
-
-    @Transactional
-    public BankAccountResponse verifyBankAccount(UUID adminId, UUID accountId, VerifyBankAccountRequest request) {
-        TutorBankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ApiException("Bank account not found"));
-
-        User admin = userRepository.findById(adminId)
-                .orElseThrow(() -> new ApiException("Admin not found"));
-
-        if (account.isVerified()) {
-            throw new ApiException("This account is already verified");
-        }
-
-        account.setVerified(true);
-        account.setVerifiedAt(LocalDateTime.now());
-        account.setVerifiedBy(admin);
-        account.setNotes(request.notes());
-
-        account = bankAccountRepository.save(account);
-        return mapToResponse(account);
-    }
-
-    public List<BankAccountResponse> listPendingVerifications() {
-        List<TutorBankAccount> accounts = bankAccountRepository.findByIsVerifiedFalseOrderByCreatedAtAsc();
-        return accounts.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
 
     private BankAccountResponse mapToResponse(TutorBankAccount account) {
         return new BankAccountResponse(

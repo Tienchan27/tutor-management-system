@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { getAdminTutorDetail, getAdminTutorSummary, inviteTutor } from '../../services/dashboardService';
+import { getAdminTutorDetail, getAdminTutorSummary, inviteTutor, revokeTutorRole } from '../../services/dashboardService';
 import { AdminTutorDetailResponse, TutorSummaryResponse } from '../../types/dashboard';
 import { extractApiErrorMessage } from '../../services/authService';
+import { confirmPayoutPaid, generateMonthlyPayouts, generatePayoutQr, overrideNetSalary } from '../../services/payoutService';
+import { TutorPayoutPayment } from '../../types/payouts';
 
 function getCurrentMonth(): string {
   const now = new Date();
@@ -13,6 +15,12 @@ function AdminTutorManagementPage() {
   const [items, setItems] = useState<TutorSummaryResponse[]>([]);
   const [detail, setDetail] = useState<AdminTutorDetailResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [payoutActionLoading, setPayoutActionLoading] = useState<string>('');
+  const [overrideLoadingId, setOverrideLoadingId] = useState<string>('');
+  const [netSalaryDraftById, setNetSalaryDraftById] = useState<Record<string, number>>({});
+  const [selectedPayment, setSelectedPayment] = useState<TutorPayoutPayment | null>(null);
+  const [deleteConfirmTutorId, setDeleteConfirmTutorId] = useState<string>('');
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [inviteLoading, setInviteLoading] = useState<boolean>(false);
   const [inviteEmail, setInviteEmail] = useState<string>('');
   const [inviteMessage, setInviteMessage] = useState<string>('');
@@ -41,6 +49,19 @@ function AdminTutorManagementPage() {
     }
   }
 
+  async function refreshAfterPayoutAction(): Promise<void> {
+    if (!detail?.tutorId) {
+      return;
+    }
+    setError('');
+    try {
+      await loadSummary();
+      await loadDetail(detail.tutorId);
+    } catch {
+      // error already handled in called functions
+    }
+  }
+
   async function handleInviteTutor(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
@@ -63,6 +84,88 @@ function AdminTutorManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
+  async function handleGenerateForMonth(): Promise<void> {
+    if (!detail?.tutorId) {
+      return;
+    }
+    setPayoutActionLoading('generate_month');
+    setError('');
+    try {
+      await generateMonthlyPayouts(month);
+      await refreshAfterPayoutAction();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to generate monthly payouts'));
+    } finally {
+      setPayoutActionLoading('');
+    }
+  }
+
+  async function handleGenerateQr(payoutId: string): Promise<void> {
+    setPayoutActionLoading(payoutId);
+    setError('');
+    try {
+      const payment = await generatePayoutQr(payoutId);
+      setSelectedPayment(payment);
+      await refreshAfterPayoutAction();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to generate payout QR'));
+    } finally {
+      setPayoutActionLoading('');
+    }
+  }
+
+  async function handleConfirmPaid(payoutId: string): Promise<void> {
+    setPayoutActionLoading(`confirm_${payoutId}`);
+    setError('');
+    try {
+      await confirmPayoutPaid(payoutId);
+      await refreshAfterPayoutAction();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to confirm paid'));
+    } finally {
+      setPayoutActionLoading('');
+    }
+  }
+
+  async function handleOverrideNetSalary(payoutId: string): Promise<void> {
+    setError('');
+    setOverrideLoadingId(payoutId);
+    try {
+      const nextNetSalary = netSalaryDraftById[payoutId] ?? (detail?.payout?.netSalary ?? 0);
+      await overrideNetSalary(payoutId, nextNetSalary);
+      await refreshAfterPayoutAction();
+      setNetSalaryDraftById((prev) => {
+        const copy = { ...prev };
+        delete copy[payoutId];
+        return copy;
+      });
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to override net salary'));
+    } finally {
+      setOverrideLoadingId('');
+    }
+  }
+
+  async function handleRevokeTutorRole(tutorId: string): Promise<void> {
+    if (deleteConfirmTutorId !== tutorId) {
+      setDeleteConfirmTutorId(tutorId);
+      return;
+    }
+    setDeleteLoading(true);
+    setError('');
+    try {
+      await revokeTutorRole(tutorId);
+      setDetail(null);
+      setDeleteConfirmTutorId('');
+      setSelectedPayment(null);
+      await loadSummary();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to revoke tutor role'));
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="stack-16">
       <div className="card">
@@ -73,18 +176,22 @@ function AdminTutorManagementPage() {
           </div>
           <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="input-month" />
         </div>
-        <form onSubmit={handleInviteTutor} className="grid-form">
-          <input
-            type="email"
-            className="text-input"
-            placeholder="New tutor email"
-            value={inviteEmail}
-            onChange={(event) => setInviteEmail(event.target.value)}
-            required
-          />
-          <button className="btn btn-primary compact-btn" type="submit" disabled={inviteLoading}>
-            {inviteLoading ? 'Adding...' : 'Add Tutor'}
-          </button>
+        <form onSubmit={handleInviteTutor} className="stack-16">
+          <div className="grid-form">
+            <input
+              type="email"
+              className="text-input"
+              placeholder="New tutor email"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              required
+            />
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-primary compact-btn" type="submit" disabled={inviteLoading}>
+              {inviteLoading ? 'Adding...' : 'Add Tutor'}
+            </button>
+          </div>
         </form>
         {inviteMessage ? <p className="success-text">{inviteMessage}</p> : null}
       </div>
@@ -102,6 +209,7 @@ function AdminTutorManagementPage() {
                   <th>Tutor</th>
                   <th>Gross Revenue</th>
                   <th>Net Salary</th>
+                  <th>Classes (this month)</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -112,6 +220,7 @@ function AdminTutorManagementPage() {
                     <td>{item.tutorName} ({item.tutorEmail})</td>
                     <td>{item.grossRevenue.toLocaleString()}</td>
                     <td>{item.netSalary.toLocaleString()}</td>
+                    <td>{item.classesReceivingThisMonth}</td>
                     <td>{item.payoutStatus}</td>
                     <td>
                       <button className="btn btn-outline table-action" onClick={() => loadDetail(item.tutorId)} type="button">
@@ -152,10 +261,79 @@ function AdminTutorManagementPage() {
                 {detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')} | Gross: {detail.payout.grossRevenue.toLocaleString()} |
                 Net: {detail.payout.netSalary.toLocaleString()} | Status: {detail.payout.status}
               </p>
+
+              <div style={{ marginTop: 12 }}>
+                <h4 className="section-title" style={{ marginBottom: 8 }}>Monthly payout actions</h4>
+
+                {detail.payout.status === 'LOCKED' ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                    <input
+                      className="table-input money-number"
+                      type="number"
+                      step="1"
+                      value={netSalaryDraftById[detail.payout!.payoutId] ?? detail.payout.netSalary}
+                      onChange={(event) => setNetSalaryDraftById((prev) => ({ ...prev, [detail.payout!.payoutId]: Math.round(Number(event.target.value)) }))}
+                      style={{ maxWidth: 160 }}
+                      disabled={overrideLoadingId === detail.payout!.payoutId}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline table-action"
+                      onClick={() => handleOverrideNetSalary(detail.payout!.payoutId)}
+                      disabled={overrideLoadingId === detail.payout!.payoutId}
+                    >
+                      {overrideLoadingId === detail.payout!.payoutId ? 'Saving...' : 'Save Override'}
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="table-actions" style={{ justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline table-action"
+                    onClick={() => handleGenerateQr(detail.payout!.payoutId)}
+                    disabled={detail.payout.status === 'PAID' || payoutActionLoading === detail.payout!.payoutId}
+                  >
+                    {payoutActionLoading === detail.payout!.payoutId ? 'Generating...' : 'Generate QR'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary table-action"
+                    onClick={() => handleConfirmPaid(detail.payout!.payoutId)}
+                    disabled={detail.payout.status === 'PAID' || payoutActionLoading === `confirm_${detail.payout!.payoutId}`}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {payoutActionLoading === `confirm_${detail.payout!.payoutId}` ? 'Confirming...' : 'Confirm Paid'}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <p className="muted">No payout generated for selected month.</p>
           )}
+
+          {!detail.payout ? (
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleGenerateForMonth}
+                disabled={payoutActionLoading === 'generate_month'}
+              >
+                {payoutActionLoading === 'generate_month' ? 'Generating...' : 'Generate payouts for this month'}
+              </button>
+            </div>
+          ) : null}
+
+          {selectedPayment ? (
+            <div className="panel" style={{ marginTop: 12 }}>
+              <strong>Latest QR payload</strong>
+              <p className="muted" style={{ marginBottom: 6 }}>
+                Reference: {selectedPayment.qrRef} | Status: {selectedPayment.status}
+              </p>
+              <pre className="pre-wrap" style={{ margin: 0 }}>{selectedPayment.qrPayload}</pre>
+            </div>
+          ) : null}
 
           <h4 className="section-title">Bank accounts</h4>
           {!detail.bankAccounts.length ? <p className="muted">No bank accounts.</p> : null}
@@ -216,6 +394,19 @@ function AdminTutorManagementPage() {
               </table>
             </div>
           ) : null}
+
+          <div style={{ marginTop: 16 }}>
+            <h4 className="section-title">Tutor actions</h4>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => handleRevokeTutorRole(detail.tutorId)}
+              disabled={deleteLoading}
+            >
+              {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke tutor role' : 'Delete tutor (revoke TUTOR role)'}
+            </button>
+            {deleteConfirmTutorId === detail.tutorId ? <p className="muted" style={{ marginTop: 8 }}>Click again to confirm.</p> : null}
+          </div>
         </div>
       ) : null}
     </div>

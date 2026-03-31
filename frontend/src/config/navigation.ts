@@ -3,7 +3,6 @@ import { NavItemConfig } from '../types/app';
 export const navigationItems: NavItemConfig[] = [
   { label: 'Tutor Management', path: '/app/admin/tutors', roles: ['ADMIN'] },
   { label: 'Class Assignment', path: '/app/admin/class-assignment', roles: ['ADMIN'] },
-  { label: 'Bank Verification', path: '/app/admin/bank-verification', roles: ['ADMIN'] },
   { label: 'Payouts', path: '/app/admin/payouts', roles: ['ADMIN'] },
   { label: 'Tutor Dashboard', path: '/app/tutor/dashboard', roles: ['TUTOR'] },
   { label: 'Class Marketplace', path: '/app/tutor/available-classes', roles: ['TUTOR'] },

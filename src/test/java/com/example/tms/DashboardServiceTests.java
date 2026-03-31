@@ -6,7 +6,9 @@ import com.example.tms.entity.Subject;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.ClassStatus;
+import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.SessionRepository;
+import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
@@ -36,6 +38,13 @@ class DashboardServiceTests {
     private TutorClassRepository tutorClassRepository;
     @Mock
     private SessionRepository sessionRepository;
+
+    @Mock
+    private EnrollmentRepository enrollmentRepository;
+
+    @Mock
+    private SessionStudentTuitionRepository sessionStudentTuitionRepository;
+
     @Mock
     private TutorBankAccountRepository tutorBankAccountRepository;
     @Mock
@@ -51,6 +60,8 @@ class DashboardServiceTests {
                 tutorClassRepository,
                 tutorBankAccountRepository,
                 sessionRepository,
+                enrollmentRepository,
+                sessionStudentTuitionRepository,
                 userRepository,
                 userRoleRepository
         );
@@ -69,7 +80,7 @@ class DashboardServiceTests {
         tutorClass.setTutor(tutor);
         tutorClass.setSubject(subject);
         tutorClass.setStatus(ClassStatus.ACTIVE);
-        tutorClass.setPricePerHour(new BigDecimal("250000"));
+        tutorClass.setPricePerHour(250000L);
         tutorClass.setDefaultSalaryRate(new BigDecimal("0.7500"));
 
         Session latest = new Session();

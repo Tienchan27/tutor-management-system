@@ -4,10 +4,6 @@ export interface CreateBankAccountRequest {
   accountHolderName: string;
 }
 
-export interface VerifyBankAccountRequest {
-  notes?: string | null;
-}
-
 export interface BankAccountResponse {
   id: string;
   bankName: string;

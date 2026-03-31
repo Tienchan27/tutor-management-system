@@ -12,7 +12,6 @@ import UnauthorizedPage from './pages/app/UnauthorizedPage';
 import NotFoundPage from './pages/app/NotFoundPage';
 import AdminTutorManagementPage from './pages/app/AdminTutorManagementPage';
 import AdminClassAssignmentPage from './pages/app/AdminClassAssignmentPage';
-import AdminBankVerificationPage from './pages/app/AdminBankVerificationPage';
 import AdminPayoutsPage from './pages/app/AdminPayoutsPage';
 import TutorDashboardPage from './pages/app/TutorDashboardPage';
 import TutorSessionsPage from './pages/app/TutorSessionsPage';
@@ -144,14 +143,6 @@ function App() {
           element={
             <RoleGate allowed={['ADMIN']}>
               <AdminClassAssignmentPage />
-            </RoleGate>
-          }
-        />
-        <Route
-          path="admin/bank-verification"
-          element={
-            <RoleGate allowed={['ADMIN']}>
-              <AdminBankVerificationPage />
             </RoleGate>
           }
         />

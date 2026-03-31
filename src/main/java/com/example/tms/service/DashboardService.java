@@ -5,17 +5,24 @@ import com.example.tms.api.dto.dashboard.AdminTutorDetailResponse;
 import com.example.tms.api.dto.dashboard.AdminTutorPayoutSnapshotResponse;
 import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
+import com.example.tms.api.dto.dashboard.TutorClassRosterResponse;
+import com.example.tms.api.dto.dashboard.TutorClassRosterStudentResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.TutorPayout;
+import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.User;
 import com.example.tms.entity.UserRole;
+import com.example.tms.entity.SessionStudentTuition;
 import com.example.tms.entity.enums.RoleName;
+import com.example.tms.entity.enums.EnrollmentStatus;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.SessionRepository;
+import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
@@ -23,8 +30,8 @@ import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +42,8 @@ public class DashboardService {
     private final TutorClassRepository tutorClassRepository;
     private final TutorBankAccountRepository tutorBankAccountRepository;
     private final SessionRepository sessionRepository;
+    private final EnrollmentRepository enrollmentRepository;
+    private final SessionStudentTuitionRepository sessionStudentTuitionRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
 
@@ -43,6 +52,8 @@ public class DashboardService {
             TutorClassRepository tutorClassRepository,
             TutorBankAccountRepository tutorBankAccountRepository,
             SessionRepository sessionRepository,
+            EnrollmentRepository enrollmentRepository,
+            SessionStudentTuitionRepository sessionStudentTuitionRepository,
             UserRepository userRepository,
             UserRoleRepository userRoleRepository
     ) {
@@ -50,6 +61,8 @@ public class DashboardService {
         this.tutorClassRepository = tutorClassRepository;
         this.tutorBankAccountRepository = tutorBankAccountRepository;
         this.sessionRepository = sessionRepository;
+        this.enrollmentRepository = enrollmentRepository;
+        this.sessionStudentTuitionRepository = sessionStudentTuitionRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
     }
@@ -87,6 +100,7 @@ public class DashboardService {
                 tutor.getFacebookUrl(),
                 tutor.getAddress(),
                 payout == null ? null : new AdminTutorPayoutSnapshotResponse(
+                        payout.getId(),
                         payout.getYear(),
                         payout.getMonth(),
                         payout.getGrossRevenue(),
@@ -114,15 +128,61 @@ public class DashboardService {
                 .toList();
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
+    @Transactional(readOnly = true)
+    public TutorClassRosterResponse tutorClassRoster(User tutor, UUID classId) {
+        TutorClass tutorClass = tutorClassRepository.findById(classId)
+                .orElseThrow(() -> new ApiException("Class not found"));
+        if (tutorClass.getTutor() == null || !tutorClass.getTutor().getId().equals(tutor.getId())) {
+            throw new ApiException("Not authorized to view roster for this class");
+        }
+
+        List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(classId, EnrollmentStatus.ACTIVE);
+
+        Session latestSession = sessionRepository.findTopByTutorClassIdOrderByDateDesc(classId).orElse(null);
+        java.util.Map<UUID, Long> tuitionByStudentIdComputed;
+        if (latestSession != null) {
+            List<SessionStudentTuition> lines = sessionStudentTuitionRepository.findBySessionIdWithStudent(latestSession.getId());
+            tuitionByStudentIdComputed = lines.stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            l -> l.getStudent().getId(),
+                            SessionStudentTuition::getTuitionAtLog,
+                            (a, b) -> a
+                    ));
+        } else {
+            tuitionByStudentIdComputed = java.util.Map.of();
+        }
+
+        List<TutorClassRosterStudentResponse> students = activeEnrollments.stream()
+                .map(enrollment -> new TutorClassRosterStudentResponse(
+                        enrollment.getStudent().getId(),
+                        enrollment.getStudent().getName(),
+                        tuitionByStudentIdComputed.getOrDefault(enrollment.getStudent().getId(), 0L)
+                ))
+                .toList();
+
+        return new TutorClassRosterResponse(
+                classId,
+                students
+        );
+    }
+
     private TutorSummaryResponse toSummary(User tutor, YearMonth month) {
         TutorPayout payout = tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), month.getYear(), month.getMonthValue())
                 .orElse(null);
+
+        List<Session> sessionsThisMonth = sessionRepository.findByTutorClassTutorIdAndPayrollMonth(tutor.getId(), month.toString());
+        long classesReceivingThisMonth = sessionsThisMonth.stream()
+                .map(s -> s.getTutorClass().getId())
+                .distinct()
+                .count();
         return new TutorSummaryResponse(
                 tutor.getId(),
                 tutor.getName(),
                 tutor.getEmail(),
-                payout == null ? BigDecimal.ZERO : payout.getGrossRevenue(),
-                payout == null ? BigDecimal.ZERO : payout.getNetSalary(),
+                payout == null ? 0L : payout.getGrossRevenue(),
+                payout == null ? 0L : payout.getNetSalary(),
+                classesReceivingThisMonth,
                 payout == null ? "NO_PAYOUT" : payout.getStatus().name()
         );
     }

@@ -4,6 +4,7 @@ import {
   InviteTutorRequest,
   InviteTutorResponse,
   TutorClassOverviewResponse,
+  TutorClassRosterResponse,
   TutorDashboardResponse,
   TutorSummaryResponse,
 } from '../types/dashboard';
@@ -32,7 +33,17 @@ export async function getTutorClassOverview(): Promise<TutorClassOverviewRespons
   return response.data;
 }
 
+export async function getTutorClassRoster(classId: string): Promise<TutorClassRosterResponse> {
+  const response = await api.get<TutorClassRosterResponse>(`/dashboard/tutor/classes/${classId}/roster`);
+  return response.data;
+}
+
 export async function inviteTutor(payload: InviteTutorRequest): Promise<InviteTutorResponse> {
   const response = await api.post<InviteTutorResponse>('/admin/tutors/invite', payload);
+  return response.data;
+}
+
+export async function revokeTutorRole(tutorId: string): Promise<{ message: string }> {
+  const response = await api.patch<{ message: string }>(`/admin/tutors/${tutorId}/revoke-tutor-role`, null);
   return response.data;
 }

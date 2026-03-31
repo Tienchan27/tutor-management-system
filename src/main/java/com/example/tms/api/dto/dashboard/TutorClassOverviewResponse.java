@@ -8,7 +8,7 @@ public record TutorClassOverviewResponse(
         UUID classId,
         String subjectName,
         String classStatus,
-        BigDecimal pricePerHour,
+        Long pricePerHour,
         BigDecimal defaultSalaryRate,
         long sessionCount,
         LocalDate latestSessionDate

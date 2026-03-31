@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -28,6 +27,7 @@ public class Subject {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "default_price_per_hour", nullable = false, precision = 10, scale = 2)
-    private BigDecimal defaultPricePerHour;
+    // Money in VND integer.
+    @Column(name = "default_price_per_hour", nullable = false)
+    private Long defaultPricePerHour;
 }

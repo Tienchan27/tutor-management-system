@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getTutorClassOverview, getTutorDashboard } from '../../services/dashboardService';
-import { TutorClassOverviewResponse, TutorDashboardResponse } from '../../types/dashboard';
+import { getTutorClassOverview, getTutorDashboard, getTutorClassRoster } from '../../services/dashboardService';
+import { TutorClassOverviewResponse, TutorClassRosterResponse, TutorDashboardResponse } from '../../types/dashboard';
 import { extractApiErrorMessage } from '../../services/authService';
 
 function TutorDashboardPage() {
@@ -8,6 +8,10 @@ function TutorDashboardPage() {
   const [classes, setClasses] = useState<TutorClassOverviewResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+
+  const [rosterLoading, setRosterLoading] = useState<boolean>(false);
+  const [rosterError, setRosterError] = useState<string>('');
+  const [roster, setRoster] = useState<TutorClassRosterResponse | null>(null);
 
   useEffect(() => {
     async function load(): Promise<void> {
@@ -25,6 +29,20 @@ function TutorDashboardPage() {
     }
     load();
   }, []);
+
+  async function handleViewRoster(classId: string): Promise<void> {
+    setRosterLoading(true);
+    setRosterError('');
+    setRoster(null);
+    try {
+      const response = await getTutorClassRoster(classId);
+      setRoster(response);
+    } catch (err: unknown) {
+      setRosterError(extractApiErrorMessage(err, 'Failed to load class roster'));
+    } finally {
+      setRosterLoading(false);
+    }
+  }
 
   return (
     <div className="stack-16">
@@ -74,6 +92,7 @@ function TutorDashboardPage() {
                   <th>Salary Rate</th>
                   <th>Sessions</th>
                   <th>Latest Session</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -85,6 +104,11 @@ function TutorDashboardPage() {
                     <td>{(item.defaultSalaryRate * 100).toFixed(2)}%</td>
                     <td>{item.sessionCount}</td>
                     <td>{item.latestSessionDate || '-'}</td>
+                    <td>
+                      <button type="button" className="btn btn-outline table-action" onClick={() => handleViewRoster(item.classId)}>
+                        View roster
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -92,6 +116,35 @@ function TutorDashboardPage() {
           </div>
         ) : null}
       </div>
+
+      {rosterLoading ? <p className="muted">Loading roster...</p> : null}
+      {rosterError ? <p className="error-text">{rosterError}</p> : null}
+      {roster && (
+        <div className="card">
+          <h3 className="section-title">Class roster</h3>
+          {!roster.students.length ? <p className="muted">No active students.</p> : null}
+          {!!roster.students.length ? (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Tuition (VND)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.students.map((s) => (
+                    <tr key={s.studentId}>
+                      <td>{s.studentName}</td>
+                      <td>{s.tuitionAtLog.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

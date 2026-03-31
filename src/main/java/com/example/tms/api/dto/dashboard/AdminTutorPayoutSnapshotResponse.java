@@ -1,12 +1,13 @@
 package com.example.tms.api.dto.dashboard;
 
-import java.math.BigDecimal;
+import java.util.UUID;
 
 public record AdminTutorPayoutSnapshotResponse(
+        UUID payoutId,
         Integer year,
         Integer month,
-        BigDecimal grossRevenue,
-        BigDecimal netSalary,
+        Long grossRevenue,
+        Long netSalary,
         String status
 ) {
 }

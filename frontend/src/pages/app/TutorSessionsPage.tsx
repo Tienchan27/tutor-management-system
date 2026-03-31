@@ -22,8 +22,8 @@ const initialForm: CreateSessionRequest = {
   classId: '',
   date: getTodayDate(),
   durationHours: 1,
-  tuitionAtLog: 0,
   salaryRateAtLog: 0.75,
+  studentTuitions: [],
   payrollMonth: getCurrentMonth(),
   note: '',
 };
@@ -139,27 +139,36 @@ function TutorSessionsPage() {
 
       <div className="card">
         <h3 className="section-title">Create session</h3>
-        <form className="session-create-row" onSubmit={handleCreate}>
-          <label className="input-wrapper session-create-field">
-            <span className="input-label">Class</span>
-            <select
-              className="text-input"
-              value={form.classId}
-              onChange={(event) => setForm((prev) => ({ ...prev, classId: event.target.value }))}
-              required
-              disabled={!classes.length}
-            >
-              <option value="">Select class</option>
-              {classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.className}
-                </option>
-              ))}
-            </select>
-          </label>
+        <form onSubmit={handleCreate}>
+          <div className="session-create-row">
+            <label className="input-wrapper session-create-field">
+              <span className="input-label">Class</span>
+              <select
+                className="text-input"
+                value={form.classId}
+                onChange={(event) => {
+                  const selectedClass = classes.find((c) => c.id === event.target.value);
+                  const tuitionPerStudent = Math.round((selectedClass?.pricePerHour ?? 0) * form.durationHours);
+                  setForm((prev) => ({
+                    ...prev,
+                    classId: event.target.value,
+                    studentTuitions: selectedClass?.students?.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })) ?? [],
+                  }));
+                }}
+                required
+                disabled={!classes.length}
+              >
+                <option value="">Select class</option>
+                {classes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.className}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          {form.classId ? (
-            <>
+            {form.classId ? (
+              <>
               <label className="input-wrapper session-create-field">
                 <span className="input-label">Date</span>
                 <input
@@ -178,22 +187,72 @@ function TutorSessionsPage() {
                   type="number"
                   step="0.25"
                   value={form.durationHours}
-                  onChange={(event) => setForm((prev) => ({ ...prev, durationHours: Number(event.target.value) }))}
+                  onChange={(event) => {
+                    const newDuration = Number(event.target.value);
+                    const selectedClass = classes.find((c) => c.id === form.classId);
+                    const tuitionPerStudent = Math.round((selectedClass?.pricePerHour ?? 0) * newDuration);
+                    setForm((prev) => ({
+                      ...prev,
+                      durationHours: newDuration,
+                      studentTuitions: prev.studentTuitions.map((t) => ({ ...t, tuitionAtLog: tuitionPerStudent })),
+                    }));
+                  }}
                   required
                 />
               </label>
 
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Tuition</span>
-                <input
-                  className="text-input"
-                  type="number"
-                  step="0.01"
-                  value={form.tuitionAtLog}
-                  onChange={(event) => setForm((prev) => ({ ...prev, tuitionAtLog: Number(event.target.value) }))}
-                  required
-                />
-              </label>
+              {classes.length ? (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  {(() => {
+                    const selectedClass = classes.find((c) => c.id === form.classId);
+                    if (!selectedClass) {
+                      return null;
+                    }
+
+                    const studentTuitionsById = new Map(form.studentTuitions.map((t) => [t.studentId, t.tuitionAtLog]));
+                    return (
+                      <div className="table-wrap" style={{ marginTop: 12 }}>
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>Student</th>
+                              <th>Tuition (VND)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedClass.students.map((student) => {
+                              const tuitionAtLog = studentTuitionsById.get(student.id) ?? 0;
+                              return (
+                                <tr key={student.id}>
+                                  <td>{student.name}</td>
+                                  <td>
+                                    <input
+                                      className="table-input money-number"
+                                      type="number"
+                                      step="1"
+                                      value={tuitionAtLog}
+                                      onChange={(event) => {
+                                        const next = Math.round(Number(event.target.value));
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          studentTuitions: prev.studentTuitions.map((t) =>
+                                            t.studentId === student.id ? { ...t, tuitionAtLog: next } : t
+                                          ),
+                                        }));
+                                      }}
+                                      required
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : null}
 
               <label className="input-wrapper session-create-field">
                 <span className="input-label">Salary rate (%)</span>
@@ -229,10 +288,15 @@ function TutorSessionsPage() {
                 />
               </label>
 
+              </>
+            ) : null}
+          </div>
+          {form.classId ? (
+            <div className="form-actions">
               <button type="submit" className="btn btn-primary compact-btn">
-                Create Session
+                Confirm Session
               </button>
-            </>
+            </div>
           ) : null}
         </form>
         {!classes.length ? <p className="muted">You need at least one assigned class before creating a session.</p> : null}
@@ -274,11 +338,11 @@ function TutorSessionsPage() {
                     </td>
                     <td>
                       <input
-                        className="table-input"
+                        className="table-input money-number"
                         type="number"
-                        step="0.01"
+                        step="1"
                         value={item.tuitionAtLog}
-                        onChange={(event) => updateSessionRow(item.id, 'tuitionAtLog', Number(event.target.value))}
+                        onChange={(event) => updateSessionRow(item.id, 'tuitionAtLog', Math.round(Number(event.target.value)))}
                       />
                     </td>
                     <td>

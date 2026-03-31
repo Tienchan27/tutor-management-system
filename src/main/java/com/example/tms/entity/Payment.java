@@ -17,7 +17,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -37,8 +36,9 @@ public class Payment {
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal amount;
+    // Money in VND integer.
+    @Column(nullable = false)
+    private Long amount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

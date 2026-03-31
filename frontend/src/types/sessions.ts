@@ -15,7 +15,7 @@ export interface TutorSessionClassOptionResponse {
   subjectName: string;
   pricePerHour: number;
   defaultSalaryRate: number;
-  studentNames: string[];
+  students: { id: string; name: string }[];
 }
 
 export interface SessionResponse {
@@ -35,8 +35,8 @@ export interface CreateSessionRequest {
   classId: string;
   date: string;
   durationHours: number;
-  tuitionAtLog: number;
   salaryRateAtLog: number;
+  studentTuitions: { studentId: string; tuitionAtLog: number }[];
   payrollMonth?: string;
   note?: string;
 }

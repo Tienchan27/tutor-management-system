@@ -3,11 +3,13 @@ package com.example.tms.api;
 import com.example.tms.api.dto.dashboard.AdminTutorDetailResponse;
 import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
+import com.example.tms.api.dto.dashboard.TutorClassRosterResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,5 +46,10 @@ public class DashboardController {
     @GetMapping("/tutor/classes")
     public List<TutorClassOverviewResponse> tutorClasses() {
         return dashboardService.tutorClassOverview(currentUserResolver.requireUser());
+    }
+
+    @GetMapping("/tutor/classes/{classId}/roster")
+    public TutorClassRosterResponse tutorClassRoster(@PathVariable UUID classId) {
+        return dashboardService.tutorClassRoster(currentUserResolver.requireUser(), classId);
     }
 }

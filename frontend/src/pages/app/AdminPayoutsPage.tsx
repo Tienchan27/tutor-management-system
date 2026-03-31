@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { confirmPayoutPaid, generateMonthlyPayouts, generatePayoutQr } from '../../services/payoutService';
+import { confirmPayoutPaid, generateMonthlyPayouts, generatePayoutQr, overrideNetSalary } from '../../services/payoutService';
 import { TutorPayout, TutorPayoutPayment } from '../../types/payouts';
 import { extractApiErrorMessage } from '../../services/authService';
 
@@ -13,6 +13,8 @@ function AdminPayoutsPage() {
   const [items, setItems] = useState<TutorPayout[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<TutorPayoutPayment | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [overrideLoadingId, setOverrideLoadingId] = useState<string>('');
+  const [netSalaryDraftById, setNetSalaryDraftById] = useState<Record<string, number>>({});
   const [error, setError] = useState<string>('');
 
   async function handleGenerate(): Promise<void> {
@@ -45,6 +47,25 @@ function AdminPayoutsPage() {
       await handleGenerate();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to confirm payout'));
+    }
+  }
+
+  async function handleOverrideNetSalary(payout: TutorPayout): Promise<void> {
+    setError('');
+    setOverrideLoadingId(payout.id);
+    try {
+      const nextNetSalary = netSalaryDraftById[payout.id] ?? payout.netSalary;
+      await overrideNetSalary(payout.id, nextNetSalary);
+      setNetSalaryDraftById((prev) => {
+        const copy = { ...prev };
+        delete copy[payout.id];
+        return copy;
+      });
+      await handleGenerate();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to override net salary'));
+    } finally {
+      setOverrideLoadingId('');
     }
   }
 
@@ -89,13 +110,44 @@ function AdminPayoutsPage() {
                     <td>{item.status}</td>
                     <td>
                       <div className="table-actions">
-                        <button type="button" className="btn btn-outline table-action" onClick={() => handleGenerateQr(item.id)}>
+                        <button
+                          type="button"
+                          className="btn btn-outline table-action"
+                          onClick={() => handleGenerateQr(item.id)}
+                          disabled={item.status === 'PAID'}
+                        >
                           Generate QR
                         </button>
-                        <button type="button" className="btn btn-primary table-action" onClick={() => handleConfirmPaid(item.id)}>
+                        <button
+                          type="button"
+                          className="btn btn-primary table-action"
+                          onClick={() => handleConfirmPaid(item.id)}
+                          disabled={item.status === 'PAID'}
+                        >
                           Confirm Paid
                         </button>
                       </div>
+
+                      {item.status === 'LOCKED' ? (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            className="table-input money-number"
+                            type="number"
+                            step="1"
+                            value={netSalaryDraftById[item.id] ?? item.netSalary}
+                            onChange={(event) => setNetSalaryDraftById((prev) => ({ ...prev, [item.id]: Math.round(Number(event.target.value)) }))}
+                            style={{ maxWidth: 160 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-outline table-action"
+                            disabled={overrideLoadingId === item.id}
+                            onClick={() => handleOverrideNetSalary(item)}
+                          >
+                            {overrideLoadingId === item.id ? 'Saving...' : 'Save Override'}
+                          </button>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
