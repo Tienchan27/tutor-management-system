@@ -223,7 +223,7 @@ function AdminTutorManagementPage() {
                     <td>{item.classesReceivingThisMonth}</td>
                     <td>{item.payoutStatus}</td>
                     <td>
-                      <button className="btn btn-outline table-action" onClick={() => loadDetail(item.tutorId)} type="button">
+                      <button className="btn btn-soft-teal table-action" onClick={() => loadDetail(item.tutorId)} type="button">
                         View detail
                       </button>
                     </td>
@@ -238,7 +238,7 @@ function AdminTutorManagementPage() {
       {detail ? (
         <div className="card">
           <h3 className="section-title">Selected tutor detail</h3>
-          <div className="grid-3" style={{ marginBottom: 12 }}>
+          <div className="grid-3 mb-12">
             <div className="panel">
               <strong>Name</strong>
               <p>{detail.name}</p>
@@ -255,15 +255,15 @@ function AdminTutorManagementPage() {
           <p className="muted">Facebook: {detail.facebookUrl || '-'}</p>
           <p className="muted">Address: {detail.address || '-'}</p>
           {detail.payout ? (
-            <div className="panel" style={{ marginBottom: 12 }}>
+            <div className="panel mb-12">
               <strong>Selected month payout</strong>
               <p>
                 {detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')} | Gross: {detail.payout.grossRevenue.toLocaleString()} |
                 Net: {detail.payout.netSalary.toLocaleString()} | Status: {detail.payout.status}
               </p>
 
-              <div style={{ marginTop: 12 }}>
-                <h4 className="section-title" style={{ marginBottom: 8 }}>Monthly payout actions</h4>
+              <div className="mt-12">
+                <h4 className="section-title mb-8">Monthly payout actions</h4>
 
                 {detail.payout.status === 'LOCKED' ? (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -278,7 +278,7 @@ function AdminTutorManagementPage() {
                     />
                     <button
                       type="button"
-                      className="btn btn-outline table-action"
+                      className="btn btn-soft table-action"
                       onClick={() => handleOverrideNetSalary(detail.payout!.payoutId)}
                       disabled={overrideLoadingId === detail.payout!.payoutId}
                     >
@@ -287,10 +287,10 @@ function AdminTutorManagementPage() {
                   </div>
                 ) : null}
 
-                <div className="table-actions" style={{ justifyContent: 'flex-start' }}>
+                <div className="table-actions table-actions-left">
                   <button
                     type="button"
-                    className="btn btn-outline table-action"
+                    className="btn btn-brand table-action"
                     onClick={() => handleGenerateQr(detail.payout!.payoutId)}
                     disabled={detail.payout.status === 'PAID' || payoutActionLoading === detail.payout!.payoutId}
                   >
@@ -301,7 +301,6 @@ function AdminTutorManagementPage() {
                     className="btn btn-primary table-action"
                     onClick={() => handleConfirmPaid(detail.payout!.payoutId)}
                     disabled={detail.payout.status === 'PAID' || payoutActionLoading === `confirm_${detail.payout!.payoutId}`}
-                    style={{ marginLeft: 8 }}
                   >
                     {payoutActionLoading === `confirm_${detail.payout!.payoutId}` ? 'Confirming...' : 'Confirm Paid'}
                   </button>
@@ -313,7 +312,7 @@ function AdminTutorManagementPage() {
           )}
 
           {!detail.payout ? (
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-12">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -326,9 +325,9 @@ function AdminTutorManagementPage() {
           ) : null}
 
           {selectedPayment ? (
-            <div className="panel" style={{ marginTop: 12 }}>
+            <div className="panel mt-12">
               <strong>Latest QR payload</strong>
-              <p className="muted" style={{ marginBottom: 6 }}>
+              <p className="muted mb-6">
                 Reference: {selectedPayment.qrRef} | Status: {selectedPayment.status}
               </p>
               <pre className="pre-wrap" style={{ margin: 0 }}>{selectedPayment.qrPayload}</pre>
@@ -395,17 +394,17 @@ function AdminTutorManagementPage() {
             </div>
           ) : null}
 
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-16">
             <h4 className="section-title">Tutor actions</h4>
             <button
               type="button"
-              className="btn btn-outline"
+              className="btn btn-danger"
               onClick={() => handleRevokeTutorRole(detail.tutorId)}
               disabled={deleteLoading}
             >
               {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke tutor role' : 'Delete tutor (revoke TUTOR role)'}
             </button>
-            {deleteConfirmTutorId === detail.tutorId ? <p className="muted" style={{ marginTop: 8 }}>Click again to confirm.</p> : null}
+            {deleteConfirmTutorId === detail.tutorId ? <p className="muted mt-8">Click again to confirm.</p> : null}
           </div>
         </div>
       ) : null}

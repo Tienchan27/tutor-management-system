@@ -52,7 +52,7 @@ function NotificationsPage() {
                 <p className="muted small">{new Date(item.createdAt).toLocaleString()}</p>
               </div>
               {!item.read ? (
-                <button type="button" className="btn btn-outline compact-btn" onClick={() => handleMarkRead(item.id)}>
+                <button type="button" className="btn btn-soft-teal compact-btn" onClick={() => handleMarkRead(item.id)}>
                   Mark as read
                 </button>
               ) : null}

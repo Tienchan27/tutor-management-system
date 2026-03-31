@@ -1,14 +1,30 @@
 :root {
-  --primary: #dc2626;
-  --primary-dark: #b91c1c;
-  --primary-light: #fee2e2;
+  /* Brand (amber) */
+  --brand-amber: #f59e0b;
+  --brand-amber-dark: #d97706;
+  --brand-amber-light: #fffbeb;
+
+  /* CTA (teal) */
+  --cta-teal: #0d9488;
+  --cta-teal-dark: #0f766e;
+  --cta-teal-light: #ccfbf1;
+
+  /* Danger + title accent (red) */
+  --danger-red: #dc2626;
+  --danger-red-light: #fee2e2;
+  --title-accent-red: #b91c1c;
+
+  /* Backward-compat tokens (temporary): map primary to CTA teal */
+  --primary: var(--cta-teal);
+  --primary-dark: var(--cta-teal-dark);
+  --primary-light: var(--cta-teal-light);
   --background: #ffffff;
   --surface: #ffffff;
   --border: #e5e7eb;
   --border-strong: #e5e7eb;
   --text: #111111;
   --text-muted: #666666;
-  --error: #dc2626;
+  --error: var(--danger-red);
   --shadow: 0 8px 24px rgba(17, 17, 17, 0.08);
 }
 
@@ -145,15 +161,73 @@ a {
   transform: translateY(-1px);
 }
 
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
+}
+
 .btn-primary {
-  background: var(--primary);
+  background: var(--cta-teal);
   color: #ffffff;
-  border-color: var(--primary);
+  border-color: var(--cta-teal);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: var(--cta-teal-dark);
+  border-color: var(--cta-teal-dark);
+}
+
+.btn-brand {
+  background: var(--brand-amber);
+  color: #111111;
+  border-color: var(--brand-amber);
+}
+
+.btn-brand:hover:not(:disabled) {
+  background: var(--brand-amber-dark);
+  border-color: var(--brand-amber-dark);
+}
+
+.btn-danger {
+  background: var(--danger-red);
+  color: #ffffff;
+  border-color: var(--danger-red);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--title-accent-red);
+  border-color: var(--title-accent-red);
+}
+
+.btn-soft {
+  background: #f9fafb;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn-soft:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: var(--cta-teal);
+}
+
+.btn-soft-teal {
+  background: var(--cta-teal-light);
+  color: var(--cta-teal-dark);
+  border-color: rgba(13, 148, 136, 0.35);
+}
+
+.btn-soft-teal:hover:not(:disabled) {
+  border-color: var(--cta-teal);
+}
+
+.btn-soft-amber {
+  background: var(--brand-amber-light);
+  color: var(--brand-amber-dark);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.btn-soft-amber:hover:not(:disabled) {
+  border-color: var(--brand-amber);
 }
 
 .btn-secondary,
@@ -165,7 +239,7 @@ a {
 
 .btn-secondary:hover:not(:disabled),
 .btn-outline:hover:not(:disabled) {
-  border-color: var(--primary);
+  border-color: var(--cta-teal);
 }
 
 .input-wrapper {
@@ -192,8 +266,8 @@ a {
 }
 
 .input-frame:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  border-color: var(--cta-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
 }
 
 .input-error {
@@ -239,7 +313,7 @@ a {
 .field-toggle {
   border: none;
   background: transparent;
-  color: var(--primary-dark);
+  color: var(--cta-teal-dark);
   cursor: pointer;
   font-weight: 600;
   padding: 0;
@@ -294,9 +368,9 @@ a {
 }
 
 .auth-tab.active {
-  border-color: var(--primary);
-  color: var(--primary-dark);
-  background: var(--primary-light);
+  border-color: var(--brand-amber);
+  color: var(--brand-amber-dark);
+  background: var(--brand-amber-light);
 }
 
 .auth-link-button {
@@ -333,7 +407,7 @@ a {
 }
 
 .auth-link:hover {
-  color: var(--primary-dark);
+  color: var(--cta-teal-dark);
 }
 
 .google-signin {
@@ -363,9 +437,9 @@ a {
   width: fit-content;
   padding: 6px 12px;
   border-radius: 999px;
-  background: var(--primary-light);
-  color: var(--primary-dark);
-  border: 1px solid var(--primary);
+  background: var(--brand-amber-light);
+  color: var(--brand-amber-dark);
+  border: 1px solid var(--brand-amber);
   font-weight: 600;
 }
 
@@ -389,6 +463,47 @@ a {
 .stack-16 {
   display: grid;
   gap: 16px;
+}
+
+.stack-8 {
+  display: grid;
+  gap: 8px;
+}
+
+.mt-6 {
+  margin-top: 6px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-6 {
+  margin-bottom: 6px;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
 }
 
 .page-header {
@@ -415,8 +530,8 @@ a {
 .text-input:focus,
 .table-input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  border-color: var(--cta-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
 }
 
 .table-input {
@@ -459,6 +574,11 @@ a {
 .compact-btn {
   width: auto;
   min-width: 140px;
+}
+
+.compact-btn.btn {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .form-actions {
@@ -510,6 +630,12 @@ a {
 .table-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.table-actions-left {
+  justify-content: flex-start;
 }
 
 .pre-wrap {
@@ -538,8 +664,8 @@ a {
 }
 
 .notification-item.unread {
-  border-color: var(--primary);
-  background: var(--primary-light);
+  border-color: var(--brand-amber);
+  background: var(--brand-amber-light);
 }
 
 .app-shell {
@@ -577,9 +703,75 @@ a {
 
 .app-nav-link:hover,
 .app-nav-link.active {
-  border-color: var(--primary);
-  color: var(--primary-dark);
-  background: var(--primary-light);
+  border-color: var(--brand-amber);
+  color: var(--brand-amber-dark);
+  background: var(--brand-amber-light);
+}
+
+.title-accent {
+  color: var(--title-accent-red);
+}
+
+.accordion {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--brand-amber-light);
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion-title {
+  font-weight: 700;
+}
+
+.accordion-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: flex-end;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.accordion-body {
+  padding: 16px;
+  background: #ffffff;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+}
+
+.stat-row strong {
+  color: var(--text);
+}
+
+.table-footer-row td {
+  font-weight: 700;
+}
+
+.table-comfortable th,
+.table-comfortable td {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 .app-main {
@@ -607,6 +799,86 @@ a {
 .app-logout {
   width: auto;
   min-width: 110px;
+}
+
+.role-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-select {
+  font-weight: 700;
+}
+
+.role-select-admin {
+  background: var(--brand-amber-light);
+  color: var(--brand-amber-dark);
+  border-color: var(--brand-amber);
+}
+
+.role-select-tutor {
+  background: var(--cta-teal-light);
+  color: var(--cta-teal-dark);
+  border-color: rgba(13, 148, 136, 0.4);
+}
+
+.role-select-student {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.role-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.role-pill-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.role-pill-btn:disabled {
+  cursor: default;
+}
+
+.role-pill-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
+  border-radius: 999px;
+}
+
+.role-pill {
+  display: inline-block;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.role-admin {
+  background: var(--brand-amber-light);
+  color: var(--brand-amber-dark);
+  border-color: var(--brand-amber);
+}
+
+.role-tutor {
+  background: var(--cta-teal-light);
+  color: var(--cta-teal-dark);
+  border-color: rgba(13, 148, 136, 0.4);
+}
+
+.role-student {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.35);
 }
 
 button {

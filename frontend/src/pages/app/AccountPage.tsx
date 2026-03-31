@@ -73,38 +73,92 @@ function AccountPage() {
               <p><strong>Status:</strong> {profile.status}</p>
             </div>
             <form onSubmit={handleSubmit} className="stack-16">
-              <div className="grid-form">
-                <input
-                  className="text-input"
-                  placeholder="Name"
-                  value={form.name || ''}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Phone number"
-                  value={form.phoneNumber || ''}
-                  onChange={(event) => setForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Facebook URL"
-                  value={form.facebookUrl || ''}
-                  onChange={(event) => setForm((prev) => ({ ...prev, facebookUrl: event.target.value }))}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Parent phone"
-                  value={form.parentPhone || ''}
-                  onChange={(event) => setForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Address"
-                  value={form.address || ''}
-                  onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-                />
+              <div className="panel">
+                <h3 className="section-title">Personal</h3>
+                <div className="grid-form" style={{ marginTop: 12 }}>
+                  <label className="input-wrapper">
+                    <span className="input-label">Full name</span>
+                    <div className="input-frame">
+                      <input
+                        className="input-control"
+                        value={form.name || ''}
+                        onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Your name"
+                      />
+                    </div>
+                  </label>
+                </div>
               </div>
+
+              <div className="panel">
+                <h3 className="section-title">Contact</h3>
+                <div className="grid-form" style={{ marginTop: 12 }}>
+                  <label className="input-wrapper">
+                    <span className="input-label">Phone number</span>
+                    <div className="input-frame">
+                      <input
+                        className="input-control"
+                        value={form.phoneNumber || ''}
+                        onChange={(event) => setForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
+                        placeholder="e.g. 09xxxxxxxx"
+                      />
+                    </div>
+                  </label>
+                  <label className="input-wrapper">
+                    <span className="input-label">Facebook URL</span>
+                    <div className="input-frame">
+                      <input
+                        className="input-control"
+                        value={form.facebookUrl || ''}
+                        onChange={(event) => setForm((prev) => ({ ...prev, facebookUrl: event.target.value }))}
+                        placeholder="https://facebook.com/..."
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="panel">
+                <h3 className="section-title">Guardian</h3>
+                <div className="grid-form" style={{ marginTop: 12 }}>
+                  <label className="input-wrapper">
+                    <span className="input-label">Parent phone</span>
+                    <div className="input-frame">
+                      <input
+                        className="input-control"
+                        value={form.parentPhone || ''}
+                        onChange={(event) => setForm((prev) => ({ ...prev, parentPhone: event.target.value }))}
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="panel">
+                <h3 className="section-title">Address</h3>
+                <div className="grid-form" style={{ marginTop: 12 }}>
+                  <label className="input-wrapper">
+                    <span className="input-label">Address</span>
+                    <div className="input-frame">
+                      <input
+                        className="input-control"
+                        value={form.address || ''}
+                        onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="panel">
+                <h3 className="section-title">Security</h3>
+                <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+                  Security settings will appear here (password, Google link, sessions). For now, you can update your profile details above.
+                </p>
+              </div>
+
               <div className="form-actions">
                 <button type="submit" className="btn btn-primary compact-btn">
                   Save Changes

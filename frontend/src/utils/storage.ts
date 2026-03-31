@@ -29,6 +29,10 @@ function isAuthUser(value: unknown): value is AuthUser {
 }
 
 export function saveAuthSession(payload: AuthSessionPayload): void {
+  const roles = payload.roles?.length ? payload.roles : ['STUDENT'];
+  const desiredActiveRole = (payload.activeRole || roles[0] || 'STUDENT') as AuthUser['activeRole'];
+  const activeRole = roles.includes(desiredActiveRole) ? desiredActiveRole : ((roles[0] || 'STUDENT') as AuthUser['activeRole']);
+
   localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken || '');
   localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken || '');
   localStorage.setItem(
@@ -40,8 +44,8 @@ export function saveAuthSession(payload: AuthSessionPayload): void {
       picture: payload.picture || null,
       needsProfileCompletion: !!payload.needsProfileCompletion,
       needsTutorOnboarding: !!payload.needsTutorOnboarding,
-      roles: payload.roles || ['STUDENT'],
-      activeRole: payload.activeRole || ((payload.roles?.[0] as AuthUser['activeRole']) || 'STUDENT'),
+      roles,
+      activeRole,
     })
   );
 }

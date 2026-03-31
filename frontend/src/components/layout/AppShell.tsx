@@ -36,6 +36,20 @@ function AppShell({ roles, children }: AppShellProps) {
     navigate('/app', { replace: true });
   }
 
+  function roleLabel(role: AppRole): string {
+    if (role === 'ADMIN') {
+      return 'Admin';
+    }
+    if (role === 'TUTOR') {
+      return 'Tutor';
+    }
+    return 'Student';
+  }
+
+  const roleSelectClassName = `text-input role-select ${
+    activeRole === 'ADMIN' ? 'role-select-admin' : activeRole === 'TUTOR' ? 'role-select-tutor' : 'role-select-student'
+  }`;
+
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
@@ -59,24 +73,27 @@ function AppShell({ roles, children }: AppShellProps) {
       <main className="app-main">
         <header className="app-header">
           <div>
-            <h1 className="title app-header-title">Tutor Management System</h1>
+            <h1 className="title app-header-title title-accent">Tutor Management System</h1>
             <p className="subtitle">Welcome {user?.name || user?.email || 'User'}</p>
           </div>
           <div className="toolbar">
             {roles.length > 1 ? (
-              <select
-                className="text-input"
-                value={activeRole}
-                onChange={(event) => handleRoleSwitch(event.target.value as AppRole)}
-              >
-                {roles.map((role) => (
-                  <option key={role} value={role}>
-                    {role} Workspace
-                  </option>
-                ))}
-              </select>
+              <div className="role-switch">
+                <select
+                  className={roleSelectClassName}
+                  value={activeRole}
+                  onChange={(event) => handleRoleSwitch(event.target.value as AppRole)}
+                  aria-label="Switch role"
+                >
+                  {roles.map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabel(role)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ) : null}
-            <button className="btn btn-outline app-logout" type="button" onClick={handleLogout}>
+            <button className="btn btn-brand app-logout" type="button" onClick={handleLogout}>
               Logout
             </button>
           </div>

@@ -137,10 +137,10 @@ function TutorBankAccountsPage() {
                     <td>{item.isVerified ? 'Yes' : 'No'}</td>
                     <td>
                       <div className="table-actions">
-                        <button type="button" className="btn btn-outline table-action" onClick={() => handleSetPrimary(item.id)}>
+                        <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleSetPrimary(item.id)}>
                           Set Primary
                         </button>
-                        <button type="button" className="btn btn-outline table-action" onClick={() => handleDelete(item.id)}>
+                        <button type="button" className="btn btn-danger table-action" onClick={() => handleDelete(item.id)}>
                           Delete
                         </button>
                       </div>

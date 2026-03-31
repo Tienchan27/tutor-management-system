@@ -71,7 +71,7 @@ function LandingPage() {
       <div className="auth-layout">
         <Card featured className="auth-card">
           <div className="auth-head">
-            <h1 className="title title-xl">Welcome Back</h1>
+            <h1 className="title title-xl title-accent">Welcome Back</h1>
             <p className="subtitle">Sign in to manage your tutor operations.</p>
           </div>
 
@@ -124,7 +124,7 @@ function LandingPage() {
         </Card>
 
         <aside className="auth-side">
-          <h2 className="title title-lg">Tutor Management System</h2>
+          <h2 className="title title-lg title-accent">Tutor Management System</h2>
           <p className="subtitle">A clean operational workspace for admin, tutor, and student workflows.</p>
           <div className="feature-list">
             <div className="feature-item">

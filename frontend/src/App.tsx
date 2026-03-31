@@ -21,6 +21,7 @@ import NotificationsPage from './pages/app/NotificationsPage';
 import AccountPage from './pages/app/AccountPage';
 import PlaceholderPage from './pages/app/PlaceholderPage';
 import { getAuthUser, isAuthenticated } from './utils/storage';
+import AppErrorBoundary from './components/layout/AppErrorBoundary';
 
 interface RouteGuardProps {
   children: ReactElement;
@@ -70,15 +71,17 @@ function ProtectedAppLayout() {
   }
 
   return (
-    <AppAccessProvider roles={roles}>
-      <AppShell roles={roles}>
-        {error ? (
-          <div className="card">
-            <p className="error-text">{error}</p>
-          </div>
-        ) : null}
-      </AppShell>
-    </AppAccessProvider>
+    <AppErrorBoundary>
+      <AppAccessProvider roles={roles}>
+        <AppShell roles={roles}>
+          {error ? (
+            <div className="card">
+              <p className="error-text">{error}</p>
+            </div>
+          ) : null}
+        </AppShell>
+      </AppAccessProvider>
+    </AppErrorBoundary>
   );
 }
 

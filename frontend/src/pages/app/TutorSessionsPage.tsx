@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   createSession,
   listMySessionClasses,
@@ -34,10 +34,27 @@ function TutorSessionsPage() {
   const [classes, setClasses] = useState<TutorSessionClassOptionResponse[]>([]);
   const [form, setForm] = useState<CreateSessionRequest>(initialForm);
   const [salaryRatePercent, setSalaryRatePercent] = useState<number>(75);
+  const [studentsOpen, setStudentsOpen] = useState<boolean>(false);
   const [reasonBySession, setReasonBySession] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+
+  const selectedClass = useMemo(
+    () => classes.find((c) => c.id === form.classId) || null,
+    [classes, form.classId]
+  );
+
+  const defaultTuitionPerStudent = useMemo(() => {
+    if (!selectedClass) {
+      return 0;
+    }
+    return Math.round(selectedClass.pricePerHour * form.durationHours);
+  }, [selectedClass, form.durationHours]);
+
+  const totalTuition = useMemo(() => {
+    return form.studentTuitions.reduce((sum, item) => sum + (item.tuitionAtLog || 0), 0);
+  }, [form.studentTuitions]);
 
   async function loadSessions(): Promise<void> {
     setLoading(true);
@@ -67,6 +84,32 @@ function TutorSessionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
+  function resetForm(): void {
+    setForm({
+      ...initialForm,
+      payrollMonth: month,
+      date: getTodayDate(),
+    });
+    setSalaryRatePercent(75);
+    setStudentsOpen(false);
+  }
+
+  function overwriteAllStudentTuitions(nextDurationHours: number, nextClass: TutorSessionClassOptionResponse | null): void {
+    const tuitionPerStudent = Math.round((nextClass?.pricePerHour ?? 0) * nextDurationHours);
+    setForm((prev) => ({
+      ...prev,
+      durationHours: nextDurationHours,
+      studentTuitions: nextClass?.students?.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })) ?? [],
+    }));
+  }
+
+  function handleResetToDefault(): void {
+    if (!selectedClass) {
+      return;
+    }
+    overwriteAllStudentTuitions(form.durationHours, selectedClass);
+  }
+
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
@@ -77,12 +120,7 @@ function TutorSessionsPage() {
         salaryRateAtLog: Number((salaryRatePercent / 100).toFixed(4)),
       });
       setSuccess('Session created successfully.');
-      setForm((prev) => ({
-        ...initialForm,
-        payrollMonth: month,
-        date: getTodayDate(),
-      }));
-      setSalaryRatePercent(75);
+      resetForm();
       await loadSessions();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to create session'));
@@ -140,20 +178,17 @@ function TutorSessionsPage() {
       <div className="card">
         <h3 className="section-title">Create session</h3>
         <form onSubmit={handleCreate}>
-          <div className="session-create-row">
-            <label className="input-wrapper session-create-field">
+          <div className="grid-form" style={{ marginTop: 12 }}>
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
               <span className="input-label">Class</span>
               <select
                 className="text-input"
                 value={form.classId}
                 onChange={(event) => {
-                  const selectedClass = classes.find((c) => c.id === event.target.value);
-                  const tuitionPerStudent = Math.round((selectedClass?.pricePerHour ?? 0) * form.durationHours);
-                  setForm((prev) => ({
-                    ...prev,
-                    classId: event.target.value,
-                    studentTuitions: selectedClass?.students?.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })) ?? [],
-                  }));
+                  const next = classes.find((c) => c.id === event.target.value) || null;
+                  setStudentsOpen(false);
+                  setForm((prev) => ({ ...prev, classId: event.target.value }));
+                  overwriteAllStudentTuitions(form.durationHours, next);
                 }}
                 required
                 disabled={!classes.length}
@@ -167,137 +202,168 @@ function TutorSessionsPage() {
               </select>
             </label>
 
-            {form.classId ? (
-              <>
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Date</span>
-                <input
-                  className="text-input"
-                  type="date"
-                  value={form.date}
-                  onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))}
-                  required
-                />
-              </label>
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+              <span className="input-label">Date</span>
+              <input
+                className="text-input"
+                type="date"
+                value={form.date}
+                onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))}
+                required
+                disabled={!form.classId}
+              />
+            </label>
 
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Duration (hours)</span>
-                <input
-                  className="text-input"
-                  type="number"
-                  step="0.25"
-                  value={form.durationHours}
-                  onChange={(event) => {
-                    const newDuration = Number(event.target.value);
-                    const selectedClass = classes.find((c) => c.id === form.classId);
-                    const tuitionPerStudent = Math.round((selectedClass?.pricePerHour ?? 0) * newDuration);
-                    setForm((prev) => ({
-                      ...prev,
-                      durationHours: newDuration,
-                      studentTuitions: prev.studentTuitions.map((t) => ({ ...t, tuitionAtLog: tuitionPerStudent })),
-                    }));
-                  }}
-                  required
-                />
-              </label>
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+              <span className="input-label">Duration (hours)</span>
+              <input
+                className="text-input"
+                type="number"
+                step="0.25"
+                value={form.durationHours}
+                onChange={(event) => {
+                  const newDuration = Number(event.target.value);
+                  overwriteAllStudentTuitions(newDuration, selectedClass);
+                }}
+                required
+                disabled={!form.classId}
+              />
+            </label>
 
-              {classes.length ? (
-                <div style={{ gridColumn: '1 / -1' }}>
-                  {(() => {
-                    const selectedClass = classes.find((c) => c.id === form.classId);
-                    if (!selectedClass) {
-                      return null;
-                    }
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+              <span className="input-label">Payroll month</span>
+              <input
+                className="text-input"
+                type="month"
+                value={form.payrollMonth}
+                onChange={(event) => setForm((prev) => ({ ...prev, payrollMonth: event.target.value }))}
+                disabled={!form.classId}
+              />
+            </label>
 
-                    const studentTuitionsById = new Map(form.studentTuitions.map((t) => [t.studentId, t.tuitionAtLog]));
-                    return (
-                      <div className="table-wrap" style={{ marginTop: 12 }}>
-                        <table className="table">
-                          <thead>
-                            <tr>
-                              <th>Student</th>
-                              <th>Tuition (VND)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedClass.students.map((student) => {
-                              const tuitionAtLog = studentTuitionsById.get(student.id) ?? 0;
-                              return (
-                                <tr key={student.id}>
-                                  <td>{student.name}</td>
-                                  <td>
-                                    <input
-                                      className="table-input money-number"
-                                      type="number"
-                                      step="1"
-                                      value={tuitionAtLog}
-                                      onChange={(event) => {
-                                        const next = Math.round(Number(event.target.value));
-                                        setForm((prev) => ({
-                                          ...prev,
-                                          studentTuitions: prev.studentTuitions.map((t) =>
-                                            t.studentId === student.id ? { ...t, tuitionAtLog: next } : t
-                                          ),
-                                        }));
-                                      }}
-                                      required
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : null}
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+              <span className="input-label">Salary rate (%)</span>
+              <input
+                className="text-input"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={salaryRatePercent}
+                onChange={(event) => setSalaryRatePercent(Number(event.target.value))}
+                required
+                disabled={!form.classId}
+              />
+            </label>
 
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Salary rate (%)</span>
-                <input
-                  className="text-input"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={salaryRatePercent}
-                  onChange={(event) => setSalaryRatePercent(Number(event.target.value))}
-                  required
-                />
-              </label>
-
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Payroll month</span>
-                <input
-                  className="text-input"
-                  type="month"
-                  value={form.payrollMonth}
-                  onChange={(event) => setForm((prev) => ({ ...prev, payrollMonth: event.target.value }))}
-                />
-              </label>
-
-              <label className="input-wrapper session-create-field">
-                <span className="input-label">Note</span>
-                <input
-                  className="text-input"
-                  placeholder="Optional note"
-                  value={form.note}
-                  onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))}
-                />
-              </label>
-
-              </>
-            ) : null}
+            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+              <span className="input-label">Note</span>
+              <input
+                className="text-input"
+                placeholder="Optional note"
+                value={form.note}
+                onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))}
+                disabled={!form.classId}
+              />
+            </label>
           </div>
-          {form.classId ? (
-            <div className="form-actions">
-              <button type="submit" className="btn btn-primary compact-btn">
-                Confirm Session
-              </button>
+
+          {selectedClass ? (
+            <div style={{ marginTop: 14 }}>
+              <div
+                className="accordion"
+                style={{ opacity: form.classId ? 1 : 0.6 }}
+              >
+                <div
+                  className="accordion-header"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={studentsOpen ? 'Hide student roster' : 'Edit student roster'}
+                  onClick={() => setStudentsOpen((prev) => !prev)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setStudentsOpen((prev) => !prev);
+                    }
+                  }}
+                >
+                  <div>
+                    <div className="accordion-title">Students ({selectedClass.students.length})</div>
+                    <div className="small muted">Changing duration recalculates tuition for all students.</div>
+                  </div>
+                  <div className="accordion-meta">
+                    <span>Default/student: <strong>{defaultTuitionPerStudent.toLocaleString()}</strong></span>
+                    <span>Total: <strong>{totalTuition.toLocaleString()}</strong></span>
+                    <span className="muted">{studentsOpen ? 'Hide' : 'Edit'}</span>
+                  </div>
+                </div>
+
+                {studentsOpen ? (
+                  <div className="accordion-body">
+                    <div className="toolbar" style={{ marginBottom: 0 }}>
+                      <button type="button" className="btn btn-soft compact-btn" onClick={handleResetToDefault}>
+                        Reset to default
+                      </button>
+                    </div>
+
+                    <div className="table-wrap">
+                      <table className="table table-comfortable">
+                        <thead>
+                          <tr>
+                            <th>Student</th>
+                            <th>Tuition (VND)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedClass.students.map((student) => {
+                            const row = form.studentTuitions.find((t) => t.studentId === student.id);
+                            const tuitionAtLog = row?.tuitionAtLog ?? 0;
+                            return (
+                              <tr key={student.id}>
+                                <td>{student.name}</td>
+                                <td>
+                                  <input
+                                    className="table-input money-number"
+                                    type="number"
+                                    step="1"
+                                    value={tuitionAtLog}
+                                    onChange={(event) => {
+                                      const next = Math.round(Number(event.target.value));
+                                      setForm((prev) => ({
+                                        ...prev,
+                                        studentTuitions: prev.studentTuitions.map((t) =>
+                                          t.studentId === student.id ? { ...t, tuitionAtLog: next } : t
+                                        ),
+                                      }));
+                                    }}
+                                    required
+                                    style={{ maxWidth: 180 }}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="table-footer-row">
+                            <td>Total</td>
+                            <td>{totalTuition.toLocaleString()}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-soft compact-btn" onClick={resetForm} disabled={!form.classId}>
+              Reset
+            </button>
+            <button type="submit" className="btn btn-primary compact-btn" disabled={!form.classId}>
+              Confirm Session
+            </button>
+          </div>
         </form>
         {!classes.length ? <p className="muted">You need at least one assigned class before creating a session.</p> : null}
         {error ? <p className="error-text">{error}</p> : null}
@@ -365,7 +431,7 @@ function TutorSessionsPage() {
                       />
                     </td>
                     <td>
-                      <button type="button" className="btn btn-outline table-action" onClick={() => handleUpdateFinancial(item)}>
+                      <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleUpdateFinancial(item)}>
                         Update
                       </button>
                     </td>

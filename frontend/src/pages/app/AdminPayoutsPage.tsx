@@ -112,7 +112,7 @@ function AdminPayoutsPage() {
                       <div className="table-actions">
                         <button
                           type="button"
-                          className="btn btn-outline table-action"
+                          className="btn btn-brand table-action"
                           onClick={() => handleGenerateQr(item.id)}
                           disabled={item.status === 'PAID'}
                         >
@@ -129,7 +129,7 @@ function AdminPayoutsPage() {
                       </div>
 
                       {item.status === 'LOCKED' ? (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div className="table-actions table-actions-left mt-8">
                           <input
                             className="table-input money-number"
                             type="number"
@@ -140,7 +140,7 @@ function AdminPayoutsPage() {
                           />
                           <button
                             type="button"
-                            className="btn btn-outline table-action"
+                            className="btn btn-soft table-action"
                             disabled={overrideLoadingId === item.id}
                             onClick={() => handleOverrideNetSalary(item)}
                           >

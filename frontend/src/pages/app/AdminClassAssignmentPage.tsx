@@ -58,6 +58,8 @@ function AdminClassAssignmentPage() {
   const [pricePerHour, setPricePerHour] = useState<string>('');
   const [isPriceManuallyEdited, setIsPriceManuallyEdited] = useState<boolean>(false);
   const [displayName, setDisplayName] = useState<string>('');
+  const [isDisplayNameManuallyEdited, setIsDisplayNameManuallyEdited] = useState<boolean>(false);
+  const [lastAutoDisplayName, setLastAutoDisplayName] = useState<string>('');
   const [note, setNote] = useState<string>('');
 
   const selectedSubject = useMemo(
@@ -68,7 +70,27 @@ function AdminClassAssignmentPage() {
     () => buildSuggestedClassName(selectedSubject?.name || '', students.map((student) => student.name || 'Student')),
     [selectedSubject, students]
   );
-  const shouldShowSuggestion = !!suggestedDisplayName && displayName.trim() !== suggestedDisplayName;
+
+  useEffect(() => {
+    if (!suggestedDisplayName) {
+      return;
+    }
+    const current = displayName;
+    const shouldAutofill =
+      !isDisplayNameManuallyEdited || current.trim() === '' || current === lastAutoDisplayName;
+    if (!shouldAutofill) {
+      return;
+    }
+    setDisplayName(suggestedDisplayName);
+    setLastAutoDisplayName(suggestedDisplayName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedDisplayName]);
+
+  function handleResetDisplayNameToSuggested(): void {
+    setDisplayName(suggestedDisplayName);
+    setLastAutoDisplayName(suggestedDisplayName);
+    setIsDisplayNameManuallyEdited(false);
+  }
 
   async function loadAssignmentData(): Promise<void> {
     try {
@@ -194,6 +216,8 @@ function AdminClassAssignmentPage() {
       setStudents([]);
       setStudentDraft({ email: '', name: '' });
       setDisplayName('');
+      setIsDisplayNameManuallyEdited(false);
+      setLastAutoDisplayName('');
       setNote('');
       setStudentLookupHint('');
       if (selectedSubject) {
@@ -272,7 +296,7 @@ function AdminClassAssignmentPage() {
               value={studentDraft.name}
               onChange={(event) => setStudentDraft((prev) => ({ ...prev, name: event.target.value }))}
             />
-            <button type="button" className="btn btn-outline compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
+            <button type="button" className="btn btn-soft-teal compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
               {studentLookupLoading ? 'Checking...' : 'Add student'}
             </button>
           </div>
@@ -302,7 +326,7 @@ function AdminClassAssignmentPage() {
                       <td>
                         <button
                           type="button"
-                          className="btn btn-outline table-action"
+                          className="btn btn-soft table-action"
                           onClick={() => handleRemoveStudent(student.email)}
                         >
                           Remove
@@ -336,24 +360,33 @@ function AdminClassAssignmentPage() {
                 setIsPriceManuallyEdited(true);
               }}
             />
-            <button type="button" className="btn btn-outline compact-btn" onClick={handleResetToSubjectPrice}>
+            <button type="button" className="btn btn-soft compact-btn" onClick={handleResetToSubjectPrice}>
               Use subject default price
             </button>
           </div>
 
-          <div>
+          <div className="grid-form">
             <input
               className="text-input"
-              placeholder="Class display name (editable)"
+              placeholder="Class display name"
               value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
+              onChange={(event) => {
+                setDisplayName(event.target.value);
+                setIsDisplayNameManuallyEdited(true);
+              }}
             />
-            {shouldShowSuggestion ? (
-              <p className="muted">Suggested name: {suggestedDisplayName}</p>
-            ) : suggestedDisplayName ? (
-              <p className="muted">Auto-generated title: {suggestedDisplayName}</p>
-            ) : null}
+            <button
+              type="button"
+              className="btn btn-soft compact-btn"
+              onClick={handleResetDisplayNameToSuggested}
+              disabled={!suggestedDisplayName}
+            >
+              Reset to suggested
+            </button>
           </div>
+          {suggestedDisplayName && isDisplayNameManuallyEdited ? (
+            <p className="muted">Suggested: {suggestedDisplayName}</p>
+          ) : null}
 
           <textarea
             className="text-input"
@@ -402,7 +435,7 @@ function AdminClassAssignmentPage() {
                             <div className="table-actions">
                               <button
                                 type="button"
-                                className="btn btn-outline table-action"
+                                className="btn btn-soft-teal table-action"
                                 onClick={() => handleApprove(application.applicationId)}
                                 disabled={applicationLoadingId === application.applicationId}
                               >
@@ -410,7 +443,7 @@ function AdminClassAssignmentPage() {
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-outline table-action"
+                                className="btn btn-soft table-action"
                                 onClick={() => handleReject(application.applicationId)}
                                 disabled={applicationLoadingId === application.applicationId}
                               >
