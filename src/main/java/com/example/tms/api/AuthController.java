@@ -1,11 +1,13 @@
 package com.example.tms.api;
 
 import com.example.tms.api.dto.auth.AuthResponse;
+import com.example.tms.api.dto.auth.ForgotPasswordRequest;
 import com.example.tms.api.dto.auth.GoogleAuthRequest;
 import com.example.tms.api.dto.auth.GoogleAuthResponse;
 import com.example.tms.api.dto.auth.LinkGoogleRequest;
 import com.example.tms.api.dto.auth.LoginRequest;
 import com.example.tms.api.dto.auth.RegisterRequest;
+import com.example.tms.api.dto.auth.ResetPasswordRequest;
 import com.example.tms.api.dto.auth.SwitchRoleRequest;
 import com.example.tms.api.dto.auth.VerifyGoogleLinkOtpRequest;
 import com.example.tms.api.dto.auth.VerifyOtpRequest;
@@ -52,6 +54,18 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         return authService.login(request, httpRequest);
+    }
+
+    @PostMapping("/forgot-password")
+    public Map<String, String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request.email());
+        return Map.of("message", "If an account exists for this email, we sent a reset code.");
+    }
+
+    @PostMapping("/reset-password")
+    public Map<String, String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request.email(), request.otp(), request.newPassword());
+        return Map.of("message", "Password updated successfully");
     }
 
     @PostMapping("/refresh")

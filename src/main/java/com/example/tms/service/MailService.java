@@ -42,6 +42,26 @@ public class MailService {
         }
     }
 
+    public void sendPasswordResetOtp(String to, String otp) {
+        if (isTestProfile()) {
+            log.debug("Skip password reset OTP email sending in test profile for {}", to);
+            return;
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject("Reset your Tutor Management System password");
+            message.setText(
+                    "Your password reset code is: " + otp + ". It expires in 5 minutes. "
+                            + "If you did not request this, you can ignore this email."
+            );
+            mailSender.send(message);
+        } catch (Exception ex) {
+            log.error("Password reset email sending failed for {}: {}", to, ex.getMessage(), ex);
+            throw new ApiException("Failed to deliver password reset email. Please try again later.");
+        }
+    }
+
     public void sendTutorInvitationEmail(String to) {
         if (isTestProfile()) {
             log.debug("Skip tutor invitation email sending in test profile for {}", to);

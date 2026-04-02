@@ -18,6 +18,7 @@ export interface TutorDashboardResponse {
 
 export interface TutorClassOverviewResponse {
   classId: string;
+  classDisplayName: string;
   subjectName: string;
   classStatus: string;
   pricePerHour: number;

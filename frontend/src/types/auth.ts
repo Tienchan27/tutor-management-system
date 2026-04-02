@@ -41,6 +41,16 @@ export interface VerifyOtpPayload {
   otp: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
 export interface AuthTokensResponse {
   userId: string;
   email: string;
@@ -74,6 +84,7 @@ export interface UserProfile {
 }
 
 export interface ApiErrorResponse {
+  code?: string;
   message?: string;
   details?: Record<string, string>;
 }

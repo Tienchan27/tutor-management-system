@@ -8,10 +8,15 @@ import {
   TutorDashboardResponse,
   TutorSummaryResponse,
 } from '../types/dashboard';
+import { SliceResponse } from '../types/pagination';
 
-export async function getAdminTutorSummary(month: string): Promise<TutorSummaryResponse[]> {
-  const response = await api.get<TutorSummaryResponse[]>('/dashboard/admin/tutors/summary', {
-    params: { month },
+export async function getAdminTutorSummary(
+  month: string,
+  page = 0,
+  size = 50
+): Promise<SliceResponse<TutorSummaryResponse>> {
+  const response = await api.get<SliceResponse<TutorSummaryResponse>>('/dashboard/admin/tutors/summary', {
+    params: { month, page, size },
   });
   return response.data;
 }

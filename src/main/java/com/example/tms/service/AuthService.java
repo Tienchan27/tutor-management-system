@@ -116,6 +116,11 @@ public class AuthService {
                 issueOtp(normalizedEmail, OtpPurpose.REGISTER, false);
                 return;
             }
+            if (existingUser.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                throw new ApiException(
+                        "This email is already registered."
+                );
+            }
             throw new ApiException("Email already exists");
         }
         User user = new User();
@@ -148,6 +153,44 @@ public class AuthService {
         issueOtp(normalizedEmail, OtpPurpose.REGISTER, true);
     }
 
+    /**
+     * Sends a password-reset OTP when the user exists, has a password set, and is PENDING or ACTIVE.
+     * No-ops silently otherwise (same response from API to avoid email enumeration).
+     */
+    @Transactional
+    public void forgotPassword(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        Optional<User> opt = userRepository.findByEmail(normalizedEmail);
+        if (opt.isEmpty()) {
+            return;
+        }
+        User user = opt.get();
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            return;
+        }
+        if (user.getStatus() != UserStatus.PENDING_VERIFICATION && user.getStatus() != UserStatus.ACTIVE) {
+            return;
+        }
+        issueOtp(normalizedEmail, OtpPurpose.PASSWORD_RESET, true);
+    }
+
+    @Transactional
+    public void resetPassword(String email, String otp, String newPassword) {
+        String normalizedEmail = normalizeEmail(email);
+        verifyOtpOrThrow(normalizedEmail, OtpPurpose.PASSWORD_RESET, otp);
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ApiException("User not found"));
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw new ApiException("Password login is not configured for this account");
+        }
+        if (user.getStatus() != UserStatus.PENDING_VERIFICATION && user.getStatus() != UserStatus.ACTIVE) {
+            throw new ApiException("The account is no longer active. Please contact support.");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        refreshTokenRepository.revokeAllByUser(user, LocalDateTime.now());
+    }
+
     @Transactional
     public AuthResponse verifyOtp(VerifyOtpRequest request, HttpServletRequest httpRequest) {
         String normalizedEmail = normalizeEmail(request.email());
@@ -165,12 +208,27 @@ public class AuthService {
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         String normalizedEmail = normalizeEmail(request.email());
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new ApiException("Invalid email or password"));
+                .orElseThrow(() -> new ApiException("INVALID_EMAIL", "Invalid email or password"));
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new ApiException("Invalid email or password");
+            throw new ApiException("INVALID_PASSWORD", "Invalid email or password");
+        }
+        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            throw new ApiException(
+                    "PENDING_VERIFICATION",
+                    "Please verify your email before signing in. A new verification code will be sent when you continue."
+            );
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new ApiException("The account is no longer active. Please contact support.");
+            if (user.getStatus() == UserStatus.BLOCKED) {
+                throw new ApiException(
+                        "ACCOUNT_BLOCKED",
+                        "Your account is blocked. Please contact support."
+                );
+            }
+            throw new ApiException(
+                    "ACCOUNT_NOT_ACTIVE",
+                    "The account is no longer active. Please contact support."
+            );
         }
         return generateAuthResponse(user, httpRequest);
     }
@@ -256,7 +314,11 @@ public class AuthService {
                 otpHash,
                 java.time.Duration.ofMinutes(OTP_EXPIRY_MINUTES)
         );
-        mailService.sendOtpEmail(normalizedEmail, otp);
+        if (purpose == OtpPurpose.PASSWORD_RESET) {
+            mailService.sendPasswordResetOtp(normalizedEmail, otp);
+        } else {
+            mailService.sendOtpEmail(normalizedEmail, otp);
+        }
     }
 
     private AuthResponse generateAuthResponse(User user, HttpServletRequest httpRequest) {

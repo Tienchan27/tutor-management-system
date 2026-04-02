@@ -25,17 +25,51 @@ function AdminTutorManagementPage() {
   const [inviteEmail, setInviteEmail] = useState<string>('');
   const [inviteMessage, setInviteMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [summaryHasNext, setSummaryHasNext] = useState<boolean>(false);
+  const [summaryPage, setSummaryPage] = useState<number>(0);
+  const [summaryLoadingMore, setSummaryLoadingMore] = useState<boolean>(false);
 
   async function loadSummary(): Promise<void> {
     setLoading(true);
     setError('');
     try {
-      const response = await getAdminTutorSummary(month);
-      setItems(response);
+      const response = await getAdminTutorSummary(month, 0);
+      setItems(response.items);
+      setSummaryPage(0);
+      setSummaryHasNext(response.hasNext);
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to load admin summary'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMoreSummary(): Promise<void> {
+    if (!summaryHasNext || summaryLoadingMore) {
+      return;
+    }
+    setSummaryLoadingMore(true);
+    setError('');
+    try {
+      const nextPage = summaryPage + 1;
+      const response = await getAdminTutorSummary(month, nextPage);
+      setItems((prev) => {
+        const seen = new Set(prev.map((r) => r.tutorId));
+        const merged = [...prev];
+        for (const row of response.items) {
+          if (!seen.has(row.tutorId)) {
+            seen.add(row.tutorId);
+            merged.push(row);
+          }
+        }
+        return merged;
+      });
+      setSummaryPage(nextPage);
+      setSummaryHasNext(response.hasNext);
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to load more tutors'));
+    } finally {
+      setSummaryLoadingMore(false);
     }
   }
 
@@ -202,36 +236,54 @@ function AdminTutorManagementPage() {
         {error ? <p className="error-text">{error}</p> : null}
         {!loading && !items.length ? <p className="muted">No summary available for this month.</p> : null}
         {!!items.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tutor</th>
-                  <th>Gross Revenue</th>
-                  <th>Net Salary</th>
-                  <th>Classes (this month)</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.tutorId}>
-                    <td>{item.tutorName} ({item.tutorEmail})</td>
-                    <td>{item.grossRevenue.toLocaleString()}</td>
-                    <td>{item.netSalary.toLocaleString()}</td>
-                    <td>{item.classesReceivingThisMonth}</td>
-                    <td>{item.payoutStatus}</td>
-                    <td>
-                      <button className="btn btn-soft-teal table-action" onClick={() => loadDetail(item.tutorId)} type="button">
-                        View detail
-                      </button>
-                    </td>
+          <>
+            <p className="muted mb-8">
+              Showing {items.length} tutor{items.length === 1 ? '' : 's'}
+              {summaryHasNext ? ' — more available.' : '.'}
+            </p>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Tutor</th>
+                    <th>Gross Revenue</th>
+                    <th>Net Salary</th>
+                    <th>Classes (this month)</th>
+                    <th>Status</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.tutorId}>
+                      <td>{item.tutorName} ({item.tutorEmail})</td>
+                      <td>{item.grossRevenue.toLocaleString()}</td>
+                      <td>{item.netSalary.toLocaleString()}</td>
+                      <td>{item.classesReceivingThisMonth}</td>
+                      <td>{item.payoutStatus}</td>
+                      <td>
+                        <button className="btn btn-soft-teal table-action" onClick={() => loadDetail(item.tutorId)} type="button">
+                          View detail
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {summaryHasNext ? (
+              <div className="form-actions mt-12">
+                <button
+                  type="button"
+                  className="btn btn-soft"
+                  onClick={() => void loadMoreSummary()}
+                  disabled={summaryLoadingMore}
+                >
+                  {summaryLoadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
 
@@ -370,6 +422,7 @@ function AdminTutorManagementPage() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>Class name</th>
                     <th>Subject</th>
                     <th>Status</th>
                     <th>Price/Hour</th>
@@ -381,6 +434,7 @@ function AdminTutorManagementPage() {
                 <tbody>
                   {detail.managedClasses.map((managedClass) => (
                     <tr key={managedClass.classId}>
+                      <td>{managedClass.classDisplayName || managedClass.subjectName}</td>
                       <td>{managedClass.subjectName}</td>
                       <td>{managedClass.classStatus}</td>
                       <td>{managedClass.pricePerHour.toLocaleString()}</td>

@@ -42,6 +42,8 @@ public class SecurityConfig {
                         // Public auth endpoints
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/verify-otp").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/resend-otp").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()

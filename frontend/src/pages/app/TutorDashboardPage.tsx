@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getTutorClassOverview, getTutorDashboard, getTutorClassRoster } from '../../services/dashboardService';
+import { listMySessionClasses } from '../../services/sessionService';
 import { TutorClassOverviewResponse, TutorClassRosterResponse, TutorDashboardResponse } from '../../types/dashboard';
+import { TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 
 function TutorDashboardPage() {
   const [items, setItems] = useState<TutorDashboardResponse[]>([]);
   const [classes, setClasses] = useState<TutorClassOverviewResponse[]>([]);
+  const [mySessionClasses, setMySessionClasses] = useState<TutorSessionClassOptionResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
@@ -14,14 +17,35 @@ function TutorDashboardPage() {
   const [roster, setRoster] = useState<TutorClassRosterResponse | null>(null);
   const [rosterClassId, setRosterClassId] = useState<string>('');
 
+  const classNameByIdFromSessionApi = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of mySessionClasses) {
+      map.set(c.id, c.className);
+    }
+    return map;
+  }, [mySessionClasses]);
+
+  function displayClassLabel(item: TutorClassOverviewResponse): string {
+    const fromOverview = item.classDisplayName?.trim();
+    if (fromOverview) {
+      return fromOverview;
+    }
+    return classNameByIdFromSessionApi.get(item.classId) || item.subjectName;
+  }
+
   useEffect(() => {
     async function load(): Promise<void> {
       setLoading(true);
       setError('');
       try {
-        const [dashboardResponse, classResponse] = await Promise.all([getTutorDashboard(), getTutorClassOverview()]);
+        const [dashboardResponse, classResponse, sessionClassesResponse] = await Promise.all([
+          getTutorDashboard(),
+          getTutorClassOverview(),
+          listMySessionClasses(),
+        ]);
         setItems(dashboardResponse);
         setClasses(classResponse);
+        setMySessionClasses(sessionClassesResponse);
       } catch (err: unknown) {
         setError(extractApiErrorMessage(err, 'Failed to load tutor dashboard'));
       } finally {
@@ -57,6 +81,7 @@ function TutorDashboardPage() {
   }
 
   const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
+  const rosterClassLabel = rosterClass ? displayClassLabel(rosterClass) : '';
 
   return (
     <div className="stack-16">
@@ -100,6 +125,7 @@ function TutorDashboardPage() {
             <table className="table">
               <thead>
                 <tr>
+                  <th>Class name</th>
                   <th>Subject</th>
                   <th>Status</th>
                   <th>Price/Hour</th>
@@ -112,6 +138,7 @@ function TutorDashboardPage() {
               <tbody>
                 {classes.map((item) => (
                   <tr key={item.classId}>
+                    <td>{displayClassLabel(item)}</td>
                     <td>{item.subjectName}</td>
                     <td>{item.classStatus}</td>
                     <td>{item.pricePerHour.toLocaleString()}</td>
@@ -143,7 +170,7 @@ function TutorDashboardPage() {
             <div>
               <h3 className="section-title">Roster</h3>
               <p className="subtitle mt-6">
-                {rosterClass ? `${rosterClass.subjectName} • ${rosterClass.classStatus}` : 'Selected class'}
+                {rosterClass ? `${rosterClassLabel} • ${rosterClass.classStatus}` : 'Selected class'}
               </p>
             </div>
             <button type="button" className="btn btn-soft compact-btn" onClick={handleCloseRoster}>
@@ -152,6 +179,12 @@ function TutorDashboardPage() {
           </div>
 
           {rosterLoading ? <p className="muted">Loading roster...</p> : null}
+          {!rosterLoading && roster ? (
+            <p className="muted mb-8">
+              Tuition amounts reflect the per-student allocation from the latest recorded session for this class. Until a session
+              exists, amounts show as 0.
+            </p>
+          ) : null}
           {!rosterLoading && roster && !roster.students.length ? <p className="muted">No active students.</p> : null}
           {!rosterLoading && roster && !!roster.students.length ? (
             <div className="table-wrap">

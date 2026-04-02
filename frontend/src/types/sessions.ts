@@ -18,6 +18,18 @@ export interface TutorSessionClassOptionResponse {
   students: { id: string; name: string }[];
 }
 
+/** Matches GET /sessions list items (SessionListItemResponse). */
+export interface SessionListItem {
+  id: string;
+  classId: string;
+  date: string;
+  durationHours: number;
+  tuitionAtLog: number;
+  salaryRateAtLog: number;
+  payrollMonth: string;
+  note: string | null;
+}
+
 export interface SessionResponse {
   id: string;
   tutorClass?: SessionClassRef;

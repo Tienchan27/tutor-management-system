@@ -5,7 +5,7 @@ import {
   listSessionsByPayrollMonth,
   updateSessionFinancial,
 } from '../../services/sessionService';
-import { CreateSessionRequest, SessionResponse, TutorSessionClassOptionResponse } from '../../types/sessions';
+import { CreateSessionRequest, SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 
 function getCurrentMonth(): string {
@@ -30,8 +30,11 @@ const initialForm: CreateSessionRequest = {
 
 function TutorSessionsPage() {
   const [month, setMonth] = useState<string>(getCurrentMonth());
-  const [items, setItems] = useState<SessionResponse[]>([]);
+  const [items, setItems] = useState<SessionListItem[]>([]);
   const [classes, setClasses] = useState<TutorSessionClassOptionResponse[]>([]);
+  const [sessionHasNext, setSessionHasNext] = useState<boolean>(false);
+  const [sessionPage, setSessionPage] = useState<number>(0);
+  const [sessionLoadingMore, setSessionLoadingMore] = useState<boolean>(false);
   const [form, setForm] = useState<CreateSessionRequest>(initialForm);
   const [salaryRatePercent, setSalaryRatePercent] = useState<number>(75);
   const [studentsOpen, setStudentsOpen] = useState<boolean>(false);
@@ -56,16 +59,59 @@ function TutorSessionsPage() {
     return form.studentTuitions.reduce((sum, item) => sum + (item.tuitionAtLog || 0), 0);
   }, [form.studentTuitions]);
 
+  const classNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of classes) {
+      map.set(c.id, c.className);
+    }
+    return map;
+  }, [classes]);
+
+  function resolveClassName(classId: string): string {
+    return classNameById.get(classId) ?? 'Unknown class';
+  }
+
   async function loadSessions(): Promise<void> {
     setLoading(true);
     setError('');
     try {
-      const response = await listSessionsByPayrollMonth(month);
-      setItems(response);
+      const response = await listSessionsByPayrollMonth(month, 0);
+      setItems(response.items);
+      setSessionPage(0);
+      setSessionHasNext(response.hasNext);
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to load sessions'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMoreSessions(): Promise<void> {
+    if (!sessionHasNext || sessionLoadingMore) {
+      return;
+    }
+    setSessionLoadingMore(true);
+    setError('');
+    try {
+      const nextPage = sessionPage + 1;
+      const response = await listSessionsByPayrollMonth(month, nextPage);
+      setItems((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        const merged = [...prev];
+        for (const row of response.items) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id);
+            merged.push(row);
+          }
+        }
+        return merged;
+      });
+      setSessionPage(nextPage);
+      setSessionHasNext(response.hasNext);
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to load more sessions'));
+    } finally {
+      setSessionLoadingMore(false);
     }
   }
 
@@ -127,7 +173,7 @@ function TutorSessionsPage() {
     }
   }
 
-  async function handleUpdateFinancial(item: SessionResponse): Promise<void> {
+  async function handleUpdateFinancial(item: SessionListItem): Promise<void> {
     const reason = reasonBySession[item.id]?.trim();
     if (!reason) {
       setError('Update reason is required for financial changes.');
@@ -150,7 +196,7 @@ function TutorSessionsPage() {
     }
   }
 
-  function updateSessionRow<K extends keyof SessionResponse>(id: string, field: K, value: SessionResponse[K]): void {
+  function updateSessionRow<K extends keyof SessionListItem>(id: string, field: K, value: SessionListItem[K]): void {
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
@@ -375,24 +421,29 @@ function TutorSessionsPage() {
         {loading ? <p className="muted">Loading...</p> : null}
         {!loading && !items.length ? <p className="muted">No sessions for this payroll month.</p> : null}
         {!!items.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Class ID</th>
-                  <th>Duration</th>
-                  <th>Tuition</th>
-                  <th>Rate (%)</th>
-                  <th>Reason</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.date}</td>
-                    <td>{item.tutorClass?.id || '-'}</td>
+          <>
+            <p className="muted mb-8">
+              Showing {items.length} session{items.length === 1 ? '' : 's'}
+              {sessionHasNext ? ' — more available.' : '.'}
+            </p>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Class</th>
+                    <th>Duration</th>
+                    <th>Tuition</th>
+                    <th>Rate (%)</th>
+                    <th>Reason</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.date}</td>
+                      <td>{resolveClassName(item.classId)}</td>
                     <td>
                       <input
                         className="table-input"
@@ -436,10 +487,23 @@ function TutorSessionsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {sessionHasNext ? (
+              <div className="form-actions mt-12">
+                <button
+                  type="button"
+                  className="btn btn-soft"
+                  onClick={() => void loadMoreSessions()}
+                  disabled={sessionLoadingMore}
+                >
+                  {sessionLoadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
     </div>

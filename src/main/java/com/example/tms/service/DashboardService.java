@@ -31,13 +31,17 @@ import com.example.tms.repository.UserRoleRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.YearMonth;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class DashboardService {
@@ -72,9 +76,44 @@ public class DashboardService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public Slice<TutorSummaryResponse> adminTutorSummary(User admin, YearMonth month, Pageable pageable) {
-        return userRoleRepository.findByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE, pageable)
-                .map(UserRole::getUser)
-                .map(tutor -> toSummary(tutor, month));
+        Slice<UserRole> userRolesSlice = userRoleRepository.findByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE, pageable);
+        List<UserRole> roles = userRolesSlice.getContent();
+        if (roles.isEmpty()) {
+            return new SliceImpl<>(List.of(), pageable, userRolesSlice.hasNext());
+        }
+
+        List<UUID> tutorIds = roles.stream().map(ur -> ur.getUser().getId()).toList();
+
+        Map<UUID, TutorPayout> payoutByTutorId = tutorPayoutRepository
+                .findByYearAndMonthAndTutor_IdIn(month.getYear(), month.getMonthValue(), tutorIds)
+                .stream()
+                .collect(Collectors.toMap(p -> p.getTutor().getId(), p -> p, (a, b) -> a));
+
+        Map<UUID, Long> distinctClassesByTutor = new HashMap<>();
+        for (Object[] row : sessionRepository.countDistinctClassesByTutorForPayrollMonth(month.toString(), tutorIds)) {
+            UUID tutorId = (UUID) row[0];
+            long cnt = ((Number) row[1]).longValue();
+            distinctClassesByTutor.put(tutorId, cnt);
+        }
+
+        List<TutorSummaryResponse> summaries = roles.stream()
+                .map(ur -> {
+                    User tutor = ur.getUser();
+                    TutorPayout payout = payoutByTutorId.get(tutor.getId());
+                    long classesReceiving = distinctClassesByTutor.getOrDefault(tutor.getId(), 0L);
+                    return new TutorSummaryResponse(
+                            tutor.getId(),
+                            tutor.getName(),
+                            tutor.getEmail(),
+                            payout == null ? 0L : payout.getGrossRevenue(),
+                            payout == null ? 0L : payout.getNetSalary(),
+                            classesReceiving,
+                            payout == null ? "NO_PAYOUT" : payout.getStatus().name()
+                    );
+                })
+                .toList();
+
+        return new SliceImpl<>(summaries, pageable, userRolesSlice.hasNext());
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -172,26 +211,6 @@ public class DashboardService {
         );
     }
 
-    private TutorSummaryResponse toSummary(User tutor, YearMonth month) {
-        TutorPayout payout = tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), month.getYear(), month.getMonthValue())
-                .orElse(null);
-
-        List<Session> sessionsThisMonth = sessionRepository.findByTutorClassTutorIdAndPayrollMonth(tutor.getId(), month.toString());
-        long classesReceivingThisMonth = sessionsThisMonth.stream()
-                .map(s -> s.getTutorClass().getId())
-                .distinct()
-                .count();
-        return new TutorSummaryResponse(
-                tutor.getId(),
-                tutor.getName(),
-                tutor.getEmail(),
-                payout == null ? 0L : payout.getGrossRevenue(),
-                payout == null ? 0L : payout.getNetSalary(),
-                classesReceivingThisMonth,
-                payout == null ? "NO_PAYOUT" : payout.getStatus().name()
-        );
-    }
-
     private TutorDashboardResponse toDashboard(TutorPayout payout) {
         return new TutorDashboardResponse(
                 payout.getYear(),
@@ -207,6 +226,7 @@ public class DashboardService {
         Session latestSession = sessionRepository.findTopByTutorClassIdOrderByDateDesc(tutorClass.getId()).orElse(null);
         return new TutorClassOverviewResponse(
                 tutorClass.getId(),
+                resolveClassDisplayName(tutorClass),
                 tutorClass.getSubject().getName(),
                 tutorClass.getStatus().name(),
                 tutorClass.getPricePerHour(),
@@ -214,6 +234,21 @@ public class DashboardService {
                 sessionCount,
                 latestSession == null ? null : latestSession.getDate()
         );
+    }
+
+    private String resolveClassDisplayName(TutorClass tutorClass) {
+        List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE);
+        List<String> studentNames = activeEnrollments.stream()
+                .map(Enrollment::getStudent)
+                .map(User::getName)
+                .toList();
+        String className = tutorClass.getDisplayName();
+        if (className == null || className.isBlank()) {
+            className = studentNames.isEmpty()
+                    ? "[" + tutorClass.getSubject().getName() + "] Class"
+                    : "[" + tutorClass.getSubject().getName() + "] " + String.join(" - ", studentNames);
+        }
+        return className;
     }
 
     private AdminTutorBankAccountResponse toBankAccountResponse(TutorBankAccount bankAccount) {

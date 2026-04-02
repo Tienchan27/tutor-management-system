@@ -39,8 +39,8 @@ public class DashboardController {
         Pageable guarded = PageableGuard.guard(
                 pageable,
                 50,
-                Sort.by(Sort.Direction.ASC, "tutorName"),
-                Set.of("tutorName", "tutorEmail")
+                Sort.by(Sort.Direction.ASC, "user.name"),
+                Set.of("user.name", "user.email")
         );
         Slice<TutorSummaryResponse> slice = dashboardService.adminTutorSummary(
                 currentUserResolver.requireUser(),

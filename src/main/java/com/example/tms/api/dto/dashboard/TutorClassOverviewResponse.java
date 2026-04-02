@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record TutorClassOverviewResponse(
         UUID classId,
+        String classDisplayName,
         String subjectName,
         String classStatus,
         Long pricePerHour,

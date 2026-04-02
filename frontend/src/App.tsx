@@ -1,6 +1,7 @@
 import { ReactElement } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfileCompletionPage from './pages/ProfileCompletionPage';
 import TutorOnboardingPage from './pages/TutorOnboardingPage';
 import AppShell from './components/layout/AppShell';
@@ -89,6 +90,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
         path="/profile-completion"
         element={

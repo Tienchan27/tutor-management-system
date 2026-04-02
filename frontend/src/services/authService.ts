@@ -6,8 +6,10 @@ import {
   AuthTokensResponse,
   VerifyGoogleLinkOtpPayload,
   GoogleAuthResponse,
+  ForgotPasswordPayload,
   LoginPayload,
   RegisterPayload,
+  ResetPasswordPayload,
   VerifyOtpPayload,
 } from '../types/auth';
 
@@ -30,6 +32,12 @@ export async function login(payload: LoginPayload): Promise<AuthTokensResponse> 
 
 export async function register(payload: RegisterPayload): Promise<AxiosResponse<unknown>> {
   return api.post('/auth/register', payload);
+}
+
+export async function resendOtp(email: string): Promise<void> {
+  await api.post('/auth/resend-otp', null, {
+    params: { email },
+  });
 }
 
 export async function verifyOtp(payload: VerifyOtpPayload): Promise<AuthTokensResponse> {
@@ -73,6 +81,16 @@ export async function verifyGoogleLinkOtp(payload: VerifyGoogleLinkOtpPayload): 
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export async function forgotPassword(payload: ForgotPasswordPayload): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>('/auth/forgot-password', payload);
+  return response.data;
+}
+
+export async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>('/auth/reset-password', payload);
+  return response.data;
 }
 
 export function extractApiErrorMessage(error: unknown, fallback: string): string {
