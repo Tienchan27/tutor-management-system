@@ -17,6 +17,7 @@ import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.SessionService;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -57,6 +58,8 @@ class SessionServiceStudentTuitionLinesTests {
 
     @Mock
     private NotificationOutboxService notificationOutboxService;
+    @Mock
+    private RealtimeOutboxService realtimeOutboxService;
 
     @Test
     void createCreatesLineItemsAndKeepsTuitionSumConsistent() {
@@ -101,7 +104,8 @@ class SessionServiceStudentTuitionLinesTests {
                 sessionStudentTuitionRepository,
                 userRoleRepository,
                 auditRepository,
-                notificationOutboxService
+                notificationOutboxService,
+                realtimeOutboxService
         );
 
         // Provide per-student tuition

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppRole } from '../types/app';
 import { resolveRolesByApi } from '../services/accessService';
+import { realtimeEventBus } from '../services/realtimeEventBus';
 
 interface RoleAccessState {
   roles: AppRole[];
@@ -35,7 +36,13 @@ export function useRoleAccess(): RoleAccessState {
       }
     }
     resolve();
+
+    const unsubscribe = realtimeEventBus.subscribe('ROLE_CHANGED', async () => {
+      // Re-resolve roles so UI unlocks/locks features without logout.
+      await resolve();
+    });
     return () => {
+      unsubscribe();
       mounted = false;
     };
   }, []);

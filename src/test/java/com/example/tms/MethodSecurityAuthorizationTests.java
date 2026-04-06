@@ -16,6 +16,7 @@ import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.SessionService;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,11 @@ class MethodSecurityAuthorizationTests {
         }
 
         @Bean
+        RealtimeOutboxService realtimeOutboxService() {
+            return mock(RealtimeOutboxService.class);
+        }
+
+        @Bean
         SessionStudentTuitionRepository sessionStudentTuitionRepository() {
             return mock(SessionStudentTuitionRepository.class);
         }
@@ -87,7 +93,8 @@ class MethodSecurityAuthorizationTests {
                 SessionStudentTuitionRepository sessionStudentTuitionRepository,
                 UserRoleRepository userRoleRepository,
                 SessionFinancialEditAuditRepository auditRepository,
-                NotificationOutboxService notificationOutboxService
+                NotificationOutboxService notificationOutboxService,
+                RealtimeOutboxService realtimeOutboxService
         ) {
             return new SessionService(
                     sessionRepository,
@@ -96,7 +103,8 @@ class MethodSecurityAuthorizationTests {
                     sessionStudentTuitionRepository,
                     userRoleRepository,
                     auditRepository,
-                    notificationOutboxService
+                    notificationOutboxService,
+                    realtimeOutboxService
             );
         }
     }

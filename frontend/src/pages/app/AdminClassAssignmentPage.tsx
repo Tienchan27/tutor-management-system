@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { extractApiErrorMessage } from '../../services/authService';
+import { realtimeEventBus } from '../../services/realtimeEventBus';
 import {
   approveClassApplication,
   listPublishedClasses,
@@ -112,7 +113,19 @@ function AdminClassAssignmentPage() {
 
   useEffect(() => {
     loadAssignmentData();
+
+    const unsubscribe = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', (event) => {
+      // Admin queue changes can come from tutor apply/withdraw or admin review actions.
+      if (event.scope?.startsWith('role:ADMIN')) {
+        window.setTimeout(() => {
+          loadAssignmentData();
+        }, 250);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   async function handleStudentLookupOnBlur(): Promise<void> {

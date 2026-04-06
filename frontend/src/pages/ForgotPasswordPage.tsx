@@ -1,9 +1,10 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { extractApiErrorMessage, forgotPassword, resetPassword } from '../services/authService';
+import { clearPendingPasswordReset, getPendingPasswordReset, setPendingPasswordReset } from '../utils/pendingAuthStorage';
 
 type Step = 'email' | 'reset';
 
@@ -20,6 +21,31 @@ function ForgotPasswordPage() {
   const [error, setError] = useState<string>('');
   const [info, setInfo] = useState<string>('');
 
+  const OTP_EXPIRY_MINUTES_FE = 5;
+  const otpExpiresAtMs = (requestedAt: number) => requestedAt + OTP_EXPIRY_MINUTES_FE * 60 * 1000;
+
+  useEffect(() => {
+    const pending = getPendingPasswordReset();
+    if (!pending) {
+      return;
+    }
+    const expiresAt = otpExpiresAtMs(pending.requestedAt);
+    if (Date.now() <= expiresAt) {
+      setEmail(pending.email);
+      setStep('reset');
+      setError('');
+      setInfo('');
+      return;
+    }
+    clearPendingPasswordReset();
+    setStep('email');
+    setError('OTP expired. Please send a new code.');
+    setOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setInfo('');
+  }, []);
+
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const trimmed = email.trim();
@@ -33,6 +59,7 @@ function ForgotPasswordPage() {
     try {
       const res = await forgotPassword({ email: trimmed });
       setInfo(res.message);
+      setPendingPasswordReset(trimmed, Date.now());
       setStep('reset');
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Could not send reset code'));
@@ -55,6 +82,7 @@ function ForgotPasswordPage() {
         otp: otp.trim(),
         newPassword,
       });
+      clearPendingPasswordReset();
       navigate('/', { replace: true, state: { passwordReset: true } });
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Could not reset password'));
@@ -127,7 +155,20 @@ function ForgotPasswordPage() {
                 Update password
               </Button>
               <div className="auth-form-row" style={{ justifyContent: 'flex-start', marginTop: 8 }}>
-                <button type="button" className="auth-link" onClick={() => setStep('email')}>
+                <button
+                  type="button"
+                  className="auth-link"
+                  onClick={() => {
+                    clearPendingPasswordReset();
+                    setStep('email');
+                    setEmail(presetEmail ?? '');
+                    setOtp('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setError('');
+                    setInfo('');
+                  }}
+                >
                   Use a different email
                 </button>
               </div>

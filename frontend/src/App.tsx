@@ -1,4 +1,4 @@
-import { ReactElement } from 'react';
+import { ReactElement, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -23,6 +23,7 @@ import AccountPage from './pages/app/AccountPage';
 import PlaceholderPage from './pages/app/PlaceholderPage';
 import { getAuthUser, isAuthenticated } from './utils/storage';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
+import { startRealtime, stopRealtime } from './services/realtimeClient';
 
 interface RouteGuardProps {
   children: ReactElement;
@@ -57,6 +58,24 @@ function RequireNoTutorOnboarding({ children }: RouteGuardProps) {
 
 function ProtectedAppLayout() {
   const { roles, loading, error } = useRoleAccess();
+
+  useEffect(() => {
+    let mounted = true;
+    async function connect(): Promise<void> {
+      try {
+        await startRealtime();
+      } catch {
+        // Realtime is best-effort; app should still work without it.
+      }
+    }
+    if (mounted && !loading) {
+      connect();
+    }
+    return () => {
+      mounted = false;
+      stopRealtime();
+    };
+  }, [loading]);
 
   if (loading) {
     return (

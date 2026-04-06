@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listMyNotifications, markNotificationRead } from '../../services/notificationService';
 import { NotificationResponse } from '../../types/notifications';
 import { extractApiErrorMessage } from '../../services/authService';
+import { realtimeEventBus } from '../../services/realtimeEventBus';
 
 function formatNotificationType(type: string): string {
   switch (type) {
@@ -79,6 +80,15 @@ function NotificationsPage() {
 
   useEffect(() => {
     load();
+
+    const unsubscribe = realtimeEventBus.subscribe('NOTIFICATION_CREATED', () => {
+      window.setTimeout(() => {
+        load(0);
+      }, 250);
+    });
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const visibleItems = showUnreadOnly ? items.filter((n) => !n.read) : items;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { applyClass, listAvailableClasses } from '../../services/classAssignmentService';
 import { AvailableClassResponse } from '../../types/classAssignment';
 import { extractApiErrorMessage } from '../../services/authService';
+import { realtimeEventBus } from '../../services/realtimeEventBus';
 
 function TutorClassMarketplacePage() {
   const [items, setItems] = useState<AvailableClassResponse[]>([]);
@@ -25,6 +26,15 @@ function TutorClassMarketplacePage() {
 
   useEffect(() => {
     load();
+
+    const unsubscribe = realtimeEventBus.subscribe('MARKETPLACE_UPDATED', () => {
+      window.setTimeout(() => {
+        load();
+      }, 250);
+    });
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   async function handleApply(classId: string): Promise<void> {

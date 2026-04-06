@@ -17,6 +17,9 @@ import com.example.tms.entity.enums.NotificationType;
 import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.realtime.core.ClientEvent;
+import com.example.tms.realtime.core.ClientEventType;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.SessionFinancialEditAuditRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
@@ -49,6 +52,7 @@ public class SessionService {
     private final UserRoleRepository userRoleRepository;
     private final SessionFinancialEditAuditRepository auditRepository;
     private final NotificationOutboxService notificationOutboxService;
+    private final RealtimeOutboxService realtimeOutboxService;
 
     public SessionService(
             SessionRepository sessionRepository,
@@ -57,7 +61,8 @@ public class SessionService {
             SessionStudentTuitionRepository sessionStudentTuitionRepository,
             UserRoleRepository userRoleRepository,
             SessionFinancialEditAuditRepository auditRepository,
-            NotificationOutboxService notificationOutboxService
+            NotificationOutboxService notificationOutboxService,
+            RealtimeOutboxService realtimeOutboxService
     ) {
         this.sessionRepository = sessionRepository;
         this.tutorClassRepository = tutorClassRepository;
@@ -66,6 +71,7 @@ public class SessionService {
         this.userRoleRepository = userRoleRepository;
         this.auditRepository = auditRepository;
         this.notificationOutboxService = notificationOutboxService;
+        this.realtimeOutboxService = realtimeOutboxService;
     }
 
     private List<Long> splitTotalEvenly(long total, int parts) {
@@ -236,6 +242,22 @@ public class SessionService {
                     "session:" + saved.getId()
             );
         }
+
+        ClientEvent tutorEvent = ClientEvent.of(
+                ClientEventType.SESSION_FINANCIAL_UPDATED,
+                "user:" + tutor.getId(),
+                "session:" + saved.getId(),
+                Map.of("sessionId", String.valueOf(saved.getId()))
+        );
+        realtimeOutboxService.enqueue("user:" + tutor.getId(), "session:" + saved.getId(), tutorEvent);
+
+        ClientEvent adminEvent = ClientEvent.of(
+                ClientEventType.SESSION_FINANCIAL_UPDATED,
+                "role:" + RoleName.ADMIN.name(),
+                "session:" + saved.getId(),
+                Map.of("sessionId", String.valueOf(saved.getId()))
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "session:" + saved.getId(), adminEvent);
         return saved;
     }
 

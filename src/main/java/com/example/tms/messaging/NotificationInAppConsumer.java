@@ -4,6 +4,9 @@ import com.example.tms.entity.Notification;
 import com.example.tms.entity.NotificationEventConsumption;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.NotificationType;
+import com.example.tms.realtime.core.ClientEvent;
+import com.example.tms.realtime.core.ClientEventType;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.NotificationEventConsumptionRepository;
 import com.example.tms.repository.NotificationRepository;
 import com.example.tms.repository.UserRepository;
@@ -28,17 +31,20 @@ public class NotificationInAppConsumer {
     private final NotificationRepository notificationRepository;
     private final NotificationEventConsumptionRepository consumptionRepository;
     private final UserRepository userRepository;
+    private final RealtimeOutboxService realtimeOutboxService;
 
     public NotificationInAppConsumer(
             ObjectMapper objectMapper,
             NotificationRepository notificationRepository,
             NotificationEventConsumptionRepository consumptionRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            RealtimeOutboxService realtimeOutboxService
     ) {
         this.objectMapper = objectMapper;
         this.notificationRepository = notificationRepository;
         this.consumptionRepository = consumptionRepository;
         this.userRepository = userRepository;
+        this.realtimeOutboxService = realtimeOutboxService;
     }
 
     @KafkaListener(
@@ -79,6 +85,14 @@ public class NotificationInAppConsumer {
                 n.setContent(payload.content().trim());
                 n.setRead(false);
                 notificationRepository.save(n);
+
+                ClientEvent event = ClientEvent.of(
+                        ClientEventType.NOTIFICATION_CREATED,
+                        "user:" + recipient.getId(),
+                        payload.entityRef(),
+                        java.util.Map.of("notificationType", type.name())
+                );
+                realtimeOutboxService.enqueue("user:" + recipient.getId(), payload.entityRef(), event);
             }
 
             markProcessed(payload.eventId());

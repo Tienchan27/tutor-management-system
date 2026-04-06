@@ -20,6 +20,9 @@ import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.TutorClassApplicationStatus;
 import com.example.tms.entity.enums.UserStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.realtime.core.ClientEvent;
+import com.example.tms.realtime.core.ClientEventType;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.SubjectRepository;
 import com.example.tms.repository.TutorClassApplicationRepository;
@@ -50,6 +53,7 @@ public class ClassAssignmentService {
     private final RoleGuard roleGuard;
     private final MailService mailService;
     private final NotificationOutboxService notificationOutboxService;
+    private final RealtimeOutboxService realtimeOutboxService;
 
     public ClassAssignmentService(
             SubjectRepository subjectRepository,
@@ -60,7 +64,8 @@ public class ClassAssignmentService {
             UserRoleService userRoleService,
             RoleGuard roleGuard,
             MailService mailService,
-            NotificationOutboxService notificationOutboxService
+            NotificationOutboxService notificationOutboxService,
+            RealtimeOutboxService realtimeOutboxService
     ) {
         this.subjectRepository = subjectRepository;
         this.tutorClassRepository = tutorClassRepository;
@@ -71,6 +76,7 @@ public class ClassAssignmentService {
         this.roleGuard = roleGuard;
         this.mailService = mailService;
         this.notificationOutboxService = notificationOutboxService;
+        this.realtimeOutboxService = realtimeOutboxService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -139,6 +145,14 @@ public class ClassAssignmentService {
                 })
                 .toList();
 
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.MARKETPLACE_UPDATED,
+                "role:" + RoleName.TUTOR.name(),
+                "class:" + savedClass.getId(),
+                Map.of("classId", String.valueOf(savedClass.getId()), "status", savedClass.getStatus().name())
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.TUTOR.name(), "class:" + savedClass.getId(), event);
+
         return mapPublishedClassResponse(savedClass, enrollments, List.of());
     }
 
@@ -206,8 +220,40 @@ public class ClassAssignmentService {
                         "Your application for class " + tutorClass.getDisplayName() + " was rejected. Reason: " + application.getRejectionReason(),
                         "class:" + tutorClass.getId()
                 );
+
+                ClientEvent rejectedTutorEvent = ClientEvent.of(
+                        ClientEventType.DASHBOARD_INVALIDATE,
+                        "user:" + application.getTutor().getId(),
+                        "class:" + tutorClass.getId(),
+                        Map.of("classId", String.valueOf(tutorClass.getId()))
+                );
+                realtimeOutboxService.enqueue("user:" + application.getTutor().getId(), "class:" + tutorClass.getId(), rejectedTutorEvent);
             }
         }
+
+        ClientEvent tutorEvent = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "user:" + approved.getTutor().getId(),
+                "class:" + tutorClass.getId(),
+                Map.of("classId", String.valueOf(tutorClass.getId()))
+        );
+        realtimeOutboxService.enqueue("user:" + approved.getTutor().getId(), "class:" + tutorClass.getId(), tutorEvent);
+
+        ClientEvent marketplaceEvent = ClientEvent.of(
+                ClientEventType.MARKETPLACE_UPDATED,
+                "role:" + RoleName.TUTOR.name(),
+                "class:" + tutorClass.getId(),
+                Map.of("classId", String.valueOf(tutorClass.getId()), "status", tutorClass.getStatus().name())
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.TUTOR.name(), "class:" + tutorClass.getId(), marketplaceEvent);
+
+        ClientEvent adminQueueEvent = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "role:" + RoleName.ADMIN.name(),
+                "class:" + tutorClass.getId(),
+                Map.of("classId", String.valueOf(tutorClass.getId()), "reason", "APPLICATION_REVIEWED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + tutorClass.getId(), adminQueueEvent);
 
         return toPublishedClassResponse(tutorClass);
     }
@@ -235,6 +281,24 @@ public class ClassAssignmentService {
                 "Your application was rejected. Reason: " + application.getRejectionReason(),
                 "class:" + application.getTutorClass().getId()
         );
+
+        if (application.getTutor() != null) {
+            ClientEvent tutorEvent = ClientEvent.of(
+                    ClientEventType.DASHBOARD_INVALIDATE,
+                    "user:" + application.getTutor().getId(),
+                    "class:" + application.getTutorClass().getId(),
+                    Map.of("classId", String.valueOf(application.getTutorClass().getId()))
+            );
+            realtimeOutboxService.enqueue("user:" + application.getTutor().getId(), "class:" + application.getTutorClass().getId(), tutorEvent);
+        }
+
+        ClientEvent adminQueueEvent = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "role:" + RoleName.ADMIN.name(),
+                "class:" + application.getTutorClass().getId(),
+                Map.of("classId", String.valueOf(application.getTutorClass().getId()), "reason", "APPLICATION_REVIEWED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + application.getTutorClass().getId(), adminQueueEvent);
         return toApplicationResponse(application);
     }
 
@@ -266,6 +330,13 @@ public class ClassAssignmentService {
             existing.setReviewedAt(null);
             existing.setRejectionReason(null);
             existing = classApplicationRepository.save(existing);
+            ClientEvent adminQueueEvent = ClientEvent.of(
+                    ClientEventType.DASHBOARD_INVALIDATE,
+                    "role:" + RoleName.ADMIN.name(),
+                    "class:" + classId,
+                    Map.of("classId", String.valueOf(classId), "reason", "TUTOR_APPLIED")
+            );
+            realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + classId, adminQueueEvent);
             return new ApplyClassResponse(existing.getId(), classId, existing.getStatus().name(), existing.getAppliedAt());
         }
 
@@ -274,6 +345,14 @@ public class ClassAssignmentService {
         application.setTutor(tutor);
         application.setStatus(TutorClassApplicationStatus.PENDING);
         application = classApplicationRepository.save(application);
+
+        ClientEvent adminQueueEvent = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "role:" + RoleName.ADMIN.name(),
+                "class:" + classId,
+                Map.of("classId", String.valueOf(classId), "reason", "TUTOR_APPLIED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + classId, adminQueueEvent);
         return new ApplyClassResponse(application.getId(), classId, application.getStatus().name(), application.getAppliedAt());
     }
 

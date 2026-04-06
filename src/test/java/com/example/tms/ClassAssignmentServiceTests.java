@@ -22,6 +22,7 @@ import com.example.tms.service.ClassAssignmentService;
 import com.example.tms.service.MailService;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.UserRoleService;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,6 +60,8 @@ class ClassAssignmentServiceTests {
     private MailService mailService;
     @Mock
     private NotificationOutboxService notificationOutboxService;
+    @Mock
+    private RealtimeOutboxService realtimeOutboxService;
 
     private ClassAssignmentService classAssignmentService;
 
@@ -73,7 +76,8 @@ class ClassAssignmentServiceTests {
                 userRoleService,
                 roleGuard,
                 mailService,
-                notificationOutboxService
+                notificationOutboxService,
+                realtimeOutboxService
         );
     }
 

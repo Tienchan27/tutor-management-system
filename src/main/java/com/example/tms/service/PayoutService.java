@@ -8,6 +8,9 @@ import com.example.tms.entity.enums.NotificationType;
 import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.entity.enums.PaymentStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.realtime.core.ClientEvent;
+import com.example.tms.realtime.core.ClientEventType;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.TutorPayoutPaymentRepository;
 import com.example.tms.repository.TutorPayoutRepository;
@@ -35,19 +38,22 @@ public class PayoutService {
     private final TutorPayoutPaymentRepository payoutPaymentRepository;
     private final UserRepository userRepository;
     private final NotificationOutboxService notificationOutboxService;
+    private final RealtimeOutboxService realtimeOutboxService;
 
     public PayoutService(
             SessionRepository sessionRepository,
             TutorPayoutRepository tutorPayoutRepository,
             TutorPayoutPaymentRepository payoutPaymentRepository,
             UserRepository userRepository,
-            NotificationOutboxService notificationOutboxService
+            NotificationOutboxService notificationOutboxService,
+            RealtimeOutboxService realtimeOutboxService
     ) {
         this.sessionRepository = sessionRepository;
         this.tutorPayoutRepository = tutorPayoutRepository;
         this.payoutPaymentRepository = payoutPaymentRepository;
         this.userRepository = userRepository;
         this.notificationOutboxService = notificationOutboxService;
+        this.realtimeOutboxService = realtimeOutboxService;
     }
 
     @Transactional
@@ -93,15 +99,24 @@ public class PayoutService {
             payout.setGrossRevenue(gross);
             payout.setNetSalary(net.setScale(0, RoundingMode.HALF_UP).longValueExact());
             payout.setStatus(PayoutStatus.LOCKED);
-            generated.add(tutorPayoutRepository.save(payout));
+            TutorPayout savedPayout = tutorPayoutRepository.save(payout);
+            generated.add(savedPayout);
 
             notificationOutboxService.enqueue(
                     tutor,
                     NotificationType.PAYOUT_GENERATED,
                     "Monthly payout generated",
                     "Payout for " + payrollMonth + " generated with net salary " + payout.getNetSalary(),
-                    "payout:" + payout.getId()
+                    "payout:" + savedPayout.getId()
             );
+
+            ClientEvent event = ClientEvent.of(
+                    ClientEventType.PAYOUT_UPDATED,
+                    "user:" + tutor.getId(),
+                    "payout:" + savedPayout.getId(),
+                    Map.of("payoutId", String.valueOf(savedPayout.getId()), "status", savedPayout.getStatus().name())
+            );
+            realtimeOutboxService.enqueue("user:" + tutor.getId(), "payout:" + savedPayout.getId(), event);
         }
         return generated;
     }
@@ -126,6 +141,14 @@ public class PayoutService {
                 "Admin updated net salary for payout " + payout.getId() + ".",
                 "payout:" + payout.getId()
         );
+
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.PAYOUT_UPDATED,
+                "user:" + payout.getTutor().getId(),
+                "payout:" + payout.getId(),
+                Map.of("payoutId", String.valueOf(payout.getId()), "status", saved.getStatus().name())
+        );
+        realtimeOutboxService.enqueue("user:" + payout.getTutor().getId(), "payout:" + payout.getId(), event);
 
         return saved;
     }
@@ -169,6 +192,14 @@ public class PayoutService {
                 "Payout " + payout.getId() + " has been marked paid.",
                 "payout:" + payout.getId()
         );
+
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.PAYOUT_UPDATED,
+                "user:" + payout.getTutor().getId(),
+                "payout:" + payout.getId(),
+                Map.of("payoutId", String.valueOf(payout.getId()), "status", saved.getStatus().name())
+        );
+        realtimeOutboxService.enqueue("user:" + payout.getTutor().getId(), "payout:" + payout.getId(), event);
         return saved;
     }
 

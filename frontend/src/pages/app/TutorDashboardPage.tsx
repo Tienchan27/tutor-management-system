@@ -4,6 +4,7 @@ import { listMySessionClasses } from '../../services/sessionService';
 import { TutorClassOverviewResponse, TutorClassRosterResponse, TutorDashboardResponse } from '../../types/dashboard';
 import { TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
+import { realtimeEventBus } from '../../services/realtimeEventBus';
 
 function TutorDashboardPage() {
   const [items, setItems] = useState<TutorDashboardResponse[]>([]);
@@ -53,6 +54,22 @@ function TutorDashboardPage() {
       }
     }
     load();
+
+    const unsub1 = realtimeEventBus.subscribe('PAYOUT_UPDATED', () => {
+      window.setTimeout(() => load(), 250);
+    });
+    const unsub2 = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', () => {
+      window.setTimeout(() => load(), 250);
+    });
+    const unsub3 = realtimeEventBus.subscribe('SESSION_FINANCIAL_UPDATED', () => {
+      window.setTimeout(() => load(), 250);
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+      unsub3();
+    };
   }, []);
 
   async function handleViewRoster(classId: string): Promise<void> {

@@ -1,0 +1,13 @@
+package com.example.tms.realtime.core;
+
+public enum ClientEventType {
+    HEARTBEAT,
+    ROLE_CHANGED,
+    MARKETPLACE_UPDATED,
+    NOTIFICATION_CREATED,
+    PAYOUT_UPDATED,
+    SESSION_FINANCIAL_UPDATED,
+    DASHBOARD_INVALIDATE,
+    PAYMENT_STATUS_CHANGED
+}
+
