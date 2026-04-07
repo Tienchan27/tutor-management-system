@@ -1,26 +1,9 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import {
-  clearAuthSession,
-  getAccessToken,
-  getRefreshToken,
-  saveAuthSession,
-} from '../utils/storage';
-import { AppRole } from '../types/app';
+import { clearAuthSession, getAccessToken } from '../utils/storage';
+import { refreshSessionFromStorage } from './sessionRefresh';
 
 interface RetryRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
-}
-
-interface RefreshTokenResponse {
-  userId: string;
-  email: string;
-  name: string;
-  accessToken: string;
-  refreshToken: string;
-  needsProfileCompletion: boolean;
-  needsTutorOnboarding: boolean;
-  roles: AppRole[];
-  activeRole: AppRole;
 }
 
 const api = axios.create({
@@ -79,33 +62,22 @@ api.interceptors.response.use(
     const requestIsPublicAuth = isPublicAuthEndpoint(originalRequest.url);
     if (error.response?.status === 401 && !originalRequest._retry && !requestIsPublicAuth) {
       originalRequest._retry = true;
-      try {
-        const refreshToken = getRefreshToken();
-        if (!refreshToken) {
+      const result = await refreshSessionFromStorage();
+      if (result === 'ok') {
+        const accessToken = getAccessToken();
+        if (!accessToken) {
           clearAuthSession();
           return Promise.reject(error);
         }
-        const response = await axios.post<RefreshTokenResponse>(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
-        const refreshPayload = response.data;
-        saveAuthSession({
-          userId: refreshPayload.userId,
-          email: refreshPayload.email,
-          name: refreshPayload.name,
-          accessToken: refreshPayload.accessToken,
-          refreshToken: refreshPayload.refreshToken,
-          needsProfileCompletion: !!refreshPayload.needsProfileCompletion,
-          needsTutorOnboarding: !!refreshPayload.needsTutorOnboarding,
-          roles: refreshPayload.roles,
-          activeRole: refreshPayload.activeRole,
-        });
         originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${refreshPayload.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        clearAuthSession();
-        window.location.href = '/';
-        return Promise.reject(refreshError);
       }
+      clearAuthSession();
+      if (result === 'failed') {
+        window.location.href = '/';
+      }
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   }

@@ -1,7 +1,7 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import axios from 'axios';
-import { clearAuthSession, getAccessToken, getRefreshToken, saveAuthSession } from '../utils/storage';
+import { clearAuthSession, getAccessToken } from '../utils/storage';
 import api from './api';
+import { refreshSessionFromStorage } from './sessionRefresh';
 import { ClientEvent, realtimeEventBus } from './realtimeEventBus';
 
 export type RealtimeConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
@@ -16,34 +16,6 @@ export function getRealtimeState(): RealtimeConnectionState {
 
 function setState(next: RealtimeConnectionState): void {
   state = next;
-}
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    return null;
-  }
-  try {
-    const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
-    const payload = response.data as any;
-    if (!payload?.accessToken || !payload?.refreshToken) {
-      return null;
-    }
-    saveAuthSession({
-      userId: payload.userId,
-      email: payload.email,
-      name: payload.name,
-      accessToken: payload.accessToken,
-      refreshToken: payload.refreshToken,
-      needsProfileCompletion: !!payload.needsProfileCompletion,
-      needsTutorOnboarding: !!payload.needsTutorOnboarding,
-      roles: payload.roles || [],
-      activeRole: payload.activeRole,
-    });
-    return payload.accessToken as string;
-  } catch {
-    return null;
-  }
 }
 
 function jitter(ms: number): number {
@@ -65,6 +37,18 @@ function parseClientEvent(data: string): ClientEvent | null {
   } catch {
     return null;
   }
+}
+
+async function tryRefreshForSse(): Promise<'retry' | 'unauthorized'> {
+  const result = await refreshSessionFromStorage();
+  if (result === 'ok') {
+    return 'retry';
+  }
+  clearAuthSession();
+  if (result === 'failed') {
+    window.location.href = '/';
+  }
+  return 'unauthorized';
 }
 
 export async function startRealtime(): Promise<void> {
@@ -97,14 +81,15 @@ export async function startRealtime(): Promise<void> {
           Authorization: `Bearer ${token}`,
         },
         openWhenHidden: true,
+        // onopen closes over loop vars intentionally; refresh path uses module-level tryRefreshForSse.
+        // eslint-disable-next-line no-loop-func -- SSE lifecycle: reconnect loop + stream open callback
         onopen: async (response) => {
-          if (response.status === 401) {
-            const newToken = await refreshAccessToken();
-            if (!newToken) {
-              clearAuthSession();
-              throw new Error('Unauthorized');
+          if (response.status === 401 || response.status === 403) {
+            const refreshResult = await tryRefreshForSse();
+            if (refreshResult === 'retry') {
+              throw new Error('RetryWithNewToken');
             }
-            throw new Error('RetryWithNewToken');
+            throw new Error('Unauthorized');
           }
           if (response.status === 404 || response.status === 501) {
             // Backend realtime disabled or not deployed; stop reconnect loop.
@@ -143,6 +128,14 @@ export async function startRealtime(): Promise<void> {
       }
       // Abort is normal when user logs out or page unmounts.
       if (controller?.signal.aborted) {
+        setState('closed');
+        return;
+      }
+      if (err?.message === 'RetryWithNewToken') {
+        continue;
+      }
+      if (err?.message === 'Unauthorized') {
+        running = false;
         setState('closed');
         return;
       }
