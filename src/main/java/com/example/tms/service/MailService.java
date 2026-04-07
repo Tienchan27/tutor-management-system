@@ -50,9 +50,9 @@ public class MailService {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
-            message.setSubject("Reset your Tutor Management System password");
+            message.setSubject("Reset or set your Tutor Management System password");
             message.setText(
-                    "Your password reset code is: " + otp + ". It expires in 5 minutes. "
+                    "Use this code to set or reset your password: " + otp + ". It expires in 5 minutes. "
                             + "If you did not request this, you can ignore this email."
             );
             mailSender.send(message);

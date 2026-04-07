@@ -39,6 +39,18 @@ class AuthServiceTests {
     }
 
     @Test
+    void forgotPassword_allowsUserWithoutPassword() {
+        User user = new User();
+        user.setName("OAuth Only");
+        user.setEmail("oauth-only@example.com");
+        user.setPassword(null);
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        authService.forgotPassword("oauth-only@example.com");
+    }
+
+    @Test
     void resetPassword_invalidOtp_throws() {
         authService.register(new RegisterRequest("R Two", "student2@example.com", "password123"));
         assertThrows(ApiException.class, () -> authService.resetPassword("student2@example.com", "000000", "newpass12345"));

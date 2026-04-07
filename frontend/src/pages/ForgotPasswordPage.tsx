@@ -99,7 +99,7 @@ function ForgotPasswordPage() {
             <h1 className="title title-xl title-accent">Reset password</h1>
             <p className="subtitle">
               {step === 'email'
-                ? 'Enter your account email. We will send a verification code if the account exists.'
+                ? 'Enter your account email. We will send a verification code if the account exists so you can set or reset your password.'
                 : 'Enter the code from your email and choose a new password.'}
             </p>
           </div>

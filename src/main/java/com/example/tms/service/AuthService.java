@@ -153,10 +153,6 @@ public class AuthService {
         issueOtp(normalizedEmail, OtpPurpose.REGISTER, true);
     }
 
-    /**
-     * Sends a password-reset OTP when the user exists, has a password set, and is PENDING or ACTIVE.
-     * No-ops silently otherwise (same response from API to avoid email enumeration).
-     */
     @Transactional
     public void forgotPassword(String email) {
         String normalizedEmail = normalizeEmail(email);
@@ -165,9 +161,6 @@ public class AuthService {
             return;
         }
         User user = opt.get();
-        if (user.getPassword() == null || user.getPassword().isBlank()) {
-            return;
-        }
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION && user.getStatus() != UserStatus.ACTIVE) {
             return;
         }
@@ -180,9 +173,6 @@ public class AuthService {
         verifyOtpOrThrow(normalizedEmail, OtpPurpose.PASSWORD_RESET, otp);
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new ApiException("User not found"));
-        if (user.getPassword() == null || user.getPassword().isBlank()) {
-            throw new ApiException("Password login is not configured for this account");
-        }
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION && user.getStatus() != UserStatus.ACTIVE) {
             throw new ApiException("The account is no longer active. Please contact support.");
         }
