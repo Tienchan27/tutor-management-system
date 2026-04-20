@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { extractApiErrorMessage } from '../../services/authService';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
 import {
@@ -93,7 +93,7 @@ function AdminClassAssignmentPage() {
     setIsDisplayNameManuallyEdited(false);
   }
 
-  async function loadAssignmentData(): Promise<void> {
+  const loadAssignmentData = useCallback(async (): Promise<void> => {
     try {
       const [subjectResponse, publishedResponse] = await Promise.all([listSubjects(), listPublishedClasses()]);
       setSubjects(subjectResponse);
@@ -109,7 +109,7 @@ function AdminClassAssignmentPage() {
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to load class assignment data'));
     }
-  }
+  }, [subjectId, isPriceManuallyEdited]);
 
   useEffect(() => {
     loadAssignmentData();
@@ -122,11 +122,10 @@ function AdminClassAssignmentPage() {
         }, 250);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [loadAssignmentData]);
 
   async function handleStudentLookupOnBlur(): Promise<void> {
     setStudentLookupHint('');
