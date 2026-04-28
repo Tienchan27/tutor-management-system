@@ -98,17 +98,6 @@ create table if not exists payments (
     paid_at timestamp
 );
 
-create table if not exists otp_verifications (
-    id uuid primary key,
-    email varchar(255) not null,
-    otp_hash varchar(255) not null,
-    purpose varchar(30) not null,
-    status varchar(20) not null,
-    attempt_count integer not null,
-    expires_at timestamp not null,
-    created_at timestamp not null
-);
-
 create table if not exists notifications (
     id uuid primary key,
     user_id uuid not null references users(id),
