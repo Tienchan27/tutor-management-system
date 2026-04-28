@@ -1,9 +1,10 @@
--- DB tidy v1: add missing indexes, tighten constraints, drop unused otp_verifications.
+-- DB tidy v1: add missing indexes, tighten constraints.
 -- Scope:
 --  (1) Index hot join/filter paths
 --  (3) payroll_month format enforcement (keep string)
 --  (4) money VND (BIGINT) non-negative checks
---  (5) drop otp_verifications (OTP runtime uses Redis)
+-- Note: legacy otp_verifications is no longer part of the schema chain (OTP uses Redis),
+-- so this migration intentionally does not reference that table.
 
 -- (3) Normalize payroll_month values like YYYY-M -> YYYY-0M before adding CHECK.
 UPDATE sessions
@@ -76,7 +77,3 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_user_status ON user_roles(user_id, sta
 CREATE INDEX IF NOT EXISTS idx_user_roles_role_status ON user_roles(role_id, status);
 
 CREATE INDEX IF NOT EXISTS idx_tca_tutor_status ON tutor_class_applications(tutor_id, status);
-
--- (5) Drop unused OTP audit table (OTP runtime uses Redis; keep enum OtpPurpose).
-DROP TABLE IF EXISTS otp_verifications;
-
