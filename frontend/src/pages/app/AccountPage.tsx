@@ -75,7 +75,7 @@ function AccountPage() {
             <form onSubmit={handleSubmit} className="stack-16">
               <div className="panel">
                 <h3 className="section-title">Personal</h3>
-                <div className="grid-form" style={{ marginTop: 12 }}>
+                <div className="grid-form">
                   <label className="input-wrapper">
                     <span className="input-label">Full name</span>
                     <div className="input-frame">
@@ -92,7 +92,7 @@ function AccountPage() {
 
               <div className="panel">
                 <h3 className="section-title">Contact</h3>
-                <div className="grid-form" style={{ marginTop: 12 }}>
+                <div className="grid-form">
                   <label className="input-wrapper">
                     <span className="input-label">Phone number</span>
                     <div className="input-frame">
@@ -120,7 +120,7 @@ function AccountPage() {
 
               <div className="panel">
                 <h3 className="section-title">Guardian</h3>
-                <div className="grid-form" style={{ marginTop: 12 }}>
+                <div className="grid-form">
                   <label className="input-wrapper">
                     <span className="input-label">Parent phone</span>
                     <div className="input-frame">
@@ -137,7 +137,7 @@ function AccountPage() {
 
               <div className="panel">
                 <h3 className="section-title">Address</h3>
-                <div className="grid-form" style={{ marginTop: 12 }}>
+                <div className="grid-form">
                   <label className="input-wrapper">
                     <span className="input-label">Address</span>
                     <div className="input-frame">
@@ -154,7 +154,7 @@ function AccountPage() {
 
               <div className="panel">
                 <h3 className="section-title">Security</h3>
-                <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+                <p className="muted mt-8 mb-0">
                   Security settings will appear here (password, Google link, sessions). For now, you can update your profile details above.
                 </p>
               </div>

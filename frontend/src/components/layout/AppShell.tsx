@@ -72,11 +72,11 @@ function AppShell({ roles, children }: AppShellProps) {
 
       <main className="app-main">
         <header className="app-header">
-          <div>
+          <div className="page-section">
             <h1 className="title app-header-title title-accent">Tutor Management System</h1>
             <p className="subtitle">Welcome {user?.name || user?.email || 'User'}</p>
           </div>
-          <div className="toolbar">
+          <div className="section-actions">
             {roles.length > 1 ? (
               <div className="role-switch">
                 <select
@@ -93,7 +93,7 @@ function AppShell({ roles, children }: AppShellProps) {
                 </select>
               </div>
             ) : null}
-            <button className="btn btn-brand app-logout" type="button" onClick={handleLogout}>
+            <button className="btn btn-secondary app-logout" type="button" onClick={handleLogout}>
               Logout
             </button>
           </div>

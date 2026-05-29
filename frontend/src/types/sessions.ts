@@ -1,14 +1,3 @@
-export interface SessionSubject {
-  id: string;
-  name: string;
-  defaultPricePerHour?: number;
-}
-
-export interface SessionClassRef {
-  id: string;
-  subject?: SessionSubject;
-}
-
 export interface TutorSessionClassOptionResponse {
   id: string;
   className: string;
@@ -28,19 +17,6 @@ export interface SessionListItem {
   salaryRateAtLog: number;
   payrollMonth: string;
   note: string | null;
-}
-
-export interface SessionResponse {
-  id: string;
-  tutorClass?: SessionClassRef;
-  date: string;
-  durationHours: number;
-  tuitionAtLog: number;
-  salaryRateAtLog: number;
-  payrollMonth: string;
-  note: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreateSessionRequest {

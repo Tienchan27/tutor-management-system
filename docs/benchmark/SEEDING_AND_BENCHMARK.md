@@ -2,7 +2,6 @@
 
 This guide helps you:
 - Seed a realistic dataset for sessions/payout/dashboard queries.
-- Demonstrate Postgres partition pruning on `sessions` (partitioned by `payroll_month`).
 - Capture EXPLAIN output to present to a mentor.
 
 ### What you will seed (small profile)
@@ -33,7 +32,7 @@ docker compose up -d --build app
 ```
 
 Notes:
-- The `app` container runs Flyway migrations on startup.
+- The `app` container runs Flyway migrations on startup (single `V1__init_schema.sql`).
 - This ensures the schema exists before seeding.
 - For large seed runs, it's recommended to stop the `app` container before executing the seed script to avoid DB locks from background jobs:
   - `docker compose stop app nginx`
@@ -48,6 +47,8 @@ Run it inside the Postgres container (PowerShell-friendly):
 ```powershell
 Get-Content scripts\seed\seed_bench_small.sql | docker exec -i postgres-db sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
+
+**Warning:** The bench seed script `TRUNCATE`s `users` and related tables. The Flyway-seeded admin account will be removed. To restore admin, run `docker compose down -v` and `docker compose up --build -d` again (fresh Flyway migrate), or re-seed only after a full DB reset.
 
 Expected outcome:
 - Seed completes successfully.
@@ -66,29 +67,27 @@ Get-Content scripts\seed\bench_queries.sql | docker exec -i postgres-db sh -lc '
 
 ### 4) What to look for in the output
 
-#### A) Partition pruning proof
+`sessions` is a **regular (non-partitioned)** table. Benchmark value comes from indexes on `payroll_month`, `class_id`, and composite `(payroll_month, class_id)`.
 
-In the first EXPLAIN (`count(*) WHERE payroll_month = ...`), you want to see the planner scanning only one partition, for example:
-- `sessions_2026_04` (or whatever month it picked)
+#### A) Payroll month filter
 
-You should NOT see scans across many `sessions_YYYY_MM` partitions for that query.
+In `count(*) WHERE payroll_month = ...`, look for index usage on `idx_sessions_payroll_month` or `idx_sessions_payroll_month_class_id` rather than a full sequential scan on large tables.
 
 #### B) Index usage
 
 For tutor session list query (join `sessions -> classes`), look for:
-- Index scans / bitmap index scans on the partitioned `sessions` indexes
+- Index scans / bitmap index scans on `sessions` and `classes`
 - Reasonable buffer reads (lower is better)
 
 ### 5) Demo script for mentor (talk track)
 
-1. Show that `sessions` is partitioned by month (schema / migration `V16__...`).
-2. Seed 200k sessions across 12 months.
-3. Run EXPLAIN for a single month.
-4. Highlight that Postgres prunes partitions and scans only one month partition.
-5. Run the join query and show it stays within the same month partition and uses indexes.
+1. Show `sessions` schema and indexes (`payroll_month`, `class_id`).
+2. Seed ~200k sessions across 12 months.
+3. Run EXPLAIN for a single `payroll_month` filter.
+4. Highlight index usage on month filters.
+5. Run the join query and show stable plans with `VACUUM (ANALYZE)` after seed.
 
 ### Notes / safety
 
 - These scripts are for dev/learning environments only.
 - The seed script truncates multiple tables (dev-only).
-

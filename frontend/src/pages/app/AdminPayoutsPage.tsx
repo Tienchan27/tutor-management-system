@@ -69,15 +69,25 @@ function AdminPayoutsPage() {
     }
   }
 
+  function payoutStatusClass(status: string): string {
+    if (status === 'PAID') {
+      return 'success';
+    }
+    if (status === 'LOCKED') {
+      return 'warning';
+    }
+    return 'danger';
+  }
+
   return (
     <div className="stack-16">
       <div className="card">
-        <div className="page-header">
+        <div className="section-header">
           <div>
             <h2 className="title title-lg">Payout Management</h2>
             <p className="subtitle">Generate, review, and confirm tutor payouts by month.</p>
           </div>
-          <div className="toolbar">
+          <div className="section-actions">
             <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="input-month" />
             <button type="button" onClick={handleGenerate} className="btn btn-primary compact-btn" disabled={loading}>
               {loading ? 'Loading...' : 'Generate'}
@@ -87,6 +97,12 @@ function AdminPayoutsPage() {
       </div>
 
       <div className="card">
+        <div className="section-header">
+          <div>
+            <h3 className="section-title">Payout results</h3>
+            <p className="subtitle">Month {month}</p>
+          </div>
+        </div>
         {error ? <p className="error-text">{error}</p> : null}
         {!items.length ? <p className="muted">No payout data loaded. Select a month and generate payouts.</p> : null}
         {!!items.length ? (
@@ -95,8 +111,8 @@ function AdminPayoutsPage() {
               <thead>
                 <tr>
                   <th>Tutor</th>
-                  <th>Gross</th>
-                  <th>Net</th>
+                  <th className="money-cell">Gross</th>
+                  <th className="money-cell">Net</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -105,38 +121,39 @@ function AdminPayoutsPage() {
                 {items.map((item) => (
                   <tr key={item.id}>
                     <td>{item.tutor?.email || 'Tutor'}</td>
-                    <td>{item.grossRevenue.toLocaleString()}</td>
-                    <td>{item.netSalary.toLocaleString()}</td>
-                    <td>{item.status}</td>
+                    <td className="money-cell"><span className="money-value">{item.grossRevenue.toLocaleString()}</span></td>
+                    <td className="money-cell"><span className="money-value">{item.netSalary.toLocaleString()}</span></td>
+                    <td><span className={`status-pill ${payoutStatusClass(item.status)}`}>{item.status}</span></td>
                     <td>
-                      <div className="table-actions">
-                        <button
-                          type="button"
-                          className="btn btn-brand table-action"
-                          onClick={() => handleGenerateQr(item.id)}
-                          disabled={item.status === 'PAID'}
-                        >
-                          Generate QR
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-primary table-action"
-                          onClick={() => handleConfirmPaid(item.id)}
-                          disabled={item.status === 'PAID'}
-                        >
-                          Confirm Paid
-                        </button>
+                      <div className="table-actions-stack">
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="btn btn-soft table-action"
+                            onClick={() => handleGenerateQr(item.id)}
+                            disabled={item.status === 'PAID'}
+                          >
+                            Generate QR
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary table-action"
+                            onClick={() => handleConfirmPaid(item.id)}
+                            disabled={item.status === 'PAID'}
+                          >
+                            Confirm Paid
+                          </button>
+                        </div>
                       </div>
 
                       {item.status === 'LOCKED' ? (
                         <div className="table-actions table-actions-left mt-8">
                           <input
-                            className="table-input money-number"
+                            className="table-input money-number table-input-narrow"
                             type="number"
                             step="1"
                             value={netSalaryDraftById[item.id] ?? item.netSalary}
                             onChange={(event) => setNetSalaryDraftById((prev) => ({ ...prev, [item.id]: Math.round(Number(event.target.value)) }))}
-                            style={{ maxWidth: 160 }}
                           />
                           <button
                             type="button"

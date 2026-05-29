@@ -37,3 +37,4 @@ build/
 # Local environment overrides
 .env
 frontend/.env
+docs/audit

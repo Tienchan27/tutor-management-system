@@ -1,17 +1,17 @@
 package com.example.tms.api;
 
-import com.example.tms.entity.TutorPayout;
-import com.example.tms.entity.TutorPayoutPayment;
-import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.api.dto.payout.OverrideNetSalaryRequest;
+import com.example.tms.api.dto.payout.TutorPayoutPaymentResponse;
+import com.example.tms.api.dto.payout.TutorPayoutResponse;
+import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.PayoutService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.YearMonth;
@@ -30,7 +30,7 @@ public class PayoutController {
     }
 
     @PostMapping("/generate")
-    public List<TutorPayout> generate(@RequestParam String month) {
+    public List<TutorPayoutResponse> generate(@RequestParam String month) {
         return payoutService.generateMonthlyPayouts(
                 currentUserResolver.requireUser(),
                 YearMonth.parse(month)
@@ -38,17 +38,17 @@ public class PayoutController {
     }
 
     @PostMapping("/{payoutId}/qr")
-    public TutorPayoutPayment generateQr(@PathVariable UUID payoutId) {
+    public TutorPayoutPaymentResponse generateQr(@PathVariable UUID payoutId) {
         return payoutService.generateQr(currentUserResolver.requireUser(), payoutId);
     }
 
     @PostMapping("/{payoutId}/confirm-paid")
-    public TutorPayout confirmPaid(@PathVariable UUID payoutId) {
+    public TutorPayoutResponse confirmPaid(@PathVariable UUID payoutId) {
         return payoutService.confirmPaid(currentUserResolver.requireUser(), payoutId);
     }
 
     @PatchMapping("/{payoutId}/override-net-salary")
-    public TutorPayout overrideNetSalary(
+    public TutorPayoutResponse overrideNetSalary(
             @PathVariable UUID payoutId,
             @Valid @RequestBody OverrideNetSalaryRequest request
     ) {

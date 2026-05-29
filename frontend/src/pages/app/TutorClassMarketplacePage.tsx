@@ -55,8 +55,12 @@ function TutorClassMarketplacePage() {
   return (
     <div className="stack-16">
       <div className="card">
-        <h2 className="title title-lg">Available classes</h2>
-        <p className="subtitle">Browse classes published by admin and apply to receive assignment approval.</p>
+        <div className="section-header">
+          <div>
+            <h2 className="title title-lg">Available classes</h2>
+            <p className="subtitle">Browse classes published by admin and apply to receive assignment approval.</p>
+          </div>
+        </div>
         {loading ? <p className="muted">Loading...</p> : null}
         {error ? <p className="error-text">{error}</p> : null}
         {success ? <p className="success-text">{success}</p> : null}

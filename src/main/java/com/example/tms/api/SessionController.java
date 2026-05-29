@@ -5,7 +5,6 @@ import com.example.tms.api.dto.session.CreateSessionRequest;
 import com.example.tms.api.dto.session.SessionListItemResponse;
 import com.example.tms.api.dto.session.TutorSessionClassOptionResponse;
 import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
-import com.example.tms.entity.Session;
 import com.example.tms.api.util.PageableGuard;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.SessionService;
@@ -23,8 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/sessions")
@@ -38,12 +37,12 @@ public class SessionController {
     }
 
     @PostMapping
-    public Session create(@Valid @RequestBody CreateSessionRequest request) {
+    public SessionListItemResponse create(@Valid @RequestBody CreateSessionRequest request) {
         return sessionService.create(currentUserResolver.requireUser(), request);
     }
 
     @PatchMapping("/{sessionId}/financial")
-    public Session updateFinancial(
+    public SessionListItemResponse updateFinancial(
             @PathVariable UUID sessionId,
             @Valid @RequestBody UpdateSessionFinancialRequest request
     ) {

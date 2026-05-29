@@ -100,6 +100,16 @@ function TutorDashboardPage() {
   const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
   const rosterClassLabel = rosterClass ? displayClassLabel(rosterClass) : '';
 
+  function payoutStatusClass(status: string): string {
+    if (status === 'PAID') {
+      return 'success';
+    }
+    if (status === 'LOCKED') {
+      return 'warning';
+    }
+    return 'danger';
+  }
+
   return (
     <div className="stack-16">
       <div className="card">
@@ -109,27 +119,29 @@ function TutorDashboardPage() {
         {error ? <p className="error-text">{error}</p> : null}
         {!loading && !items.length ? <p className="muted">No payout records yet.</p> : null}
         {!!items.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Gross Revenue</th>
-                  <th>Net Salary</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={`${item.year}-${item.month}`}>
-                    <td>{item.year}-{`${item.month}`.padStart(2, '0')}</td>
-                    <td>{item.grossRevenue.toLocaleString()}</td>
-                    <td>{item.netSalary.toLocaleString()}</td>
-                    <td>{item.status}</td>
+          <div className="card-region">
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th className="money-cell">Gross Revenue</th>
+                    <th className="money-cell">Net Salary</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={`${item.year}-${item.month}`}>
+                      <td>{item.year}-{`${item.month}`.padStart(2, '0')}</td>
+                      <td className="money-cell"><span className="money-value">{item.grossRevenue.toLocaleString()}</span></td>
+                      <td className="money-cell"><span className="money-value">{item.netSalary.toLocaleString()}</span></td>
+                      <td><span className={`status-pill ${payoutStatusClass(item.status)}`}>{item.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : null}
       </div>
@@ -145,7 +157,7 @@ function TutorDashboardPage() {
                   <th>Class name</th>
                   <th>Subject</th>
                   <th>Status</th>
-                  <th>Price/Hour</th>
+                  <th className="money-cell">Price/Hour</th>
                   <th>Salary Rate</th>
                   <th>Sessions</th>
                   <th>Latest Session</th>
@@ -158,7 +170,7 @@ function TutorDashboardPage() {
                     <td>{displayClassLabel(item)}</td>
                     <td>{item.subjectName}</td>
                     <td>{item.classStatus}</td>
-                    <td>{item.pricePerHour.toLocaleString()}</td>
+                    <td className="money-cell"><span className="money-value">{item.pricePerHour.toLocaleString()}</span></td>
                     <td>{(item.defaultSalaryRate * 100).toFixed(2)}%</td>
                     <td>{item.sessionCount}</td>
                     <td>{item.latestSessionDate || '-'}</td>
@@ -180,20 +192,20 @@ function TutorDashboardPage() {
         ) : null}
       </div>
 
-      {rosterError ? <p className="error-text">{rosterError}</p> : null}
       {rosterClassId ? (
         <div className="card">
-          <div className="page-header mb-8">
+          <div className="section-header mb-8">
             <div>
               <h3 className="section-title">Roster</h3>
               <p className="subtitle mt-6">
                 {rosterClass ? `${rosterClassLabel} • ${rosterClass.classStatus}` : 'Selected class'}
               </p>
             </div>
-            <button type="button" className="btn btn-soft compact-btn" onClick={handleCloseRoster}>
+            <button type="button" className="btn btn-secondary compact-btn" onClick={handleCloseRoster}>
               Close
             </button>
           </div>
+          {rosterError ? <p className="error-text">{rosterError}</p> : null}
 
           {rosterLoading ? <p className="muted">Loading roster...</p> : null}
           {!rosterLoading && roster ? (
@@ -209,14 +221,14 @@ function TutorDashboardPage() {
                 <thead>
                   <tr>
                     <th>Student</th>
-                    <th>Tuition (VND)</th>
+                    <th className="money-cell">Tuition (VND)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {roster.students.map((s) => (
                     <tr key={s.studentId}>
                       <td>{s.studentName}</td>
-                      <td>{s.tuitionAtLog.toLocaleString()}</td>
+                      <td className="money-cell"><span className="money-value">{s.tuitionAtLog.toLocaleString()}</span></td>
                     </tr>
                   ))}
                 </tbody>

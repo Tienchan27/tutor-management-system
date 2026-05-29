@@ -11,6 +11,16 @@ function getCurrentMonth(): string {
 }
 
 function AdminTutorManagementPage() {
+  function payoutStatusClass(status: string): string {
+    if (status === 'PAID') {
+      return 'success';
+    }
+    if (status === 'LOCKED') {
+      return 'warning';
+    }
+    return 'danger';
+  }
+
   const [month, setMonth] = useState<string>(getCurrentMonth());
   const [items, setItems] = useState<TutorSummaryResponse[]>([]);
   const [detail, setDetail] = useState<AdminTutorDetailResponse | null>(null);
@@ -203,7 +213,7 @@ function AdminTutorManagementPage() {
   return (
     <div className="stack-16">
       <div className="card">
-        <div className="page-header">
+        <div className="section-header">
           <div>
             <h2 className="title title-lg">Tutor Management</h2>
             <p className="subtitle">Invite tutors and review payout snapshots by month.</p>
@@ -246,8 +256,8 @@ function AdminTutorManagementPage() {
                 <thead>
                   <tr>
                     <th>Tutor</th>
-                    <th>Gross Revenue</th>
-                    <th>Net Salary</th>
+                    <th className="money-cell">Gross Revenue</th>
+                    <th className="money-cell">Net Salary</th>
                     <th>Classes (this month)</th>
                     <th>Status</th>
                     <th></th>
@@ -257,10 +267,10 @@ function AdminTutorManagementPage() {
                   {items.map((item) => (
                     <tr key={item.tutorId}>
                       <td>{item.tutorName} ({item.tutorEmail})</td>
-                      <td>{item.grossRevenue.toLocaleString()}</td>
-                      <td>{item.netSalary.toLocaleString()}</td>
+                      <td className="money-cell"><span className="money-value">{item.grossRevenue.toLocaleString()}</span></td>
+                      <td className="money-cell"><span className="money-value">{item.netSalary.toLocaleString()}</span></td>
                       <td>{item.classesReceivingThisMonth}</td>
-                      <td>{item.payoutStatus}</td>
+                      <td><span className={`status-pill ${payoutStatusClass(item.payoutStatus)}`}>{item.payoutStatus}</span></td>
                       <td>
                         <button className="btn btn-soft-teal table-action" onClick={() => loadDetail(item.tutorId)} type="button">
                           View detail
@@ -290,42 +300,51 @@ function AdminTutorManagementPage() {
       {detail ? (
         <div className="card">
           <h3 className="section-title">Selected tutor detail</h3>
-          <div className="grid-3 mb-12">
-            <div className="panel">
-              <strong>Name</strong>
-              <p>{detail.name}</p>
+          <section className="card-region">
+            <h4 className="subsection-title">Tutor identity and contact</h4>
+            <div className="grid-3 mb-12 mt-12">
+              <div className="panel">
+                <strong>Name</strong>
+                <p>{detail.name}</p>
+              </div>
+              <div className="panel">
+                <strong>Email</strong>
+                <p>{detail.email}</p>
+              </div>
+              <div className="panel">
+                <strong>Phone</strong>
+                <p>{detail.phoneNumber || '-'}</p>
+              </div>
             </div>
             <div className="panel">
-              <strong>Email</strong>
-              <p>{detail.email}</p>
+              <p className="mb-6"><strong>Facebook:</strong> {detail.facebookUrl || '-'}</p>
+              <p className="mb-0"><strong>Address:</strong> {detail.address || '-'}</p>
             </div>
-            <div className="panel">
-              <strong>Phone</strong>
-              <p>{detail.phoneNumber || '-'}</p>
-            </div>
-          </div>
-          <p className="muted">Facebook: {detail.facebookUrl || '-'}</p>
-          <p className="muted">Address: {detail.address || '-'}</p>
+          </section>
+
+          <section className="card-region">
+            <h4 className="subsection-title">Payout and actions</h4>
           {detail.payout ? (
-            <div className="panel mb-12">
+            <div className="panel mt-12">
               <strong>Selected month payout</strong>
-              <p>
-                {detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')} | Gross: {detail.payout.grossRevenue.toLocaleString()} |
-                Net: {detail.payout.netSalary.toLocaleString()} | Status: {detail.payout.status}
-              </p>
+              <div className="stat-row">
+                <span>Month <strong>{detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')}</strong></span>
+                <span>Gross <strong>{detail.payout.grossRevenue.toLocaleString()}</strong></span>
+                <span>Net <strong>{detail.payout.netSalary.toLocaleString()}</strong></span>
+                <span><span className={`status-pill ${payoutStatusClass(detail.payout.status)}`}>{detail.payout.status}</span></span>
+              </div>
 
               <div className="mt-12">
-                <h4 className="section-title mb-8">Monthly payout actions</h4>
+                <h5 className="subsection-title mb-8">Monthly payout actions</h5>
 
                 {detail.payout.status === 'LOCKED' ? (
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                  <div className="inline-controls mb-8">
                     <input
-                      className="table-input money-number"
+                      className="table-input money-number table-input-narrow"
                       type="number"
                       step="1"
                       value={netSalaryDraftById[detail.payout!.payoutId] ?? detail.payout.netSalary}
                       onChange={(event) => setNetSalaryDraftById((prev) => ({ ...prev, [detail.payout!.payoutId]: Math.round(Number(event.target.value)) }))}
-                      style={{ maxWidth: 160 }}
                       disabled={overrideLoadingId === detail.payout!.payoutId}
                     />
                     <button
@@ -342,7 +361,7 @@ function AdminTutorManagementPage() {
                 <div className="table-actions table-actions-left">
                   <button
                     type="button"
-                    className="btn btn-brand table-action"
+                    className="btn btn-soft table-action"
                     onClick={() => handleGenerateQr(detail.payout!.payoutId)}
                     disabled={detail.payout.status === 'PAID' || payoutActionLoading === detail.payout!.payoutId}
                   >
@@ -360,7 +379,7 @@ function AdminTutorManagementPage() {
               </div>
             </div>
           ) : (
-            <p className="muted">No payout generated for selected month.</p>
+            <p className="muted mt-12">No payout generated for selected month.</p>
           )}
 
           {!detail.payout ? (
@@ -382,84 +401,91 @@ function AdminTutorManagementPage() {
               <p className="muted mb-6">
                 Reference: {selectedPayment.qrRef} | Status: {selectedPayment.status}
               </p>
-              <pre className="pre-wrap" style={{ margin: 0 }}>{selectedPayment.qrPayload}</pre>
+              <pre className="pre-wrap">{selectedPayment.qrPayload}</pre>
             </div>
           ) : null}
+          </section>
 
-          <h4 className="section-title">Bank accounts</h4>
-          {!detail.bankAccounts.length ? <p className="muted">No bank accounts.</p> : null}
-          {!!detail.bankAccounts.length ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Bank</th>
-                    <th>Account</th>
-                    <th>Holder</th>
-                    <th>Primary</th>
-                    <th>Verified</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.bankAccounts.map((account) => (
-                    <tr key={account.id}>
-                      <td>{account.bankName}</td>
-                      <td>{account.maskedAccountNumber}</td>
-                      <td>{account.accountHolderName}</td>
-                      <td>{account.primary ? 'Yes' : 'No'}</td>
-                      <td>{account.verified ? 'Yes' : 'No'}</td>
+          <section className="card-region">
+            <h4 className="subsection-title">Bank accounts</h4>
+            {!detail.bankAccounts.length ? <p className="muted mt-12">No bank accounts.</p> : null}
+            {!!detail.bankAccounts.length ? (
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Bank</th>
+                      <th>Account</th>
+                      <th>Holder</th>
+                      <th>Primary</th>
+                      <th>Verified</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+                  </thead>
+                  <tbody>
+                    {detail.bankAccounts.map((account) => (
+                      <tr key={account.id}>
+                        <td>{account.bankName}</td>
+                        <td>{account.maskedAccountNumber}</td>
+                        <td>{account.accountHolderName}</td>
+                        <td>{account.primary ? 'Yes' : 'No'}</td>
+                        <td>{account.verified ? 'Yes' : 'No'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
 
-          <h4 className="section-title">Managed classes</h4>
-          {!detail.managedClasses.length ? <p className="muted">No managed classes.</p> : null}
-          {!!detail.managedClasses.length ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Class name</th>
-                    <th>Subject</th>
-                    <th>Status</th>
-                    <th>Price/Hour</th>
-                    <th>Salary rate</th>
-                    <th>Sessions</th>
-                    <th>Latest Session</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.managedClasses.map((managedClass) => (
-                    <tr key={managedClass.classId}>
-                      <td>{managedClass.classDisplayName || managedClass.subjectName}</td>
-                      <td>{managedClass.subjectName}</td>
-                      <td>{managedClass.classStatus}</td>
-                      <td>{managedClass.pricePerHour.toLocaleString()}</td>
-                      <td>{(managedClass.defaultSalaryRate * 100).toFixed(2)}%</td>
-                      <td>{managedClass.sessionCount}</td>
-                      <td>{managedClass.latestSessionDate || '-'}</td>
+          <section className="card-region">
+            <h4 className="subsection-title">Managed classes</h4>
+            {!detail.managedClasses.length ? <p className="muted mt-12">No managed classes.</p> : null}
+            {!!detail.managedClasses.length ? (
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Class name</th>
+                      <th>Subject</th>
+                      <th>Status</th>
+                      <th className="money-cell">Price/Hour</th>
+                      <th>Salary rate</th>
+                      <th>Sessions</th>
+                      <th>Latest Session</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+                  </thead>
+                  <tbody>
+                    {detail.managedClasses.map((managedClass) => (
+                      <tr key={managedClass.classId}>
+                        <td>{managedClass.classDisplayName || managedClass.subjectName}</td>
+                        <td>{managedClass.subjectName}</td>
+                        <td>{managedClass.classStatus}</td>
+                        <td className="money-cell"><span className="money-value">{managedClass.pricePerHour.toLocaleString()}</span></td>
+                        <td>{(managedClass.defaultSalaryRate * 100).toFixed(2)}%</td>
+                        <td>{managedClass.sessionCount}</td>
+                        <td>{managedClass.latestSessionDate || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
 
-          <div className="mt-16">
-            <h4 className="section-title">Tutor actions</h4>
-            <button
-              type="button"
-              className="btn btn-danger"
-              onClick={() => handleRevokeTutorRole(detail.tutorId)}
-              disabled={deleteLoading}
-            >
-              {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke tutor role' : 'Delete tutor (revoke TUTOR role)'}
-            </button>
-            {deleteConfirmTutorId === detail.tutorId ? <p className="muted mt-8">Click again to confirm.</p> : null}
-          </div>
+          <section className="card-region">
+            <h4 className="subsection-title">Danger zone</h4>
+            <div className="mt-12">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => handleRevokeTutorRole(detail.tutorId)}
+                disabled={deleteLoading}
+              >
+                {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke tutor role' : 'Delete tutor (revoke TUTOR role)'}
+              </button>
+              {deleteConfirmTutorId === detail.tutorId ? <p className="muted mt-8">Click again to confirm.</p> : null}
+            </div>
+          </section>
         </div>
       ) : null}
     </div>

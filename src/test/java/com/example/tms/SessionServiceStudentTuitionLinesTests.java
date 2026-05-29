@@ -1,6 +1,7 @@
 package com.example.tms;
 
 import com.example.tms.api.dto.session.CreateSessionRequest;
+import com.example.tms.api.dto.session.SessionListItemResponse;
 import com.example.tms.api.dto.session.StudentTuitionRequest;
 import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.Session;
@@ -92,6 +93,7 @@ class SessionServiceStudentTuitionLinesTests {
         // Saved session (needs ID for line items)
         Session saved = new Session();
         saved.setId(UUID.randomUUID());
+        saved.setTutorClass(tutorClass);
         when(sessionRepository.save(any(Session.class))).thenReturn(saved);
 
         // sessionStudentTuitionRepository.saveAll return value ignored; return empty
@@ -125,7 +127,7 @@ class SessionServiceStudentTuitionLinesTests {
         );
 
         // Act
-        Session result = sessionService.create(tutor, request);
+        SessionListItemResponse result = sessionService.create(tutor, request);
 
         // Assert: session tuition sum equals sum of line items
         ArgumentCaptor<Session> sessionCaptor = ArgumentCaptor.forClass(Session.class);
@@ -144,7 +146,7 @@ class SessionServiceStudentTuitionLinesTests {
 
         assertEquals(2, countLines);
         assertEquals(t1 + t2, sumLines);
-        assertEquals(saved.getId(), result.getId());
+        assertEquals(saved.getId(), result.id());
     }
 }
 

@@ -162,6 +162,7 @@ class MethodSecurityAuthorizationTests {
 
         Session saved = new Session();
         saved.setId(UUID.randomUUID());
+        saved.setTutorClass(tutorClass);
         when(tutorClassRepository.findById(tutorClass.getId())).thenReturn(Optional.of(tutorClass));
         when(sessionRepository.save(any(Session.class))).thenReturn(saved);
         when(enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE)).thenReturn(List.of(enrollment));

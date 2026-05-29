@@ -1,12 +1,13 @@
 package com.example.tms.service;
 
 import com.example.tms.api.dto.notification.NotificationResponse;
+import com.example.tms.api.mapper.NotificationMapper;
 import com.example.tms.entity.Notification;
 import com.example.tms.exception.ApiException;
 import com.example.tms.repository.NotificationRepository;
-import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public class NotificationService {
         this.notificationRepository = notificationRepository;
     }
 
-    public Notification markRead(UUID userId, UUID notificationId) {
+    private Notification markRead(UUID userId, UUID notificationId) {
         if (userId == null) {
             throw new ApiException("User is required");
         }
@@ -32,22 +33,11 @@ public class NotificationService {
 
     public NotificationResponse markReadResponse(UUID userId, UUID notificationId) {
         Notification saved = markRead(userId, notificationId);
-        return toResponse(saved);
+        return NotificationMapper.toResponse(saved);
     }
 
     public Slice<NotificationResponse> getMyNotifications(UUID userId, Pageable pageable) {
         return notificationRepository.findByUserId(userId, pageable)
-                .map(this::toResponse);
-    }
-
-    private NotificationResponse toResponse(Notification n) {
-        return new NotificationResponse(
-                n.getId(),
-                n.getType(),
-                n.getTitle(),
-                n.getContent(),
-                n.isRead(),
-                n.getCreatedAt()
-        );
+                .map(NotificationMapper::toResponse);
     }
 }

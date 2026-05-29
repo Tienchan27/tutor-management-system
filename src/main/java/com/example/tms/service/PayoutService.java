@@ -1,5 +1,8 @@
 package com.example.tms.service;
 
+import com.example.tms.api.dto.payout.TutorPayoutPaymentResponse;
+import com.example.tms.api.dto.payout.TutorPayoutResponse;
+import com.example.tms.api.mapper.PayoutMapper;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.TutorPayout;
 import com.example.tms.entity.TutorPayoutPayment;
@@ -58,8 +61,10 @@ public class PayoutService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public List<TutorPayout> generateMonthlyPayouts(User admin, YearMonth month) {
-        return generateMonthlyPayoutsInternal(month);
+    public List<TutorPayoutResponse> generateMonthlyPayouts(User admin, YearMonth month) {
+        return generateMonthlyPayoutsInternal(month).stream()
+                .map(PayoutMapper::toResponse)
+                .toList();
     }
 
     @Transactional
@@ -123,7 +128,7 @@ public class PayoutService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public TutorPayout overrideNetSalary(User admin, UUID payoutId, Long netSalary) {
+    public TutorPayoutResponse overrideNetSalary(User admin, UUID payoutId, Long netSalary) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> new ApiException("Payout not found"));
 
@@ -150,12 +155,12 @@ public class PayoutService {
         );
         realtimeOutboxService.enqueue("user:" + payout.getTutor().getId(), "payout:" + payout.getId(), event);
 
-        return saved;
+        return PayoutMapper.toResponse(saved);
     }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public TutorPayoutPayment generateQr(User admin, UUID payoutId) {
+    public TutorPayoutPaymentResponse generateQr(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> new ApiException("Payout not found"));
         String qrRef = "PAYOUT-" + payout.getYear() + "-" + String.format("%02d", payout.getMonth()) + "-" + payout.getId();
@@ -166,12 +171,12 @@ public class PayoutService {
         payment.setQrRef(qrRef);
         payment.setQrPayload(payload);
         payment.setStatus(PaymentStatus.PENDING);
-        return payoutPaymentRepository.save(payment);
+        return PayoutMapper.toPaymentResponse(payoutPaymentRepository.save(payment));
     }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public TutorPayout confirmPaid(User admin, UUID payoutId) {
+    public TutorPayoutResponse confirmPaid(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> new ApiException("Payout not found"));
         payout.setStatus(PayoutStatus.PAID);
@@ -200,15 +205,7 @@ public class PayoutService {
                 Map.of("payoutId", String.valueOf(payout.getId()), "status", saved.getStatus().name())
         );
         realtimeOutboxService.enqueue("user:" + payout.getTutor().getId(), "payout:" + payout.getId(), event);
-        return saved;
-    }
-
-    public List<TutorPayout> findByMonth(YearMonth month) {
-        return tutorPayoutRepository.findByYearAndMonth(month.getYear(), month.getMonthValue());
-    }
-
-    public List<TutorPayout> findByTutor(UUID tutorId) {
-        return tutorPayoutRepository.findByTutorIdOrderByYearDescMonthDesc(tutorId);
+        return PayoutMapper.toResponse(saved);
     }
 
     private BigDecimal resolveRate(Session session) {

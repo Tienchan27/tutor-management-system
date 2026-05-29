@@ -39,16 +39,20 @@ PgAdmin URL:
 
 ## Environment variables
 
-Runtime application config comes from root `.env` (not committed):
+Copy [`.env.example`](.env.example) to `.env` and fill in values (`.env` is not committed).
+
+Key variables:
 
 ```env
 GOOGLE_CLIENT_ID=...
 REACT_APP_GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 JWT_SECRET=...
+DEFAULT_ADMIN_EMAIL=admin@example.com
+DEFAULT_ADMIN_PASSWORD_HASH=...   # BCrypt hash for seeded admin login
 DATABASE_URL=jdbc:postgresql://localhost:5433/tms_db
 DATABASE_USERNAME=tms_user
-DATABASE_PASSWORD=tms_password
+DATABASE_PASSWORD=...
 SERVER_PORT=8081
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost
 MAIL_HOST=mailpit
@@ -63,6 +67,8 @@ Notes:
 - `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` in root `.env` must match.
 - `JWT_SECRET` should be a strong secret (at least 32 bytes for HS256).
 - Docker dev stack includes Mailpit for OTP delivery.
+- Database schema is managed by **Flyway only** (`V1__init_schema.sql`); Hibernate uses `ddl-auto=validate` (no silent schema drift).
+- After changing migrations locally, reset Postgres: `docker compose down -v` then `docker compose up --build -d`.
 
 For non-Docker local backend run, use host SMTP values in root `.env`:
 

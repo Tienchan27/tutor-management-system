@@ -212,7 +212,7 @@ function TutorSessionsPage() {
   return (
     <div className="stack-16">
       <div className="card">
-        <div className="page-header">
+        <div className="section-header">
           <div>
             <h2 className="title title-lg">Session Management</h2>
             <p className="subtitle">Record teaching sessions and maintain financial logs.</p>
@@ -224,8 +224,8 @@ function TutorSessionsPage() {
       <div className="card">
         <h3 className="section-title">Create session</h3>
         <form onSubmit={handleCreate}>
-          <div className="grid-form" style={{ marginTop: 12 }}>
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+          <div className="grid-form grid-form-no-margin">
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Class</span>
               <select
                 className="text-input"
@@ -248,7 +248,7 @@ function TutorSessionsPage() {
               </select>
             </label>
 
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Date</span>
               <input
                 className="text-input"
@@ -260,7 +260,7 @@ function TutorSessionsPage() {
               />
             </label>
 
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Duration (hours)</span>
               <input
                 className="text-input"
@@ -276,7 +276,7 @@ function TutorSessionsPage() {
               />
             </label>
 
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Payroll month</span>
               <input
                 className="text-input"
@@ -287,7 +287,7 @@ function TutorSessionsPage() {
               />
             </label>
 
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Salary rate (%)</span>
               <input
                 className="text-input"
@@ -302,7 +302,7 @@ function TutorSessionsPage() {
               />
             </label>
 
-            <label className="input-wrapper" style={{ marginBottom: 0 }}>
+            <label className="input-wrapper input-wrapper-tight">
               <span className="input-label">Note</span>
               <input
                 className="text-input"
@@ -315,11 +315,8 @@ function TutorSessionsPage() {
           </div>
 
           {selectedClass ? (
-            <div style={{ marginTop: 14 }}>
-              <div
-                className="accordion"
-                style={{ opacity: form.classId ? 1 : 0.6 }}
-              >
+            <div className="card-region">
+              <div className={`accordion ${form.classId ? '' : 'accordion-disabled'}`}>
                 <div
                   className="accordion-header"
                   role="button"
@@ -346,7 +343,7 @@ function TutorSessionsPage() {
 
                 {studentsOpen ? (
                   <div className="accordion-body">
-                    <div className="toolbar" style={{ marginBottom: 0 }}>
+                    <div className="toolbar toolbar-no-margin">
                       <button type="button" className="btn btn-soft compact-btn" onClick={handleResetToDefault}>
                         Reset to default
                       </button>
@@ -357,7 +354,7 @@ function TutorSessionsPage() {
                         <thead>
                           <tr>
                             <th>Student</th>
-                            <th>Tuition (VND)</th>
+                            <th className="money-cell">Tuition (VND)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -367,9 +364,9 @@ function TutorSessionsPage() {
                             return (
                               <tr key={student.id}>
                                 <td>{student.name}</td>
-                                <td>
+                                <td className="money-cell">
                                   <input
-                                    className="table-input money-number"
+                                    className="table-input money-number table-input-medium"
                                     type="number"
                                     step="1"
                                     value={tuitionAtLog}
@@ -383,7 +380,6 @@ function TutorSessionsPage() {
                                       }));
                                     }}
                                     required
-                                    style={{ maxWidth: 180 }}
                                   />
                                 </td>
                               </tr>
@@ -391,7 +387,7 @@ function TutorSessionsPage() {
                           })}
                           <tr className="table-footer-row">
                             <td>Total</td>
-                            <td>{totalTuition.toLocaleString()}</td>
+                            <td className="money-cell"><span className="money-value">{totalTuition.toLocaleString()}</span></td>
                           </tr>
                         </tbody>
                       </table>
@@ -402,22 +398,29 @@ function TutorSessionsPage() {
             </div>
           ) : null}
 
-          <div className="form-actions">
-            <button type="button" className="btn btn-soft compact-btn" onClick={resetForm} disabled={!form.classId}>
-              Reset
-            </button>
-            <button type="submit" className="btn btn-primary compact-btn" disabled={!form.classId}>
-              Confirm Session
-            </button>
+          <div className="card-region">
+            {!classes.length ? <p className="muted">You need at least one assigned class before creating a session.</p> : null}
+            {error ? <p className="error-text">{error}</p> : null}
+            {success ? <p className="success-text">{success}</p> : null}
+            <div className="form-actions">
+              <button type="button" className="btn btn-soft compact-btn" onClick={resetForm} disabled={!form.classId}>
+                Reset
+              </button>
+              <button type="submit" className="btn btn-primary compact-btn" disabled={!form.classId}>
+                Confirm Session
+              </button>
+            </div>
           </div>
         </form>
-        {!classes.length ? <p className="muted">You need at least one assigned class before creating a session.</p> : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        {success ? <p className="success-text">{success}</p> : null}
       </div>
 
       <div className="card">
-        <h3 className="section-title">Session list</h3>
+        <div className="section-header">
+          <div>
+            <h3 className="section-title">Session list</h3>
+            <p className="subtitle">Viewing payroll month {month}</p>
+          </div>
+        </div>
         {loading ? <p className="muted">Loading...</p> : null}
         {!loading && !items.length ? <p className="muted">No sessions for this payroll month.</p> : null}
         {!!items.length ? (
@@ -433,7 +436,7 @@ function TutorSessionsPage() {
                     <th>Date</th>
                     <th>Class</th>
                     <th>Duration</th>
-                    <th>Tuition</th>
+                    <th className="money-cell">Tuition</th>
                     <th>Rate (%)</th>
                     <th>Reason</th>
                     <th></th>
@@ -444,49 +447,49 @@ function TutorSessionsPage() {
                     <tr key={item.id}>
                       <td>{item.date}</td>
                       <td>{resolveClassName(item.classId)}</td>
-                    <td>
-                      <input
-                        className="table-input"
-                        type="number"
-                        step="0.25"
-                        value={item.durationHours}
-                        onChange={(event) => updateSessionRow(item.id, 'durationHours', Number(event.target.value))}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="table-input money-number"
-                        type="number"
-                        step="1"
-                        value={item.tuitionAtLog}
-                        onChange={(event) => updateSessionRow(item.id, 'tuitionAtLog', Math.round(Number(event.target.value)))}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="table-input"
-                        type="number"
-                        step="0.01"
-                        value={(item.salaryRateAtLog * 100).toFixed(2)}
-                        onChange={(event) =>
-                          updateSessionRow(item.id, 'salaryRateAtLog', Number(event.target.value) / 100)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="table-input"
-                        placeholder="Reason"
-                        value={reasonBySession[item.id] || ''}
-                        onChange={(event) => setReasonBySession((prev) => ({ ...prev, [item.id]: event.target.value }))}
-                      />
-                    </td>
-                    <td>
-                      <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleUpdateFinancial(item)}>
-                        Update
-                      </button>
-                    </td>
-                  </tr>
+                      <td>
+                        <input
+                          className="table-input"
+                          type="number"
+                          step="0.25"
+                          value={item.durationHours}
+                          onChange={(event) => updateSessionRow(item.id, 'durationHours', Number(event.target.value))}
+                        />
+                      </td>
+                      <td className="money-cell">
+                        <input
+                          className="table-input money-number"
+                          type="number"
+                          step="1"
+                          value={item.tuitionAtLog}
+                          onChange={(event) => updateSessionRow(item.id, 'tuitionAtLog', Math.round(Number(event.target.value)))}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="table-input"
+                          type="number"
+                          step="0.01"
+                          value={(item.salaryRateAtLog * 100).toFixed(2)}
+                          onChange={(event) =>
+                            updateSessionRow(item.id, 'salaryRateAtLog', Number(event.target.value) / 100)
+                          }
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="table-input"
+                          placeholder="Reason"
+                          value={reasonBySession[item.id] || ''}
+                          onChange={(event) => setReasonBySession((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleUpdateFinancial(item)}>
+                          Update
+                        </button>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>

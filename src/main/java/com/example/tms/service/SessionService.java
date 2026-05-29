@@ -2,6 +2,7 @@ package com.example.tms.service;
 
 import com.example.tms.api.dto.session.CreateSessionRequest;
 import com.example.tms.api.dto.session.SessionListItemResponse;
+import com.example.tms.api.mapper.SessionMapper;
 import com.example.tms.api.dto.session.TutorSessionClassOptionResponse;
 import com.example.tms.api.dto.session.TutorSessionStudentOptionResponse;
 import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
@@ -124,7 +125,7 @@ public class SessionService {
 
     @Transactional
     @PreAuthorize("hasRole('TUTOR')")
-    public Session create(User tutor, CreateSessionRequest request) {
+    public SessionListItemResponse create(User tutor, CreateSessionRequest request) {
         TutorClass tutorClass = tutorClassRepository.findById(request.classId())
                 .orElseThrow(() -> new ApiException("Class not found"));
         if (!tutorClass.getTutor().getId().equals(tutor.getId())) {
@@ -200,12 +201,12 @@ public class SessionService {
                 .toList();
         sessionStudentTuitionRepository.saveAll(lines);
 
-        return saved;
+        return SessionMapper.toListItemResponse(saved);
     }
 
     @Transactional
     @PreAuthorize("hasRole('TUTOR')")
-    public Session updateFinancial(User tutor, UUID sessionId, UpdateSessionFinancialRequest request) {
+    public SessionListItemResponse updateFinancial(User tutor, UUID sessionId, UpdateSessionFinancialRequest request) {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ApiException("Session not found"));
         if (!session.getTutorClass().getTutor().getId().equals(tutor.getId())) {
@@ -258,13 +259,13 @@ public class SessionService {
                 Map.of("sessionId", String.valueOf(saved.getId()))
         );
         realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "session:" + saved.getId(), adminEvent);
-        return saved;
+        return SessionMapper.toListItemResponse(saved);
     }
 
     @PreAuthorize("hasRole('TUTOR')")
     public Slice<SessionListItemResponse> getByPayrollMonth(User tutor, String payrollMonth, Pageable pageable) {
         return sessionRepository.findByTutorClassTutorIdAndPayrollMonth(tutor.getId(), payrollMonth, pageable)
-                .map(this::toListItemResponse);
+                .map(SessionMapper::toListItemResponse);
     }
 
     @PreAuthorize("hasRole('TUTOR')")
@@ -299,19 +300,6 @@ public class SessionService {
                 tutorClass.getPricePerHour(),
                 tutorClass.getDefaultSalaryRate(),
                 students
-        );
-    }
-
-    private SessionListItemResponse toListItemResponse(Session session) {
-        return new SessionListItemResponse(
-                session.getId(),
-                session.getTutorClass().getId(),
-                session.getDate(),
-                session.getDurationHours(),
-                session.getTuitionAtLog(),
-                session.getSalaryRateAtLog(),
-                session.getPayrollMonth(),
-                session.getNote()
         );
     }
 

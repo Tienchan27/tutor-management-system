@@ -95,21 +95,27 @@ function NotificationsPage() {
 
   return (
     <div className="card">
-      <h2 className="title title-lg">Notifications</h2>
-      <p className="subtitle">Track updates from session changes and payout events.</p>
-      <div className="notification-toolbar">
-        <button type="button" className="btn btn-soft compact-btn" onClick={() => setShowUnreadOnly((v) => !v)}>
-          {showUnreadOnly ? 'Showing: Unread' : 'Showing: All'}
-        </button>
-        <button type="button" className="btn btn-soft compact-btn" onClick={() => load(0)} disabled={loading}>
-          Refresh
-        </button>
+      <div className="section-header">
+        <div>
+          <h2 className="title title-lg">Notifications</h2>
+          <p className="subtitle">Track updates from session changes and payout events.</p>
+        </div>
+        <div className="section-actions">
+          <button type="button" className="btn btn-soft compact-btn" onClick={() => setShowUnreadOnly((v) => !v)}>
+            {showUnreadOnly ? 'Showing: Unread' : 'Showing: All'}
+          </button>
+          <button type="button" className="btn btn-secondary compact-btn" onClick={() => load(0)} disabled={loading}>
+            Refresh
+          </button>
+        </div>
       </div>
-      {loading ? <p className="muted">Loading...</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
-      {!loading && !visibleItems.length ? <p className="muted">No notifications yet.</p> : null}
+      <div className="card-region-tight">
+        {loading ? <p className="muted">Loading...</p> : null}
+        {error ? <p className="error-text">{error}</p> : null}
+        {!loading && !visibleItems.length ? <p className="muted">No notifications yet.</p> : null}
+      </div>
       {!!visibleItems.length ? (
-        <div className="notification-list">
+        <div className="notification-list card-region-tight">
           {visibleItems.map((item) => (
             <article key={item.id} className={`notification-item ${item.read ? 'read' : 'unread'}`}>
               <div>
@@ -117,7 +123,7 @@ function NotificationsPage() {
                   <span className="notification-badge">{formatNotificationType(item.type)}</span>
                   <span className="muted small">{new Date(item.createdAt).toLocaleString()}</span>
                 </div>
-                <h3 className="section-title">{item.title}</h3>
+                <h3 className="feed-item-title">{item.title}</h3>
                 <p className="muted">{item.content}</p>
               </div>
               {!item.read ? (

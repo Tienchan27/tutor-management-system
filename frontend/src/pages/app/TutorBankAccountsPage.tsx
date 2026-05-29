@@ -75,8 +75,12 @@ function TutorBankAccountsPage() {
   return (
     <div className="stack-16">
       <div className="card">
-        <h2 className="title title-lg">Bank Accounts</h2>
-        <p className="subtitle">Manage payout destination accounts for salary transfers.</p>
+        <div className="section-header">
+          <div>
+            <h2 className="title title-lg">Bank Accounts</h2>
+            <p className="subtitle">Manage payout destination accounts for salary transfers.</p>
+          </div>
+        </div>
         <form onSubmit={handleCreate} className="stack-16">
           <div className="grid-form">
             <input
@@ -133,8 +137,16 @@ function TutorBankAccountsPage() {
                     <td>{item.bankName}</td>
                     <td>{item.maskedAccountNumber}</td>
                     <td>{item.accountHolderName}</td>
-                    <td>{item.isPrimary ? 'Yes' : 'No'}</td>
-                    <td>{item.isVerified ? 'Yes' : 'No'}</td>
+                    <td>
+                      <span className={`status-pill ${item.isPrimary ? 'success' : 'warning'}`}>
+                        {item.isPrimary ? 'Primary' : 'Secondary'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-pill ${item.isVerified ? 'success' : 'warning'}`}>
+                        {item.isVerified ? 'Verified' : 'Pending'}
+                      </span>
+                    </td>
                     <td>
                       <div className="table-actions">
                         <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleSetPrimary(item.id)}>

@@ -280,133 +280,143 @@ function AdminClassAssignmentPage() {
   return (
     <div className="stack-16">
       <div className="card">
-        <div className="page-header">
+        <div className="section-header">
           <div>
             <h2 className="title title-lg">Class Assignment</h2>
             <p className="subtitle">Publish classes and manage tutor application queue.</p>
           </div>
         </div>
-        {success ? <p className="success-text">{success}</p> : null}
-        {error ? <p className="error-text">{error}</p> : null}
       </div>
 
       <div className="card">
         <h3 className="section-title">Publish class for tutor assignment</h3>
+        {success ? <p className="success-text">{success}</p> : null}
+        {error ? <p className="error-text">{error}</p> : null}
         <form onSubmit={handlePublishClass} className="stack-16">
-          <div className="grid-form">
-            <input
-              type="email"
-              className="text-input"
-              placeholder="Student email"
-              value={studentDraft.email}
-              onChange={(event) => setStudentDraft((prev) => ({ ...prev, email: event.target.value }))}
-              onBlur={handleStudentLookupOnBlur}
-            />
-            <input
-              className="text-input"
-              placeholder="Student name"
-              value={studentDraft.name}
-              onChange={(event) => setStudentDraft((prev) => ({ ...prev, name: event.target.value }))}
-            />
-            <button type="button" className="btn btn-soft-teal compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
-              {studentLookupLoading ? 'Checking...' : 'Add student'}
-            </button>
+          <div className="panel">
+            <h4 className="section-title mb-8">Students</h4>
+            <div className="grid-form">
+              <input
+                type="email"
+                className="text-input"
+                placeholder="Student email"
+                value={studentDraft.email}
+                onChange={(event) => setStudentDraft((prev) => ({ ...prev, email: event.target.value }))}
+                onBlur={handleStudentLookupOnBlur}
+              />
+              <input
+                className="text-input"
+                placeholder="Student name"
+                value={studentDraft.name}
+                onChange={(event) => setStudentDraft((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <button type="button" className="btn btn-soft-teal compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
+                {studentLookupLoading ? 'Checking...' : 'Add student'}
+              </button>
+            </div>
           </div>
           {studentLookupHint ? <p className="muted">{studentLookupHint}</p> : null}
 
-          {!!students.length ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Student email</th>
-                    <th>Student name</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((student) => (
-                    <tr key={student.email}>
-                      <td>{student.email}</td>
-                      <td>
-                        <input
-                          className="text-input"
-                          value={student.name || ''}
-                          onChange={(event) => handleUpdateStudentName(student.email, event.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-soft table-action"
-                          onClick={() => handleRemoveStudent(student.email)}
-                        >
-                          Remove
-                        </button>
-                      </td>
+          <div className="card-region-tight">
+            {!!students.length ? (
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Student email</th>
+                      <th>Student name</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {students.map((student) => (
+                      <tr key={student.email}>
+                        <td>{student.email}</td>
+                        <td>
+                          <input
+                            className="text-input"
+                            value={student.name || ''}
+                            onChange={(event) => handleUpdateStudentName(student.email, event.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-soft table-action"
+                            onClick={() => handleRemoveStudent(student.email)}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted">No students added yet.</p>
+            )}
+          </div>
+
+          <div className="panel">
+            <h4 className="section-title mb-8">Subject and pricing</h4>
+            <div className="grid-form">
+              <select className="text-input" value={subjectId} onChange={(event) => handleSubjectChange(event.target.value)} required>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="text-input money-number"
+                type="number"
+                step="1"
+                placeholder="Tuition fee"
+                value={pricePerHour}
+                onChange={(event) => {
+                  setPricePerHour(event.target.value);
+                  setIsPriceManuallyEdited(true);
+                }}
+              />
+              <button type="button" className="btn btn-soft compact-btn" onClick={handleResetToSubjectPrice}>
+                Use subject default price
+              </button>
             </div>
-          ) : (
-            <p className="muted">No students added yet.</p>
-          )}
-
-          <div className="grid-form">
-            <select className="text-input" value={subjectId} onChange={(event) => handleSubjectChange(event.target.value)} required>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-            <input
-              className="text-input money-number"
-              type="number"
-              step="1"
-              placeholder="Tuition fee"
-              value={pricePerHour}
-              onChange={(event) => {
-                setPricePerHour(event.target.value);
-                setIsPriceManuallyEdited(true);
-              }}
-            />
-            <button type="button" className="btn btn-soft compact-btn" onClick={handleResetToSubjectPrice}>
-              Use subject default price
-            </button>
           </div>
 
-          <div className="grid-form">
-            <input
-              className="text-input"
-              placeholder="Class display name"
-              value={displayName}
-              onChange={(event) => {
-                setDisplayName(event.target.value);
-                setIsDisplayNameManuallyEdited(true);
-              }}
-            />
-            <button
-              type="button"
-              className="btn btn-soft compact-btn"
-              onClick={handleResetDisplayNameToSuggested}
-              disabled={!suggestedDisplayName}
-            >
-              Reset to suggested
-            </button>
-          </div>
-          {suggestedDisplayName && isDisplayNameManuallyEdited ? (
-            <p className="muted">Suggested: {suggestedDisplayName}</p>
-          ) : null}
+          <div className="panel">
+            <h4 className="section-title mb-8">Class details</h4>
+            <div className="grid-form">
+              <input
+                className="text-input"
+                placeholder="Class display name"
+                value={displayName}
+                onChange={(event) => {
+                  setDisplayName(event.target.value);
+                  setIsDisplayNameManuallyEdited(true);
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-soft compact-btn"
+                onClick={handleResetDisplayNameToSuggested}
+                disabled={!suggestedDisplayName}
+              >
+                Reset to suggested
+              </button>
+            </div>
+            {suggestedDisplayName && isDisplayNameManuallyEdited ? (
+              <p className="muted mt-8">Suggested: {suggestedDisplayName}</p>
+            ) : null}
 
-          <textarea
-            className="text-input"
-            style={{ minHeight: 96, resize: 'vertical' }}
-            placeholder="Note (optional)"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
+            <textarea
+              className="text-input mt-12 text-area-notes"
+              placeholder="Note (optional)"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </div>
 
           <div className="form-actions">
             <button className="btn btn-primary compact-btn" type="submit" disabled={publishing}>
@@ -420,10 +430,12 @@ function AdminClassAssignmentPage() {
         <h3 className="section-title">Tutor applications queue</h3>
         {!publishedClasses.length ? <p className="muted">No available classes for assignment.</p> : null}
         {publishedClasses.map((item) => (
-          <div key={item.classId} className="panel" style={{ marginBottom: 12 }}>
-            <p><strong>{item.displayName}</strong></p>
+          <div key={item.classId} className="panel queue-item">
+            <div className="section-header">
+              <p><strong>{item.displayName}</strong></p>
+              <span className="status-pill warning">{item.applications.length} application(s)</span>
+            </div>
             <p className="muted">Students: {item.studentNames.join(' - ') || '-'}</p>
-            <p className="muted">Applications: {item.applications.length}</p>
             {item.note ? <p className="muted">Note: {item.note}</p> : null}
             {!!item.applications.length ? (
               <div className="table-wrap">
