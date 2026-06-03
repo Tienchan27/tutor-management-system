@@ -1,0 +1,99 @@
+import { useEffect, useState } from 'react';
+import { SessionListItem } from '../../types/sessions';
+import Button from '../ui/Button';
+import { formatVnd } from '../../utils/format';
+
+interface SessionFinancialDrawerProps {
+  open: boolean;
+  item: SessionListItem | null;
+  loading?: boolean;
+  onClose: () => void;
+  onSave: (item: SessionListItem, reason: string) => void;
+}
+
+function SessionFinancialDrawer({ open, item, loading, onClose, onSave }: SessionFinancialDrawerProps) {
+  const [draft, setDraft] = useState<SessionListItem | null>(item);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    setDraft(item);
+    setReason('');
+  }, [item, open]);
+
+  if (!open || !item) {
+    return null;
+  }
+
+  const current = draft || item;
+
+  return (
+    <div className="dialog-overlay" role="presentation" onClick={onClose}>
+      <div className="dialog-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <h2 className="dialog-title">Edit financials</h2>
+        <p className="muted">
+          Session {current.date} — duration {current.durationHours}h (read-only)
+        </p>
+        <label className="input-wrapper">
+          <span className="input-label">Tuition (VND)</span>
+          <input
+            className="text-input"
+            type="number"
+            value={current.tuitionAtLog}
+            onChange={(e) =>
+              setDraft({ ...current, tuitionAtLog: Math.round(Number(e.target.value)) })
+            }
+          />
+        </label>
+        <label className="input-wrapper">
+          <span className="input-label">Salary rate (%)</span>
+          <input
+            className="text-input"
+            type="number"
+            step="0.01"
+            value={(current.salaryRateAtLog * 100).toFixed(2)}
+            onChange={(e) =>
+              setDraft({ ...current, salaryRateAtLog: Number(e.target.value) / 100 })
+            }
+          />
+        </label>
+        <label className="input-wrapper">
+          <span className="input-label">Payroll month</span>
+          <input
+            className="text-input"
+            type="month"
+            value={current.payrollMonth}
+            onChange={(e) => setDraft({ ...current, payrollMonth: e.target.value })}
+          />
+        </label>
+        <label className="input-wrapper">
+          <span className="input-label">Note</span>
+          <input
+            className="text-input"
+            value={current.note || ''}
+            onChange={(e) => setDraft({ ...current, note: e.target.value })}
+          />
+        </label>
+        <label className="input-wrapper">
+          <span className="input-label">Reason (required)</span>
+          <input
+            className="text-input"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why is this change needed?"
+          />
+        </label>
+        <p className="muted">Preview: {formatVnd(current.tuitionAtLog)}</p>
+        <div className="dialog-actions">
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" loading={loading} onClick={() => onSave(current, reason.trim())}>
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default SessionFinancialDrawer;

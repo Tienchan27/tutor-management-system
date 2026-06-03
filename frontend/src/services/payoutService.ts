@@ -1,6 +1,11 @@
 import api from './api';
 import { TutorPayout, TutorPayoutPayment } from '../types/payouts';
 
+export async function listPayoutsByMonth(month: string): Promise<TutorPayout[]> {
+  const response = await api.get<TutorPayout[]>('/payouts', { params: { month } });
+  return response.data;
+}
+
 export async function generateMonthlyPayouts(month: string): Promise<TutorPayout[]> {
   const response = await api.post<TutorPayout[]>('/payouts/generate', null, {
     params: { month },

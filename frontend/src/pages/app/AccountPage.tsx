@@ -3,13 +3,19 @@ import { getMyProfile, updateMyProfile } from '../../services/profileService';
 import { ProfileResponse, UpdateProfileRequest } from '../../types/profile';
 import { extractApiErrorMessage } from '../../services/authService';
 import { setAuthUserName } from '../../utils/storage';
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import { useToast } from '../../components/feedback/ToastProvider';
 
 function AccountPage() {
+  const { showToast } = useToast();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [form, setForm] = useState<UpdateProfileRequest>({});
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -38,7 +44,7 @@ function AccountPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
-    setSuccess('');
+    setSaving(true);
     try {
       const response = await updateMyProfile({
         name: form.name || null,
@@ -49,22 +55,20 @@ function AccountPage() {
       });
       setProfile(response);
       setAuthUserName(response.name);
-      setSuccess('Profile updated successfully.');
+      showToast('Profile updated successfully', 'success');
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to update profile'));
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="stack-16">
-      <div className="card">
-        <h2 className="title title-lg">Account</h2>
-        <p className="subtitle">Manage your profile details used across the system.</p>
-      </div>
-      <div className="card">
-        {loading ? <p className="muted">Loading...</p> : null}
+      <PageHeader title="Account" subtitle="Manage your profile details used across the system." />
+      <PageSection>
+        {loading ? <Spinner label="Loading profile..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
-        {success ? <p className="success-text">{success}</p> : null}
         {profile ? (
           <div className="stack-16">
             <div className="panel">
@@ -160,14 +164,14 @@ function AccountPage() {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn btn-primary compact-btn">
-                  Save Changes
-                </button>
+                <Button type="submit" loading={saving}>
+                  Save changes
+                </Button>
               </div>
             </form>
           </div>
         ) : null}
-      </div>
+      </PageSection>
     </div>
   );
 }

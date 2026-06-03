@@ -1,5 +1,13 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { extractApiErrorMessage } from '../../services/authService';
+import PageHeader from '../../components/ui/PageHeader';
+import Tabs from '../../components/ui/Tabs';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import StatusPill from '../../components/ui/StatusPill';
+import EmptyState from '../../components/ui/EmptyState';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { formatDate, formatVnd } from '../../utils/format';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
 import {
   approveClassApplication,
@@ -45,12 +53,12 @@ function buildSuggestedClassName(subjectName: string, studentNames: string[]): s
 }
 
 function AdminClassAssignmentPage() {
+  const { showToast } = useToast();
   const [subjects, setSubjects] = useState<SubjectOptionResponse[]>([]);
   const [publishedClasses, setPublishedClasses] = useState<PublishedClassResponse[]>([]);
   const [publishing, setPublishing] = useState<boolean>(false);
   const [applicationLoadingId, setApplicationLoadingId] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
   const [studentDraft, setStudentDraft] = useState<PublishStudentDraft>({ email: '', name: '' });
   const [students, setStudents] = useState<PublishClassStudentInput[]>([]);
   const [studentLookupHint, setStudentLookupHint] = useState<string>('');
@@ -211,7 +219,6 @@ function AdminClassAssignmentPage() {
   async function handlePublishClass(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
-    setSuccess('');
     if (!students.length) {
       setError('Please add at least one student before publishing.');
       return;
@@ -238,7 +245,7 @@ function AdminClassAssignmentPage() {
         setPricePerHour('');
       }
       setIsPriceManuallyEdited(false);
-      setSuccess('Class published successfully.');
+      showToast('Class published successfully', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to publish class'));
@@ -250,10 +257,9 @@ function AdminClassAssignmentPage() {
   async function handleApprove(applicationId: string): Promise<void> {
     setApplicationLoadingId(applicationId);
     setError('');
-    setSuccess('');
     try {
       await approveClassApplication(applicationId);
-      setSuccess('Application approved.');
+      showToast('Application approved', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to approve application'));
@@ -265,10 +271,9 @@ function AdminClassAssignmentPage() {
   async function handleReject(applicationId: string): Promise<void> {
     setApplicationLoadingId(applicationId);
     setError('');
-    setSuccess('');
     try {
       await rejectClassApplication(applicationId);
-      setSuccess('Application rejected.');
+      showToast('Application rejected', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to reject application'));
@@ -277,20 +282,8 @@ function AdminClassAssignmentPage() {
     }
   }
 
-  return (
-    <div className="stack-16">
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <h2 className="title title-lg">Class Assignment</h2>
-            <p className="subtitle">Publish classes and manage tutor application queue.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3 className="section-title">Publish class for tutor assignment</h3>
-        {success ? <p className="success-text">{success}</p> : null}
+  const publishForm = (
+    <PageSection title="Publish new class">
         {error ? <p className="error-text">{error}</p> : null}
         <form onSubmit={handlePublishClass} className="stack-16">
           <div className="panel">
@@ -419,21 +412,55 @@ function AdminClassAssignmentPage() {
           </div>
 
           <div className="form-actions">
-            <button className="btn btn-primary compact-btn" type="submit" disabled={publishing}>
-              {publishing ? 'Publishing...' : 'Publish'}
-            </button>
+            <Button type="submit" loading={publishing}>
+              Publish class
+            </Button>
           </div>
         </form>
-      </div>
+    </PageSection>
+  );
 
-      <div className="card">
-        <h3 className="section-title">Tutor applications queue</h3>
-        {!publishedClasses.length ? <p className="muted">No available classes for assignment.</p> : null}
-        {publishedClasses.map((item) => (
+  const publishedPanel = (
+    <PageSection title="Published classes">
+      {!publishedClasses.length ? (
+        <EmptyState title="No published classes" description="Publish a class to make it visible to tutors." />
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th scope="col">Class</th>
+                <th scope="col">Students</th>
+                <th scope="col">Applications</th>
+                <th scope="col">Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {publishedClasses.map((item) => (
+                <tr key={item.classId}>
+                  <td>{item.displayName}</td>
+                  <td>{item.studentNames.join(', ') || '—'}</td>
+                  <td>{item.applications.length}</td>
+                  <td>{formatVnd(item.pricePerHour || 0)}/hr</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </PageSection>
+  );
+
+  const applicationsPanel = (
+    <PageSection title="Tutor applications">
+      {!publishedClasses.length ? (
+        <EmptyState title="No applications" description="Published classes will show tutor applications here." />
+      ) : null}
+      {publishedClasses.map((item) => (
           <div key={item.classId} className="panel queue-item">
             <div className="section-header">
               <p><strong>{item.displayName}</strong></p>
-              <span className="status-pill warning">{item.applications.length} application(s)</span>
+              <StatusPill label={`${item.applications.length} pending`} tone="warning" />
             </div>
             <p className="muted">Students: {item.studentNames.join(' - ') || '-'}</p>
             {item.note ? <p className="muted">Note: {item.note}</p> : null}
@@ -453,26 +480,26 @@ function AdminClassAssignmentPage() {
                       <tr key={application.applicationId}>
                         <td>{application.tutorName} ({application.tutorEmail})</td>
                         <td>{application.status}</td>
-                        <td>{new Date(application.appliedAt).toLocaleString()}</td>
+                        <td>{formatDate(application.appliedAt)}</td>
                         <td>
                           {application.status === 'PENDING' ? (
                             <div className="table-actions">
-                              <button
-                                type="button"
-                                className="btn btn-soft-teal table-action"
+                              <Button
+                                variant="soft"
+                                size="sm"
                                 onClick={() => handleApprove(application.applicationId)}
-                                disabled={applicationLoadingId === application.applicationId}
+                                loading={applicationLoadingId === application.applicationId}
                               >
                                 Approve
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-soft table-action"
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => handleReject(application.applicationId)}
                                 disabled={applicationLoadingId === application.applicationId}
                               >
                                 Reject
-                              </button>
+                              </Button>
                             </div>
                           ) : (
                             '-'
@@ -488,7 +515,19 @@ function AdminClassAssignmentPage() {
             )}
           </div>
         ))}
-      </div>
+    </PageSection>
+  );
+
+  return (
+    <div className="stack-16">
+      <PageHeader title="Class assignment" subtitle="Publish classes and review tutor applications." />
+      <Tabs
+        items={[
+          { id: 'publish', label: 'Publish', panel: publishForm },
+          { id: 'published', label: 'Published', panel: publishedPanel },
+          { id: 'applications', label: 'Applications', panel: applicationsPanel },
+        ]}
+      />
     </div>
   );
 }

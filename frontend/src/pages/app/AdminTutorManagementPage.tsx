@@ -1,16 +1,19 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getAdminTutorDetail, getAdminTutorSummary, inviteTutor, revokeTutorRole } from '../../services/dashboardService';
 import { AdminTutorDetailResponse, TutorSummaryResponse } from '../../types/dashboard';
 import { extractApiErrorMessage } from '../../services/authService';
-import { confirmPayoutPaid, generateMonthlyPayouts, generatePayoutQr, overrideNetSalary } from '../../services/payoutService';
-import { TutorPayoutPayment } from '../../types/payouts';
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}`;
-}
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import StatusPill from '../../components/ui/StatusPill';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { formatVnd, getCurrentYearMonth } from '../../utils/format';
 
 function AdminTutorManagementPage() {
+  const { showToast } = useToast();
   function payoutStatusClass(status: string): string {
     if (status === 'PAID') {
       return 'success';
@@ -21,19 +24,14 @@ function AdminTutorManagementPage() {
     return 'danger';
   }
 
-  const [month, setMonth] = useState<string>(getCurrentMonth());
+  const [month, setMonth] = useState<string>(getCurrentYearMonth());
   const [items, setItems] = useState<TutorSummaryResponse[]>([]);
   const [detail, setDetail] = useState<AdminTutorDetailResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [payoutActionLoading, setPayoutActionLoading] = useState<string>('');
-  const [overrideLoadingId, setOverrideLoadingId] = useState<string>('');
-  const [netSalaryDraftById, setNetSalaryDraftById] = useState<Record<string, number>>({});
-  const [selectedPayment, setSelectedPayment] = useState<TutorPayoutPayment | null>(null);
   const [deleteConfirmTutorId, setDeleteConfirmTutorId] = useState<string>('');
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
   const [inviteLoading, setInviteLoading] = useState<boolean>(false);
   const [inviteEmail, setInviteEmail] = useState<string>('');
-  const [inviteMessage, setInviteMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [summaryHasNext, setSummaryHasNext] = useState<boolean>(false);
   const [summaryPage, setSummaryPage] = useState<number>(0);
@@ -93,27 +91,13 @@ function AdminTutorManagementPage() {
     }
   }
 
-  async function refreshAfterPayoutAction(): Promise<void> {
-    if (!detail?.tutorId) {
-      return;
-    }
-    setError('');
-    try {
-      await loadSummary();
-      await loadDetail(detail.tutorId);
-    } catch {
-      // error already handled in called functions
-    }
-  }
-
   async function handleInviteTutor(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
-    setInviteMessage('');
     setInviteLoading(true);
     try {
       const response = await inviteTutor({ email: inviteEmail });
-      setInviteMessage(response.message);
+      showToast(response.message, 'success');
       setInviteEmail('');
       await loadSummary();
     } catch (err: unknown) {
@@ -128,68 +112,6 @@ function AdminTutorManagementPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
-  async function handleGenerateForMonth(): Promise<void> {
-    if (!detail?.tutorId) {
-      return;
-    }
-    setPayoutActionLoading('generate_month');
-    setError('');
-    try {
-      await generateMonthlyPayouts(month);
-      await refreshAfterPayoutAction();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to generate monthly payouts'));
-    } finally {
-      setPayoutActionLoading('');
-    }
-  }
-
-  async function handleGenerateQr(payoutId: string): Promise<void> {
-    setPayoutActionLoading(payoutId);
-    setError('');
-    try {
-      const payment = await generatePayoutQr(payoutId);
-      setSelectedPayment(payment);
-      await refreshAfterPayoutAction();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to generate payout QR'));
-    } finally {
-      setPayoutActionLoading('');
-    }
-  }
-
-  async function handleConfirmPaid(payoutId: string): Promise<void> {
-    setPayoutActionLoading(`confirm_${payoutId}`);
-    setError('');
-    try {
-      await confirmPayoutPaid(payoutId);
-      await refreshAfterPayoutAction();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to confirm paid'));
-    } finally {
-      setPayoutActionLoading('');
-    }
-  }
-
-  async function handleOverrideNetSalary(payoutId: string): Promise<void> {
-    setError('');
-    setOverrideLoadingId(payoutId);
-    try {
-      const nextNetSalary = netSalaryDraftById[payoutId] ?? (detail?.payout?.netSalary ?? 0);
-      await overrideNetSalary(payoutId, nextNetSalary);
-      await refreshAfterPayoutAction();
-      setNetSalaryDraftById((prev) => {
-        const copy = { ...prev };
-        delete copy[payoutId];
-        return copy;
-      });
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to override net salary'));
-    } finally {
-      setOverrideLoadingId('');
-    }
-  }
-
   async function handleRevokeTutorRole(tutorId: string): Promise<void> {
     if (deleteConfirmTutorId !== tutorId) {
       setDeleteConfirmTutorId(tutorId);
@@ -201,7 +123,7 @@ function AdminTutorManagementPage() {
       await revokeTutorRole(tutorId);
       setDetail(null);
       setDeleteConfirmTutorId('');
-      setSelectedPayment(null);
+      showToast('Tutor role revoked', 'success');
       await loadSummary();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to revoke tutor role'));
@@ -212,69 +134,63 @@ function AdminTutorManagementPage() {
 
   return (
     <div className="stack-16">
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <h2 className="title title-lg">Tutor Management</h2>
-            <p className="subtitle">Invite tutors and review payout snapshots by month.</p>
-          </div>
-          <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="input-month" />
-        </div>
-        <form onSubmit={handleInviteTutor} className="stack-16">
-          <div className="grid-form">
-            <input
-              type="email"
-              className="text-input"
-              placeholder="New tutor email"
-              value={inviteEmail}
-              onChange={(event) => setInviteEmail(event.target.value)}
-              required
-            />
-          </div>
-          <div className="form-actions">
-            <button className="btn btn-primary compact-btn" type="submit" disabled={inviteLoading}>
-              {inviteLoading ? 'Adding...' : 'Add Tutor'}
-            </button>
-          </div>
-        </form>
-        {inviteMessage ? <p className="success-text">{inviteMessage}</p> : null}
-      </div>
-
-      <div className="card">
-        <h3 className="section-title">Tutor summary</h3>
-        {loading ? <p className="muted">Loading...</p> : null}
+      <PageHeader
+        title="Tutor management"
+        subtitle="Invite tutors and review monthly payout snapshots."
+        actions={
+          <>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="input-month" />
+            <form onSubmit={handleInviteTutor} className="invite-inline-form">
+              <input
+                type="email"
+                className="text-input"
+                placeholder="Tutor email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+              />
+              <Button type="submit" loading={inviteLoading} size="sm">
+                Invite
+              </Button>
+            </form>
+          </>
+        }
+      />
+      <div className="admin-tutor-layout">
+        <PageSection title="Tutor list">
+        {loading ? <Spinner label="Loading tutors..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
-        {!loading && !items.length ? <p className="muted">No summary available for this month.</p> : null}
+        {!loading && !items.length ? (
+          <EmptyState title="No tutors for this month" description="Change month or invite a new tutor." />
+        ) : null}
         {!!items.length ? (
           <>
-            <p className="muted mb-8">
-              Showing {items.length} tutor{items.length === 1 ? '' : 's'}
-              {summaryHasNext ? ' — more available.' : '.'}
-            </p>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Tutor</th>
-                    <th className="money-cell">Gross Revenue</th>
-                    <th className="money-cell">Net Salary</th>
-                    <th>Classes (this month)</th>
-                    <th>Status</th>
-                    <th></th>
+                    <th scope="col">Tutor</th>
+                    <th scope="col" className="money-cell">Gross</th>
+                    <th scope="col" className="money-cell">Net</th>
+                    <th scope="col">Classes</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.tutorId}>
-                      <td>{item.tutorName} ({item.tutorEmail})</td>
-                      <td className="money-cell"><span className="money-value">{item.grossRevenue.toLocaleString()}</span></td>
-                      <td className="money-cell"><span className="money-value">{item.netSalary.toLocaleString()}</span></td>
+                    <tr key={item.tutorId} className={detail?.tutorId === item.tutorId ? 'row-selected' : ''}>
+                      <td>{item.tutorName}</td>
+                      <td className="money-cell">{formatVnd(item.grossRevenue)}</td>
+                      <td className="money-cell">{formatVnd(item.netSalary)}</td>
                       <td>{item.classesReceivingThisMonth}</td>
-                      <td><span className={`status-pill ${payoutStatusClass(item.payoutStatus)}`}>{item.payoutStatus}</span></td>
                       <td>
-                        <button className="btn btn-soft-teal table-action" onClick={() => loadDetail(item.tutorId)} type="button">
-                          View detail
-                        </button>
+                        <StatusPill label={item.payoutStatus} tone={payoutStatusClass(item.payoutStatus) as 'success' | 'warning' | 'danger'} />
+                      </td>
+                      <td>
+                        <Button variant="soft" size="sm" onClick={() => loadDetail(item.tutorId)}>
+                          View
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -283,23 +199,17 @@ function AdminTutorManagementPage() {
             </div>
             {summaryHasNext ? (
               <div className="form-actions mt-12">
-                <button
-                  type="button"
-                  className="btn btn-soft"
-                  onClick={() => void loadMoreSummary()}
-                  disabled={summaryLoadingMore}
-                >
-                  {summaryLoadingMore ? 'Loading...' : 'Load more'}
-                </button>
+                <Button variant="soft" onClick={() => void loadMoreSummary()} loading={summaryLoadingMore}>
+                  Load more
+                </Button>
               </div>
             ) : null}
           </>
         ) : null}
-      </div>
+        </PageSection>
 
-      {detail ? (
-        <div className="card">
-          <h3 className="section-title">Selected tutor detail</h3>
+        {detail ? (
+        <PageSection title={detail.name}>
           <section className="card-region">
             <h4 className="subsection-title">Tutor identity and contact</h4>
             <div className="grid-3 mb-12 mt-12">
@@ -323,87 +233,32 @@ function AdminTutorManagementPage() {
           </section>
 
           <section className="card-region">
-            <h4 className="subsection-title">Payout and actions</h4>
-          {detail.payout ? (
-            <div className="panel mt-12">
-              <strong>Selected month payout</strong>
-              <div className="stat-row">
-                <span>Month <strong>{detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')}</strong></span>
-                <span>Gross <strong>{detail.payout.grossRevenue.toLocaleString()}</strong></span>
-                <span>Net <strong>{detail.payout.netSalary.toLocaleString()}</strong></span>
-                <span><span className={`status-pill ${payoutStatusClass(detail.payout.status)}`}>{detail.payout.status}</span></span>
-              </div>
-
-              <div className="mt-12">
-                <h5 className="subsection-title mb-8">Monthly payout actions</h5>
-
-                {detail.payout.status === 'LOCKED' ? (
-                  <div className="inline-controls mb-8">
-                    <input
-                      className="table-input money-number table-input-narrow"
-                      type="number"
-                      step="1"
-                      value={netSalaryDraftById[detail.payout!.payoutId] ?? detail.payout.netSalary}
-                      onChange={(event) => setNetSalaryDraftById((prev) => ({ ...prev, [detail.payout!.payoutId]: Math.round(Number(event.target.value)) }))}
-                      disabled={overrideLoadingId === detail.payout!.payoutId}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-soft table-action"
-                      onClick={() => handleOverrideNetSalary(detail.payout!.payoutId)}
-                      disabled={overrideLoadingId === detail.payout!.payoutId}
-                    >
-                      {overrideLoadingId === detail.payout!.payoutId ? 'Saving...' : 'Save Override'}
-                    </button>
-                  </div>
-                ) : null}
-
-                <div className="table-actions table-actions-left">
-                  <button
-                    type="button"
-                    className="btn btn-soft table-action"
-                    onClick={() => handleGenerateQr(detail.payout!.payoutId)}
-                    disabled={detail.payout.status === 'PAID' || payoutActionLoading === detail.payout!.payoutId}
-                  >
-                    {payoutActionLoading === detail.payout!.payoutId ? 'Generating...' : 'Generate QR'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary table-action"
-                    onClick={() => handleConfirmPaid(detail.payout!.payoutId)}
-                    disabled={detail.payout.status === 'PAID' || payoutActionLoading === `confirm_${detail.payout!.payoutId}`}
-                  >
-                    {payoutActionLoading === `confirm_${detail.payout!.payoutId}` ? 'Confirming...' : 'Confirm Paid'}
-                  </button>
+            <h4 className="subsection-title">Payout snapshot</h4>
+            {detail.payout ? (
+              <div className="panel mt-12">
+                <div className="stat-row">
+                  <span>
+                    Month{' '}
+                    <strong>
+                      {detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')}
+                    </strong>
+                  </span>
+                  <span>
+                    Gross <strong>{formatVnd(detail.payout.grossRevenue)}</strong>
+                  </span>
+                  <span>
+                    Net <strong>{formatVnd(detail.payout.netSalary)}</strong>
+                  </span>
+                  <StatusPill label={detail.payout.status} tone={payoutStatusClass(detail.payout.status) as 'success' | 'warning' | 'danger'} />
                 </div>
+                <p className="muted mt-12">
+                  Manage QR and payment confirmation on the{' '}
+                  <Link to="/app/admin/payouts">Payouts</Link> page.
+                </p>
               </div>
-            </div>
-          ) : (
-            <p className="muted mt-12">No payout generated for selected month.</p>
-          )}
-
-          {!detail.payout ? (
-            <div className="mt-12">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleGenerateForMonth}
-                disabled={payoutActionLoading === 'generate_month'}
-              >
-                {payoutActionLoading === 'generate_month' ? 'Generating...' : 'Generate payouts for this month'}
-              </button>
-            </div>
-          ) : null}
-
-          {selectedPayment ? (
-            <div className="panel mt-12">
-              <strong>Latest QR payload</strong>
-              <p className="muted mb-6">
-                Reference: {selectedPayment.qrRef} | Status: {selectedPayment.status}
-              </p>
-              <pre className="pre-wrap">{selectedPayment.qrPayload}</pre>
-            </div>
-          ) : null}
+            ) : (
+              <p className="muted mt-12">No payout for the selected month.</p>
+            )}
           </section>
 
           <section className="card-region">
@@ -460,7 +315,7 @@ function AdminTutorManagementPage() {
                         <td>{managedClass.classDisplayName || managedClass.subjectName}</td>
                         <td>{managedClass.subjectName}</td>
                         <td>{managedClass.classStatus}</td>
-                        <td className="money-cell"><span className="money-value">{managedClass.pricePerHour.toLocaleString()}</span></td>
+                        <td className="money-cell">{formatVnd(managedClass.pricePerHour)}</td>
                         <td>{(managedClass.defaultSalaryRate * 100).toFixed(2)}%</td>
                         <td>{managedClass.sessionCount}</td>
                         <td>{managedClass.latestSessionDate || '-'}</td>
@@ -475,19 +330,23 @@ function AdminTutorManagementPage() {
           <section className="card-region">
             <h4 className="subsection-title">Danger zone</h4>
             <div className="mt-12">
-              <button
-                type="button"
-                className="btn btn-danger"
+              <Button
+                variant="danger"
                 onClick={() => handleRevokeTutorRole(detail.tutorId)}
-                disabled={deleteLoading}
+                loading={deleteLoading}
               >
-                {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke tutor role' : 'Delete tutor (revoke TUTOR role)'}
-              </button>
+                {deleteConfirmTutorId === detail.tutorId ? 'Confirm revoke role' : 'Revoke tutor role'}
+              </Button>
               {deleteConfirmTutorId === detail.tutorId ? <p className="muted mt-8">Click again to confirm.</p> : null}
             </div>
           </section>
+        </PageSection>
+      ) : (
+        <div className="card admin-tutor-detail-empty">
+          <p>Select a tutor from the list to view details.</p>
         </div>
-      ) : null}
+      )}
+      </div>
     </div>
   );
 }

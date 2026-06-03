@@ -17,5 +17,13 @@ public interface SessionStudentTuitionRepository extends JpaRepository<SessionSt
            where sst.session.id = :sessionId
            """)
     List<SessionStudentTuition> findBySessionIdWithStudent(UUID sessionId);
+
+    @Query("""
+           select sst from SessionStudentTuition sst
+           join fetch sst.session s
+           join fetch sst.student
+           where s.payrollMonth = :payrollMonth
+           """)
+    List<SessionStudentTuition> findByPayrollMonth(String payrollMonth);
 }
 

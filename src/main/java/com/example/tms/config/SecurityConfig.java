@@ -59,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers("/dashboard/tutor/**").hasAnyRole("TUTOR", "ADMIN")
                         // Admin endpoints
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/student/**").hasRole("STUDENT")
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

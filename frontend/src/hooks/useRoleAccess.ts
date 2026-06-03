@@ -26,8 +26,8 @@ export function useRoleAccess(): RoleAccessState {
         }
       } catch {
         if (mounted) {
-          setRoles(['STUDENT']);
-          setError('Unable to resolve role access from API, fallback to student view.');
+          setRoles([]);
+          setError('Unable to load your roles. Please refresh the page or sign in again.');
         }
       } finally {
         if (mounted) {

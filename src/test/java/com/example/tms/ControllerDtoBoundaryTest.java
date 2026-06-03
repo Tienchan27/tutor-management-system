@@ -50,7 +50,9 @@ class ControllerDtoBoundaryTest {
                 "com.example.tms.api.ClassMarketplaceController",
                 "com.example.tms.api.AdminTutorController",
                 "com.example.tms.api.SessionController",
-                "com.example.tms.api.PayoutController"
+                "com.example.tms.api.PayoutController",
+                "com.example.tms.api.AdminInvoiceController",
+                "com.example.tms.api.StudentPortalController"
         };
         for (String name : names) {
             Class<?> type = Class.forName(name);

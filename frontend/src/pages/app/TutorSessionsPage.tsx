@@ -7,11 +7,11 @@ import {
 } from '../../services/sessionService';
 import { CreateSessionRequest, SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
-
-function getCurrentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}`;
-}
+import PageHeader from '../../components/ui/PageHeader';
+import Tabs from '../../components/ui/Tabs';
+import SessionFinancialDrawer from '../../components/sessions/SessionFinancialDrawer';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { formatVnd, getCurrentYearMonth } from '../../utils/format';
 
 function getTodayDate(): string {
   const now = new Date();
@@ -24,12 +24,15 @@ const initialForm: CreateSessionRequest = {
   durationHours: 1,
   salaryRateAtLog: 0.75,
   studentTuitions: [],
-  payrollMonth: getCurrentMonth(),
+  payrollMonth: getCurrentYearMonth(),
   note: '',
 };
 
 function TutorSessionsPage() {
-  const [month, setMonth] = useState<string>(getCurrentMonth());
+  const { showToast } = useToast();
+  const [month, setMonth] = useState<string>(getCurrentYearMonth());
+  const [editItem, setEditItem] = useState<SessionListItem | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [items, setItems] = useState<SessionListItem[]>([]);
   const [classes, setClasses] = useState<TutorSessionClassOptionResponse[]>([]);
   const [sessionHasNext, setSessionHasNext] = useState<boolean>(false);
@@ -38,10 +41,8 @@ function TutorSessionsPage() {
   const [form, setForm] = useState<CreateSessionRequest>(initialForm);
   const [salaryRatePercent, setSalaryRatePercent] = useState<number>(75);
   const [studentsOpen, setStudentsOpen] = useState<boolean>(false);
-  const [reasonBySession, setReasonBySession] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.id === form.classId) || null,
@@ -159,13 +160,12 @@ function TutorSessionsPage() {
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
-    setSuccess('');
     try {
       await createSession({
         ...form,
         salaryRateAtLog: Number((salaryRatePercent / 100).toFixed(4)),
       });
-      setSuccess('Session created successfully.');
+      showToast('Session logged successfully', 'success');
       resetForm();
       await loadSessions();
     } catch (err: unknown) {
@@ -173,14 +173,13 @@ function TutorSessionsPage() {
     }
   }
 
-  async function handleUpdateFinancial(item: SessionListItem): Promise<void> {
-    const reason = reasonBySession[item.id]?.trim();
+  async function handleUpdateFinancial(item: SessionListItem, reason: string): Promise<void> {
     if (!reason) {
       setError('Update reason is required for financial changes.');
       return;
     }
     setError('');
-    setSuccess('');
+    setSaveLoading(true);
     try {
       await updateSessionFinancial(item.id, {
         tuitionAtLog: item.tuitionAtLog,
@@ -189,40 +188,19 @@ function TutorSessionsPage() {
         note: item.note || '',
         reason,
       });
-      setSuccess('Session financial data updated.');
+      showToast('Financials updated', 'success');
+      setEditItem(null);
       await loadSessions();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to update session'));
+    } finally {
+      setSaveLoading(false);
     }
   }
 
-  function updateSessionRow<K extends keyof SessionListItem>(id: string, field: K, value: SessionListItem[K]): void {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item
-      )
-    );
-  }
-
-  return (
-    <div className="stack-16">
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <h2 className="title title-lg">Session Management</h2>
-            <p className="subtitle">Record teaching sessions and maintain financial logs.</p>
-          </div>
-          <input type="month" className="input-month" value={month} onChange={(event) => setMonth(event.target.value)} />
-        </div>
-      </div>
-
-      <div className="card">
-        <h3 className="section-title">Create session</h3>
+  const logSessionPanel = (
+    <div className="card">
+        <h3 className="section-title">Log session</h3>
         <form onSubmit={handleCreate}>
           <div className="grid-form grid-form-no-margin">
             <label className="input-wrapper input-wrapper-tight">
@@ -335,8 +313,8 @@ function TutorSessionsPage() {
                     <div className="small muted">Changing duration recalculates tuition for all students.</div>
                   </div>
                   <div className="accordion-meta">
-                    <span>Default/student: <strong>{defaultTuitionPerStudent.toLocaleString()}</strong></span>
-                    <span>Total: <strong>{totalTuition.toLocaleString()}</strong></span>
+                    <span>Default/student: <strong>{formatVnd(defaultTuitionPerStudent)}</strong></span>
+                    <span>Total: <strong>{formatVnd(totalTuition)}</strong></span>
                     <span className="muted">{studentsOpen ? 'Hide' : 'Edit'}</span>
                   </div>
                 </div>
@@ -387,7 +365,7 @@ function TutorSessionsPage() {
                           })}
                           <tr className="table-footer-row">
                             <td>Total</td>
-                            <td className="money-cell"><span className="money-value">{totalTuition.toLocaleString()}</span></td>
+                            <td className="money-cell"><span className="money-value">{formatVnd(totalTuition)}</span></td>
                           </tr>
                         </tbody>
                       </table>
@@ -401,45 +379,42 @@ function TutorSessionsPage() {
           <div className="card-region">
             {!classes.length ? <p className="muted">You need at least one assigned class before creating a session.</p> : null}
             {error ? <p className="error-text">{error}</p> : null}
-            {success ? <p className="success-text">{success}</p> : null}
             <div className="form-actions">
               <button type="button" className="btn btn-soft compact-btn" onClick={resetForm} disabled={!form.classId}>
                 Reset
               </button>
               <button type="submit" className="btn btn-primary compact-btn" disabled={!form.classId}>
-                Confirm Session
+                Log session
               </button>
             </div>
           </div>
         </form>
       </div>
+  );
 
-      <div className="card">
+  const monthlyListPanel = (
+    <div className="card">
         <div className="section-header">
           <div>
-            <h3 className="section-title">Session list</h3>
-            <p className="subtitle">Viewing payroll month {month}</p>
+            <h3 className="section-title">Monthly list</h3>
+            <p className="subtitle">Payroll month {month}</p>
           </div>
+          <input type="month" className="input-month" value={month} onChange={(event) => setMonth(event.target.value)} />
         </div>
         {loading ? <p className="muted">Loading...</p> : null}
         {!loading && !items.length ? <p className="muted">No sessions for this payroll month.</p> : null}
         {!!items.length ? (
           <>
-            <p className="muted mb-8">
-              Showing {items.length} session{items.length === 1 ? '' : 's'}
-              {sessionHasNext ? ' — more available.' : '.'}
-            </p>
             <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Class</th>
-                    <th>Duration</th>
-                    <th className="money-cell">Tuition</th>
-                    <th>Rate (%)</th>
-                    <th>Reason</th>
-                    <th></th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Class</th>
+                    <th scope="col">Duration</th>
+                    <th scope="col" className="money-cell">Tuition</th>
+                    <th scope="col">Rate</th>
+                    <th scope="col"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -447,46 +422,12 @@ function TutorSessionsPage() {
                     <tr key={item.id}>
                       <td>{item.date}</td>
                       <td>{resolveClassName(item.classId)}</td>
+                      <td>{item.durationHours}h</td>
+                      <td className="money-cell">{formatVnd(item.tuitionAtLog)}</td>
+                      <td>{(item.salaryRateAtLog * 100).toFixed(0)}%</td>
                       <td>
-                        <input
-                          className="table-input"
-                          type="number"
-                          step="0.25"
-                          value={item.durationHours}
-                          onChange={(event) => updateSessionRow(item.id, 'durationHours', Number(event.target.value))}
-                        />
-                      </td>
-                      <td className="money-cell">
-                        <input
-                          className="table-input money-number"
-                          type="number"
-                          step="1"
-                          value={item.tuitionAtLog}
-                          onChange={(event) => updateSessionRow(item.id, 'tuitionAtLog', Math.round(Number(event.target.value)))}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="table-input"
-                          type="number"
-                          step="0.01"
-                          value={(item.salaryRateAtLog * 100).toFixed(2)}
-                          onChange={(event) =>
-                            updateSessionRow(item.id, 'salaryRateAtLog', Number(event.target.value) / 100)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="table-input"
-                          placeholder="Reason"
-                          value={reasonBySession[item.id] || ''}
-                          onChange={(event) => setReasonBySession((prev) => ({ ...prev, [item.id]: event.target.value }))}
-                        />
-                      </td>
-                      <td>
-                        <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleUpdateFinancial(item)}>
-                          Update
+                        <button type="button" className="btn btn-soft btn-sm" onClick={() => setEditItem(item)}>
+                          Edit financials
                         </button>
                       </td>
                     </tr>
@@ -509,6 +450,24 @@ function TutorSessionsPage() {
           </>
         ) : null}
       </div>
+  );
+
+  return (
+    <div className="stack-16">
+      <PageHeader title="Sessions" subtitle="Log teaching sessions after class and review monthly records." />
+      <Tabs
+        items={[
+          { id: 'log', label: 'Log session', panel: logSessionPanel },
+          { id: 'list', label: 'Monthly list', panel: monthlyListPanel },
+        ]}
+      />
+      <SessionFinancialDrawer
+        open={!!editItem}
+        item={editItem}
+        loading={saveLoading}
+        onClose={() => setEditItem(null)}
+        onSave={(item, reason) => void handleUpdateFinancial(item, reason)}
+      />
     </div>
   );
 }

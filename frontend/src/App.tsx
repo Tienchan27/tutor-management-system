@@ -20,7 +20,10 @@ import TutorBankAccountsPage from './pages/app/TutorBankAccountsPage';
 import TutorClassMarketplacePage from './pages/app/TutorClassMarketplacePage';
 import NotificationsPage from './pages/app/NotificationsPage';
 import AccountPage from './pages/app/AccountPage';
-import PlaceholderPage from './pages/app/PlaceholderPage';
+import StudentClassesPage from './pages/app/StudentClassesPage';
+import StudentInvoicesPage from './pages/app/StudentInvoicesPage';
+import AdminStudentInvoicesPage from './pages/app/AdminStudentInvoicesPage';
+import StudentComingSoon from './pages/app/StudentComingSoon';
 import { getAuthUser, isAuthenticated } from './utils/storage';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import { startRealtime, stopRealtime } from './services/realtimeClient';
@@ -97,6 +100,9 @@ function ProtectedAppLayout() {
           {error ? (
             <div className="card">
               <p className="error-text">{error}</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => window.location.reload()}>
+                Retry
+              </button>
             </div>
           ) : null}
         </AppShell>
@@ -179,6 +185,14 @@ function App() {
           }
         />
         <Route
+          path="admin/student-invoices"
+          element={
+            <RoleGate allowed={['ADMIN']}>
+              <AdminStudentInvoicesPage />
+            </RoleGate>
+          }
+        />
+        <Route
           path="tutor/dashboard"
           element={
             <RoleGate allowed={['TUTOR']}>
@@ -214,10 +228,7 @@ function App() {
           path="student/classes"
           element={
             <RoleGate allowed={['STUDENT']}>
-              <PlaceholderPage
-                title="Classes"
-                description="Class management for students will be available when backend class APIs are published."
-              />
+              <StudentClassesPage />
             </RoleGate>
           }
         />
@@ -225,10 +236,7 @@ function App() {
           path="student/invoices"
           element={
             <RoleGate allowed={['STUDENT']}>
-              <PlaceholderPage
-                title="Invoices"
-                description="Student invoices are not available yet because invoice APIs are not available."
-              />
+              <StudentInvoicesPage />
             </RoleGate>
           }
         />
@@ -236,9 +244,9 @@ function App() {
           path="student/payments"
           element={
             <RoleGate allowed={['STUDENT']}>
-              <PlaceholderPage
+              <StudentComingSoon
                 title="Payments"
-                description="Student payment flow will be enabled after backend payment APIs are ready."
+                description="Online payment and bank confirmation will be available in a future release."
               />
             </RoleGate>
           }

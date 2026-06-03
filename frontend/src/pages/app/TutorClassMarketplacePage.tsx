@@ -3,13 +3,21 @@ import { applyClass, listAvailableClasses } from '../../services/classAssignment
 import { AvailableClassResponse } from '../../types/classAssignment';
 import { extractApiErrorMessage } from '../../services/authService';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import StatusPill from '../../components/ui/StatusPill';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { formatVnd } from '../../utils/format';
 
 function TutorClassMarketplacePage() {
+  const { showToast } = useToast();
   const [items, setItems] = useState<AvailableClassResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [actionLoadingId, setActionLoadingId] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState('');
+  const [error, setError] = useState('');
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -26,27 +34,21 @@ function TutorClassMarketplacePage() {
 
   useEffect(() => {
     load();
-
     const unsubscribe = realtimeEventBus.subscribe('MARKETPLACE_UPDATED', () => {
-      window.setTimeout(() => {
-        load();
-      }, 250);
+      window.setTimeout(() => load(), 250);
     });
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   async function handleApply(classId: string): Promise<void> {
     setActionLoadingId(classId);
     setError('');
-    setSuccess('');
     try {
       await applyClass(classId);
-      setSuccess('Applied to class successfully.');
+      showToast('Application submitted', 'success');
       await load();
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to apply class'));
+      setError(extractApiErrorMessage(err, 'Failed to apply for class'));
     } finally {
       setActionLoadingId('');
     }
@@ -54,36 +56,65 @@ function TutorClassMarketplacePage() {
 
   return (
     <div className="stack-16">
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <h2 className="title title-lg">Available classes</h2>
-            <p className="subtitle">Browse classes published by admin and apply to receive assignment approval.</p>
-          </div>
-        </div>
-        {loading ? <p className="muted">Loading...</p> : null}
+      <PageHeader
+        title="Class marketplace"
+        subtitle="Browse classes published by admin and apply for assignment."
+        actions={
+          <Button variant="secondary" size="sm" onClick={load} loading={loading}>
+            Refresh
+          </Button>
+        }
+      />
+      <PageSection>
         {error ? <p className="error-text">{error}</p> : null}
-        {success ? <p className="success-text">{success}</p> : null}
-        {!loading && !items.length ? <p className="muted">No classes available right now.</p> : null}
-      </div>
-
-      {items.map((item) => (
-        <div key={item.classId} className="card">
-          <p><strong>{item.displayName}</strong></p>
-          <p className="muted">Subject: {item.subjectName}</p>
-          <p className="muted">Students: {item.studentNames.join(' - ') || '-'}</p>
-          <p className="muted">Tuition fee: {item.pricePerHour.toLocaleString()}</p>
-          {item.note ? <p className="muted">Note: {item.note}</p> : null}
-          <button
-            type="button"
-            className="btn btn-primary compact-btn"
-            disabled={item.hasApplied || actionLoadingId === item.classId}
-            onClick={() => handleApply(item.classId)}
-          >
-            {item.hasApplied ? 'Applied' : 'Apply'}
-          </button>
-        </div>
-      ))}
+        {loading ? <Spinner label="Loading classes..." /> : null}
+        {!loading && !items.length ? (
+          <EmptyState title="No classes available" description="Check back when admin publishes new classes." />
+        ) : null}
+        {!!items.length ? (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Class</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">Students</th>
+                  <th scope="col">Rate</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.classId}>
+                    <td>{item.displayName}</td>
+                    <td>{item.subjectName}</td>
+                    <td>{item.studentNames.join(', ') || '—'}</td>
+                    <td>{formatVnd(item.pricePerHour)}/hr</td>
+                    <td>
+                      <StatusPill
+                        label={item.hasApplied ? 'Applied' : 'Open'}
+                        tone={item.hasApplied ? 'success' : 'neutral'}
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={item.hasApplied || actionLoadingId === item.classId}
+                        loading={actionLoadingId === item.classId}
+                        onClick={() => handleApply(item.classId)}
+                      >
+                        {item.hasApplied ? 'Applied' : 'Apply'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </PageSection>
     </div>
   );
 }

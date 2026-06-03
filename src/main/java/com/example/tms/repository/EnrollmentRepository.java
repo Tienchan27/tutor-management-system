@@ -16,4 +16,14 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
            order by s.name asc
            """)
     List<Enrollment> findByTutorClassIdAndStatus(UUID classId, EnrollmentStatus status);
+
+    @Query("""
+           select e from Enrollment e
+           join fetch e.tutorClass c
+           join fetch c.subject
+           left join fetch c.tutor
+           where e.student.id = :studentId and e.status = :status
+           order by c.displayName asc
+           """)
+    List<Enrollment> findByStudentIdAndStatus(UUID studentId, EnrollmentStatus status);
 }

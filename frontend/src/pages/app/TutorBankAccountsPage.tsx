@@ -7,6 +7,13 @@ import {
 } from '../../services/bankAccountService';
 import { BankAccountResponse, CreateBankAccountRequest } from '../../types/bankAccounts';
 import { extractApiErrorMessage } from '../../services/authService';
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import StatusPill from '../../components/ui/StatusPill';
+import { useToast } from '../../components/feedback/ToastProvider';
 
 const initialForm: CreateBankAccountRequest = {
   bankName: '',
@@ -15,18 +22,17 @@ const initialForm: CreateBankAccountRequest = {
 };
 
 function TutorBankAccountsPage() {
+  const { showToast } = useToast();
   const [items, setItems] = useState<BankAccountResponse[]>([]);
   const [form, setForm] = useState<CreateBankAccountRequest>(initialForm);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function load(): Promise<void> {
     setLoading(true);
     setError('');
     try {
-      const response = await listMyBankAccounts();
-      setItems(response);
+      setItems(await listMyBankAccounts());
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to load bank accounts'));
     } finally {
@@ -41,10 +47,9 @@ function TutorBankAccountsPage() {
   async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setError('');
-    setSuccess('');
     try {
       await createBankAccount(form);
-      setSuccess('Bank account added.');
+      showToast('Bank account added', 'success');
       setForm(initialForm);
       await load();
     } catch (err: unknown) {
@@ -56,6 +61,7 @@ function TutorBankAccountsPage() {
     setError('');
     try {
       await setPrimaryBankAccount(id);
+      showToast('Primary account updated', 'success');
       await load();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to set primary account'));
@@ -66,6 +72,7 @@ function TutorBankAccountsPage() {
     setError('');
     try {
       await deleteBankAccount(id);
+      showToast('Bank account removed', 'success');
       await load();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to delete account'));
@@ -74,61 +81,55 @@ function TutorBankAccountsPage() {
 
   return (
     <div className="stack-16">
-      <div className="card">
-        <div className="section-header">
-          <div>
-            <h2 className="title title-lg">Bank Accounts</h2>
-            <p className="subtitle">Manage payout destination accounts for salary transfers.</p>
-          </div>
-        </div>
+      <PageHeader title="Bank accounts" subtitle="Payout destination accounts for salary transfers." />
+      <PageSection title="Add account">
         <form onSubmit={handleCreate} className="stack-16">
           <div className="grid-form">
             <input
               className="text-input"
               placeholder="Bank name"
               value={form.bankName}
-              onChange={(event) => setForm((prev) => ({ ...prev, bankName: event.target.value }))}
+              onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
               required
             />
             <input
               className="text-input"
               placeholder="Account number"
               value={form.accountNumber}
-              onChange={(event) => setForm((prev) => ({ ...prev, accountNumber: event.target.value }))}
+              onChange={(e) => setForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
               required
             />
             <input
               className="text-input"
               placeholder="Account holder name"
               value={form.accountHolderName}
-              onChange={(event) => setForm((prev) => ({ ...prev, accountHolderName: event.target.value }))}
+              onChange={(e) => setForm((prev) => ({ ...prev, accountHolderName: e.target.value }))}
               required
             />
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary compact-btn">
-              Add Account
-            </button>
+            <Button type="submit">Add account</Button>
           </div>
         </form>
         {error ? <p className="error-text">{error}</p> : null}
-        {success ? <p className="success-text">{success}</p> : null}
-      </div>
+      </PageSection>
 
-      <div className="card">
-        {loading ? <p className="muted">Loading...</p> : null}
-        {!loading && !items.length ? <p className="muted">No bank account found.</p> : null}
+      <PageSection title="Your accounts">
+        {loading ? <Spinner label="Loading accounts..." /> : null}
+        {!loading && !items.length ? (
+          <EmptyState title="No bank accounts" description="Add an account to receive tutor payouts." />
+        ) : null}
         {!!items.length ? (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Bank</th>
-                  <th>Account</th>
-                  <th>Holder</th>
-                  <th>Primary</th>
-                  <th>Verified</th>
-                  <th>Actions</th>
+                  <th scope="col">Bank</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Holder</th>
+                  <th scope="col">Primary</th>
+                  <th scope="col">Verified</th>
+                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -138,23 +139,19 @@ function TutorBankAccountsPage() {
                     <td>{item.maskedAccountNumber}</td>
                     <td>{item.accountHolderName}</td>
                     <td>
-                      <span className={`status-pill ${item.isPrimary ? 'success' : 'warning'}`}>
-                        {item.isPrimary ? 'Primary' : 'Secondary'}
-                      </span>
+                      <StatusPill label={item.isPrimary ? 'Primary' : 'Secondary'} tone={item.isPrimary ? 'success' : 'neutral'} />
                     </td>
                     <td>
-                      <span className={`status-pill ${item.isVerified ? 'success' : 'warning'}`}>
-                        {item.isVerified ? 'Verified' : 'Pending'}
-                      </span>
+                      <StatusPill label={item.isVerified ? 'Verified' : 'Pending'} tone={item.isVerified ? 'success' : 'warning'} />
                     </td>
                     <td>
                       <div className="table-actions">
-                        <button type="button" className="btn btn-soft-teal table-action" onClick={() => handleSetPrimary(item.id)}>
-                          Set Primary
-                        </button>
-                        <button type="button" className="btn btn-danger table-action" onClick={() => handleDelete(item.id)}>
+                        <Button variant="soft" size="sm" onClick={() => handleSetPrimary(item.id)} disabled={item.isPrimary}>
+                          Set primary
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => handleDelete(item.id)}>
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -163,7 +160,7 @@ function TutorBankAccountsPage() {
             </table>
           </div>
         ) : null}
-      </div>
+      </PageSection>
     </div>
   );
 }

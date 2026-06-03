@@ -1,0 +1,15 @@
+interface EmptyStateProps {
+  title: string;
+  description?: string;
+}
+
+function EmptyState({ title, description }: EmptyStateProps) {
+  return (
+    <div className="empty-state">
+      <p className="empty-state-title">{title}</p>
+      {description ? <p className="empty-state-desc muted">{description}</p> : null}
+    </div>
+  );
+}
+
+export default EmptyState;

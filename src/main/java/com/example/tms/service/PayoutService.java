@@ -59,6 +59,14 @@ public class PayoutService {
         this.realtimeOutboxService = realtimeOutboxService;
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TutorPayoutResponse> listByMonth(User admin, YearMonth month) {
+        return tutorPayoutRepository.findByYearAndMonth(month.getYear(), month.getMonthValue()).stream()
+                .map(PayoutMapper::toResponse)
+                .toList();
+    }
+
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public List<TutorPayoutResponse> generateMonthlyPayouts(User admin, YearMonth month) {

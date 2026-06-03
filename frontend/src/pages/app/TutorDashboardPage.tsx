@@ -5,18 +5,36 @@ import { TutorClassOverviewResponse, TutorClassRosterResponse, TutorDashboardRes
 import { TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import StatusPill from '../../components/ui/StatusPill';
+import ClassRosterDrawer from '../../components/dashboard/ClassRosterDrawer';
+import { formatDate, formatVnd } from '../../utils/format';
+
+function payoutTone(status: string): 'success' | 'warning' | 'danger' {
+  if (status === 'PAID') {
+    return 'success';
+  }
+  if (status === 'LOCKED') {
+    return 'warning';
+  }
+  return 'danger';
+}
 
 function TutorDashboardPage() {
   const [items, setItems] = useState<TutorDashboardResponse[]>([]);
   const [classes, setClasses] = useState<TutorClassOverviewResponse[]>([]);
   const [mySessionClasses, setMySessionClasses] = useState<TutorSessionClassOptionResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const [rosterLoading, setRosterLoading] = useState<boolean>(false);
-  const [rosterError, setRosterError] = useState<string>('');
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterError, setRosterError] = useState('');
   const [roster, setRoster] = useState<TutorClassRosterResponse | null>(null);
-  const [rosterClassId, setRosterClassId] = useState<string>('');
+  const [rosterClassId, setRosterClassId] = useState('');
 
   const classNameByIdFromSessionApi = useMemo(() => {
     const map = new Map<string, string>();
@@ -55,16 +73,9 @@ function TutorDashboardPage() {
     }
     load();
 
-    const unsub1 = realtimeEventBus.subscribe('PAYOUT_UPDATED', () => {
-      window.setTimeout(() => load(), 250);
-    });
-    const unsub2 = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', () => {
-      window.setTimeout(() => load(), 250);
-    });
-    const unsub3 = realtimeEventBus.subscribe('SESSION_FINANCIAL_UPDATED', () => {
-      window.setTimeout(() => load(), 250);
-    });
-
+    const unsub1 = realtimeEventBus.subscribe('PAYOUT_UPDATED', () => window.setTimeout(load, 250));
+    const unsub2 = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', () => window.setTimeout(load, 250));
+    const unsub3 = realtimeEventBus.subscribe('SESSION_FINANCIAL_UPDATED', () => window.setTimeout(load, 250));
     return () => {
       unsub1();
       unsub2();
@@ -73,16 +84,12 @@ function TutorDashboardPage() {
   }, []);
 
   async function handleViewRoster(classId: string): Promise<void> {
-    if (rosterClassId === classId && roster) {
-      return;
-    }
+    setRosterClassId(classId);
     setRosterLoading(true);
     setRosterError('');
     setRoster(null);
-    setRosterClassId(classId);
     try {
-      const response = await getTutorClassRoster(classId);
-      setRoster(response);
+      setRoster(await getTutorClassRoster(classId));
     } catch (err: unknown) {
       setRosterError(extractApiErrorMessage(err, 'Failed to load class roster'));
     } finally {
@@ -93,75 +100,71 @@ function TutorDashboardPage() {
   function handleCloseRoster(): void {
     setRoster(null);
     setRosterError('');
-    setRosterLoading(false);
     setRosterClassId('');
   }
 
   const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
-  const rosterClassLabel = rosterClass ? displayClassLabel(rosterClass) : '';
-
-  function payoutStatusClass(status: string): string {
-    if (status === 'PAID') {
-      return 'success';
-    }
-    if (status === 'LOCKED') {
-      return 'warning';
-    }
-    return 'danger';
-  }
 
   return (
     <div className="stack-16">
-      <div className="card">
-        <h2 className="title title-lg">Tutor Dashboard</h2>
-        <p className="subtitle">Track your monthly teaching revenue and salary status.</p>
-        {loading ? <p className="muted">Loading...</p> : null}
+      <PageHeader title="Dashboard" subtitle="Monthly payout summary and your assigned classes." />
+
+      <PageSection title="Payout history">
+        {loading ? <Spinner label="Loading dashboard..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
-        {!loading && !items.length ? <p className="muted">No payout records yet.</p> : null}
+        {!loading && !items.length ? (
+          <EmptyState title="No payout records yet" description="Payouts appear after admin closes payroll for a month." />
+        ) : null}
         {!!items.length ? (
-          <div className="card-region">
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Month</th>
-                    <th className="money-cell">Gross Revenue</th>
-                    <th className="money-cell">Net Salary</th>
-                    <th>Status</th>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Month</th>
+                  <th scope="col" className="money-cell">
+                    Gross
+                  </th>
+                  <th scope="col" className="money-cell">
+                    Net
+                  </th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={`${item.year}-${item.month}`}>
+                    <td>
+                      {item.year}-{`${item.month}`.padStart(2, '0')}
+                    </td>
+                    <td className="money-cell">{formatVnd(item.grossRevenue)}</td>
+                    <td className="money-cell">{formatVnd(item.netSalary)}</td>
+                    <td>
+                      <StatusPill label={item.status} tone={payoutTone(item.status)} />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={`${item.year}-${item.month}`}>
-                      <td>{item.year}-{`${item.month}`.padStart(2, '0')}</td>
-                      <td className="money-cell"><span className="money-value">{item.grossRevenue.toLocaleString()}</span></td>
-                      <td className="money-cell"><span className="money-value">{item.netSalary.toLocaleString()}</span></td>
-                      <td><span className={`status-pill ${payoutStatusClass(item.status)}`}>{item.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
-      </div>
+      </PageSection>
 
-      <div className="card">
-        <h3 className="section-title">Your classes overview</h3>
-        {!loading && !classes.length ? <p className="muted">No assigned classes yet.</p> : null}
+      <PageSection title="Your classes">
+        {!loading && !classes.length ? (
+          <EmptyState title="No assigned classes" description="Apply on the marketplace or wait for admin approval." />
+        ) : null}
         {!!classes.length ? (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Class name</th>
-                  <th>Subject</th>
-                  <th>Status</th>
-                  <th className="money-cell">Price/Hour</th>
-                  <th>Salary Rate</th>
-                  <th>Sessions</th>
-                  <th>Latest Session</th>
-                  <th></th>
+                  <th scope="col">Class</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Rate</th>
+                  <th scope="col">Sessions</th>
+                  <th scope="col">Latest</th>
+                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -170,19 +173,13 @@ function TutorDashboardPage() {
                     <td>{displayClassLabel(item)}</td>
                     <td>{item.subjectName}</td>
                     <td>{item.classStatus}</td>
-                    <td className="money-cell"><span className="money-value">{item.pricePerHour.toLocaleString()}</span></td>
-                    <td>{(item.defaultSalaryRate * 100).toFixed(2)}%</td>
+                    <td>{formatVnd(item.pricePerHour)}/hr</td>
                     <td>{item.sessionCount}</td>
-                    <td>{item.latestSessionDate || '-'}</td>
+                    <td>{item.latestSessionDate ? formatDate(item.latestSessionDate) : '—'}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="btn btn-soft-teal table-action"
-                        onClick={() => handleViewRoster(item.classId)}
-                        disabled={rosterLoading && rosterClassId === item.classId}
-                      >
-                        {rosterClassId === item.classId && roster ? 'Viewing' : rosterLoading && rosterClassId === item.classId ? 'Loading...' : 'View roster'}
-                      </button>
+                      <Button variant="soft" size="sm" onClick={() => handleViewRoster(item.classId)}>
+                        View roster
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -190,53 +187,17 @@ function TutorDashboardPage() {
             </table>
           </div>
         ) : null}
-      </div>
+      </PageSection>
 
-      {rosterClassId ? (
-        <div className="card">
-          <div className="section-header mb-8">
-            <div>
-              <h3 className="section-title">Roster</h3>
-              <p className="subtitle mt-6">
-                {rosterClass ? `${rosterClassLabel} • ${rosterClass.classStatus}` : 'Selected class'}
-              </p>
-            </div>
-            <button type="button" className="btn btn-secondary compact-btn" onClick={handleCloseRoster}>
-              Close
-            </button>
-          </div>
-          {rosterError ? <p className="error-text">{rosterError}</p> : null}
-
-          {rosterLoading ? <p className="muted">Loading roster...</p> : null}
-          {!rosterLoading && roster ? (
-            <p className="muted mb-8">
-              Tuition amounts reflect the per-student allocation from the latest recorded session for this class. Until a session
-              exists, amounts show as 0.
-            </p>
-          ) : null}
-          {!rosterLoading && roster && !roster.students.length ? <p className="muted">No active students.</p> : null}
-          {!rosterLoading && roster && !!roster.students.length ? (
-            <div className="table-wrap">
-              <table className="table table-comfortable">
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th className="money-cell">Tuition (VND)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roster.students.map((s) => (
-                    <tr key={s.studentId}>
-                      <td>{s.studentName}</td>
-                      <td className="money-cell"><span className="money-value">{s.tuitionAtLog.toLocaleString()}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <ClassRosterDrawer
+        open={!!rosterClassId}
+        classLabel={rosterClass ? displayClassLabel(rosterClass) : 'Class'}
+        classStatus={rosterClass?.classStatus}
+        roster={roster}
+        loading={rosterLoading}
+        error={rosterError}
+        onClose={handleCloseRoster}
+      />
     </div>
   );
 }

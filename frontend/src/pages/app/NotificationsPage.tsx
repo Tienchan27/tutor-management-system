@@ -3,6 +3,14 @@ import { listMyNotifications, markNotificationRead } from '../../services/notifi
 import { NotificationResponse } from '../../types/notifications';
 import { extractApiErrorMessage } from '../../services/authService';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
+import PageHeader from '../../components/ui/PageHeader';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import StatusPill from '../../components/ui/StatusPill';
+import { useToast } from '../../components/feedback/ToastProvider';
+import { formatDate } from '../../utils/format';
 
 function formatNotificationType(type: string): string {
   switch (type) {
@@ -26,13 +34,14 @@ function formatNotificationType(type: string): string {
 }
 
 function NotificationsPage() {
+  const { showToast } = useToast();
   const [items, setItems] = useState<NotificationResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
-  const [showUnreadOnly, setShowUnreadOnly] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(0);
-  const [hasNext, setHasNext] = useState<boolean>(false);
-  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   async function load(firstPage = 0): Promise<void> {
     setLoading(true);
@@ -54,6 +63,7 @@ function NotificationsPage() {
     try {
       await markNotificationRead(id);
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      showToast('Marked as read', 'success');
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to mark notification as read'));
     }
@@ -80,69 +90,67 @@ function NotificationsPage() {
 
   useEffect(() => {
     load();
-
     const unsubscribe = realtimeEventBus.subscribe('NOTIFICATION_CREATED', () => {
-      window.setTimeout(() => {
-        load(0);
-      }, 250);
+      window.setTimeout(() => load(0), 250);
     });
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const visibleItems = showUnreadOnly ? items.filter((n) => !n.read) : items;
 
   return (
-    <div className="card">
-      <div className="section-header">
-        <div>
-          <h2 className="title title-lg">Notifications</h2>
-          <p className="subtitle">Track updates from session changes and payout events.</p>
-        </div>
-        <div className="section-actions">
-          <button type="button" className="btn btn-soft compact-btn" onClick={() => setShowUnreadOnly((v) => !v)}>
-            {showUnreadOnly ? 'Showing: Unread' : 'Showing: All'}
-          </button>
-          <button type="button" className="btn btn-secondary compact-btn" onClick={() => load(0)} disabled={loading}>
-            Refresh
-          </button>
-        </div>
-      </div>
-      <div className="card-region-tight">
-        {loading ? <p className="muted">Loading...</p> : null}
+    <div className="stack-16">
+      <PageHeader
+        title="Notifications"
+        subtitle="Updates from sessions, payouts, and class workflows."
+        actions={
+          <>
+            <Button variant="soft" size="sm" onClick={() => setShowUnreadOnly((v) => !v)}>
+              {showUnreadOnly ? 'Show all' : 'Unread only'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => load(0)} loading={loading}>
+              Refresh
+            </Button>
+          </>
+        }
+      />
+      <PageSection>
+        <p className="muted small">Unread filter is applied on the client for loaded pages.</p>
+        {loading ? <Spinner label="Loading notifications..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
-        {!loading && !visibleItems.length ? <p className="muted">No notifications yet.</p> : null}
-      </div>
-      {!!visibleItems.length ? (
-        <div className="notification-list card-region-tight">
-          {visibleItems.map((item) => (
-            <article key={item.id} className={`notification-item ${item.read ? 'read' : 'unread'}`}>
-              <div>
-                <div className="notification-meta">
-                  <span className="notification-badge">{formatNotificationType(item.type)}</span>
-                  <span className="muted small">{new Date(item.createdAt).toLocaleString()}</span>
+        {!loading && !visibleItems.length ? (
+          <EmptyState title="No notifications" description={showUnreadOnly ? 'You have no unread notifications.' : 'Nothing to show yet.'} />
+        ) : null}
+        {!!visibleItems.length ? (
+          <div className="notification-list">
+            {visibleItems.map((item) => (
+              <article key={item.id} className={`notification-item ${item.read ? 'read' : 'unread'}`}>
+                <div>
+                  <div className="notification-meta">
+                    <StatusPill label={formatNotificationType(item.type)} tone="neutral" />
+                    <span className="muted small">{formatDate(item.createdAt)}</span>
+                    {!item.read ? <StatusPill label="Unread" tone="warning" /> : null}
+                  </div>
+                  <h3 className="feed-item-title">{item.title}</h3>
+                  <p className="muted">{item.content}</p>
                 </div>
-                <h3 className="feed-item-title">{item.title}</h3>
-                <p className="muted">{item.content}</p>
-              </div>
-              {!item.read ? (
-                <button type="button" className="btn btn-soft-teal compact-btn" onClick={() => handleMarkRead(item.id)}>
-                  Mark as read
-                </button>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      ) : null}
-
-      {hasNext ? (
-        <div className="mt-12">
-          <button type="button" className="btn btn-soft" onClick={handleLoadMore} disabled={loadingMore}>
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
-        </div>
-      ) : null}
+                {!item.read ? (
+                  <Button variant="soft" size="sm" onClick={() => handleMarkRead(item.id)}>
+                    Mark read
+                  </Button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {hasNext ? (
+          <div className="form-actions mt-12">
+            <Button variant="soft" onClick={handleLoadMore} loading={loadingMore}>
+              Load more
+            </Button>
+          </div>
+        ) : null}
+      </PageSection>
     </div>
   );
 }

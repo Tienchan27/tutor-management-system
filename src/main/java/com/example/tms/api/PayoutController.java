@@ -6,6 +6,7 @@ import com.example.tms.api.dto.payout.TutorPayoutResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.PayoutService;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +28,14 @@ public class PayoutController {
     public PayoutController(PayoutService payoutService, CurrentUserResolver currentUserResolver) {
         this.payoutService = payoutService;
         this.currentUserResolver = currentUserResolver;
+    }
+
+    @GetMapping
+    public List<TutorPayoutResponse> list(@RequestParam String month) {
+        return payoutService.listByMonth(
+                currentUserResolver.requireUser(),
+                YearMonth.parse(month)
+        );
     }
 
     @PostMapping("/generate")
