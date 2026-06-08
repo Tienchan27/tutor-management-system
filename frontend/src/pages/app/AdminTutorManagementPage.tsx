@@ -5,25 +5,17 @@ import { AdminTutorDetailResponse, TutorSummaryResponse } from '../../types/dash
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
 import PageSection from '../../components/layout/PageSection';
+import SectionBlock from '../../components/ui/SectionBlock';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import StatusPill from '../../components/ui/StatusPill';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { formatVnd, getCurrentYearMonth } from '../../utils/format';
+import { payoutTone } from '../../utils/statusTone';
 
 function AdminTutorManagementPage() {
   const { showToast } = useToast();
-  function payoutStatusClass(status: string): string {
-    if (status === 'PAID') {
-      return 'success';
-    }
-    if (status === 'LOCKED') {
-      return 'warning';
-    }
-    return 'danger';
-  }
-
   const [month, setMonth] = useState<string>(getCurrentYearMonth());
   const [items, setItems] = useState<TutorSummaryResponse[]>([]);
   const [detail, setDetail] = useState<AdminTutorDetailResponse | null>(null);
@@ -185,10 +177,10 @@ function AdminTutorManagementPage() {
                       <td className="money-cell">{formatVnd(item.netSalary)}</td>
                       <td>{item.classesReceivingThisMonth}</td>
                       <td>
-                        <StatusPill label={item.payoutStatus} tone={payoutStatusClass(item.payoutStatus) as 'success' | 'warning' | 'danger'} />
+                        <StatusPill label={item.payoutStatus} tone={payoutTone(item.payoutStatus)} />
                       </td>
                       <td>
-                        <Button variant="soft" size="sm" onClick={() => loadDetail(item.tutorId)}>
+                        <Button variant="ghost" size="sm" onClick={() => loadDetail(item.tutorId)}>
                           View
                         </Button>
                       </td>
@@ -199,7 +191,7 @@ function AdminTutorManagementPage() {
             </div>
             {summaryHasNext ? (
               <div className="form-actions mt-12">
-                <Button variant="soft" onClick={() => void loadMoreSummary()} loading={summaryLoadingMore}>
+                <Button variant="secondary" onClick={() => void loadMoreSummary()} loading={summaryLoadingMore}>
                   Load more
                 </Button>
               </div>
@@ -210,32 +202,32 @@ function AdminTutorManagementPage() {
 
         {detail ? (
         <PageSection title={detail.name}>
-          <section className="card-region">
-            <h4 className="subsection-title">Tutor identity and contact</h4>
-            <div className="grid-3 mb-12 mt-12">
-              <div className="panel">
+          <SectionBlock title="Tutor identity and contact">
+            <div className="grid-3">
+              <div>
                 <strong>Name</strong>
-                <p>{detail.name}</p>
+                <p className="muted mb-0">{detail.name}</p>
               </div>
-              <div className="panel">
+              <div>
                 <strong>Email</strong>
-                <p>{detail.email}</p>
+                <p className="muted mb-0">{detail.email}</p>
               </div>
-              <div className="panel">
+              <div>
                 <strong>Phone</strong>
-                <p>{detail.phoneNumber || '-'}</p>
+                <p className="muted mb-0">{detail.phoneNumber || '—'}</p>
               </div>
             </div>
-            <div className="panel">
-              <p className="mb-6"><strong>Facebook:</strong> {detail.facebookUrl || '-'}</p>
-              <p className="mb-0"><strong>Address:</strong> {detail.address || '-'}</p>
-            </div>
-          </section>
+            <p className="muted mb-0">
+              <strong>Facebook:</strong> {detail.facebookUrl || '—'}
+            </p>
+            <p className="muted mb-0">
+              <strong>Address:</strong> {detail.address || '—'}
+            </p>
+          </SectionBlock>
 
-          <section className="card-region">
-            <h4 className="subsection-title">Payout snapshot</h4>
+          <SectionBlock title="Payout snapshot">
             {detail.payout ? (
-              <div className="panel mt-12">
+              <>
                 <div className="stat-row">
                   <span>
                     Month{' '}
@@ -249,20 +241,18 @@ function AdminTutorManagementPage() {
                   <span>
                     Net <strong>{formatVnd(detail.payout.netSalary)}</strong>
                   </span>
-                  <StatusPill label={detail.payout.status} tone={payoutStatusClass(detail.payout.status) as 'success' | 'warning' | 'danger'} />
+                  <StatusPill label={detail.payout.status} tone={payoutTone(detail.payout.status)} />
                 </div>
-                <p className="muted mt-12">
-                  Manage QR and payment confirmation on the{' '}
-                  <Link to="/app/admin/payouts">Payouts</Link> page.
+                <p className="muted mb-0">
+                  Manage QR and payment confirmation on the <Link to="/app/admin/payouts">Payouts</Link> page.
                 </p>
-              </div>
+              </>
             ) : (
-              <p className="muted mt-12">No payout for the selected month.</p>
+              <p className="muted mb-0">No payout for the selected month.</p>
             )}
-          </section>
+          </SectionBlock>
 
-          <section className="card-region">
-            <h4 className="subsection-title">Bank accounts</h4>
+          <SectionBlock title="Bank accounts">
             {!detail.bankAccounts.length ? <p className="muted mt-12">No bank accounts.</p> : null}
             {!!detail.bankAccounts.length ? (
               <div className="table-wrap">
@@ -290,10 +280,9 @@ function AdminTutorManagementPage() {
                 </table>
               </div>
             ) : null}
-          </section>
+          </SectionBlock>
 
-          <section className="card-region">
-            <h4 className="subsection-title">Managed classes</h4>
+          <SectionBlock title="Managed classes">
             {!detail.managedClasses.length ? <p className="muted mt-12">No managed classes.</p> : null}
             {!!detail.managedClasses.length ? (
               <div className="table-wrap">
@@ -325,10 +314,9 @@ function AdminTutorManagementPage() {
                 </table>
               </div>
             ) : null}
-          </section>
+          </SectionBlock>
 
-          <section className="card-region">
-            <h4 className="subsection-title">Danger zone</h4>
+          <SectionBlock title="Danger zone">
             <div className="mt-12">
               <Button
                 variant="danger"
@@ -339,7 +327,7 @@ function AdminTutorManagementPage() {
               </Button>
               {deleteConfirmTutorId === detail.tutorId ? <p className="muted mt-8">Click again to confirm.</p> : null}
             </div>
-          </section>
+          </SectionBlock>
         </PageSection>
       ) : (
         <div className="card admin-tutor-detail-empty">

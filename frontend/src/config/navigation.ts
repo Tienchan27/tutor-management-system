@@ -13,5 +13,4 @@ export const navigationItems: NavItemConfig[] = [
   { label: 'Invoices', path: '/app/student/invoices', roles: ['STUDENT'] },
   { label: 'Payments', path: '/app/student/payments', roles: ['STUDENT'], disabled: true },
   { label: 'Notifications', path: '/app/notifications', roles: ['ADMIN', 'TUTOR', 'STUDENT'] },
-  { label: 'Account', path: '/app/account', roles: ['ADMIN', 'TUTOR', 'STUDENT'] },
 ];

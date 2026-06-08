@@ -13,16 +13,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import StatusPill from '../../components/ui/StatusPill';
 import ClassRosterDrawer from '../../components/dashboard/ClassRosterDrawer';
 import { formatDate, formatVnd } from '../../utils/format';
-
-function payoutTone(status: string): 'success' | 'warning' | 'danger' {
-  if (status === 'PAID') {
-    return 'success';
-  }
-  if (status === 'LOCKED') {
-    return 'warning';
-  }
-  return 'danger';
-}
+import { payoutTone } from '../../utils/statusTone';
 
 function TutorDashboardPage() {
   const [items, setItems] = useState<TutorDashboardResponse[]>([]);
@@ -177,7 +168,7 @@ function TutorDashboardPage() {
                     <td>{item.sessionCount}</td>
                     <td>{item.latestSessionDate ? formatDate(item.latestSessionDate) : '—'}</td>
                     <td>
-                      <Button variant="soft" size="sm" onClick={() => handleViewRoster(item.classId)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleViewRoster(item.classId)}>
                         View roster
                       </Button>
                     </td>

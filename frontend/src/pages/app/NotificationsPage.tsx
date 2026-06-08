@@ -105,7 +105,7 @@ function NotificationsPage() {
         subtitle="Updates from sessions, payouts, and class workflows."
         actions={
           <>
-            <Button variant="soft" size="sm" onClick={() => setShowUnreadOnly((v) => !v)}>
+            <Button variant="ghost" size="sm" onClick={() => setShowUnreadOnly((v) => !v)}>
               {showUnreadOnly ? 'Show all' : 'Unread only'}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => load(0)} loading={loading}>
@@ -135,7 +135,7 @@ function NotificationsPage() {
                   <p className="muted">{item.content}</p>
                 </div>
                 {!item.read ? (
-                  <Button variant="soft" size="sm" onClick={() => handleMarkRead(item.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleMarkRead(item.id)}>
                     Mark read
                   </Button>
                 ) : null}
@@ -145,7 +145,7 @@ function NotificationsPage() {
         ) : null}
         {hasNext ? (
           <div className="form-actions mt-12">
-            <Button variant="soft" onClick={handleLoadMore} loading={loadingMore}>
+            <Button variant="ghost" onClick={handleLoadMore} loading={loadingMore}>
               Load more
             </Button>
           </div>

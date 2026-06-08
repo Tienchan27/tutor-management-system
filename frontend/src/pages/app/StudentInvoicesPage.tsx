@@ -8,16 +8,7 @@ import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import StatusPill from '../../components/ui/StatusPill';
 import { formatDate, formatVnd, formatYearMonth } from '../../utils/format';
-
-function invoiceTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'PAID') {
-    return 'success';
-  }
-  if (status === 'OVERDUE') {
-    return 'danger';
-  }
-  return 'warning';
-}
+import { invoiceTone } from '../../utils/statusTone';
 
 function StudentInvoicesPage() {
   const [items, setItems] = useState<StudentInvoice[]>([]);

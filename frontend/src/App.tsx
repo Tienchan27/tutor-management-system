@@ -1,32 +1,34 @@
-import { ReactElement, useEffect } from 'react';
+import { lazy, ReactElement, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfileCompletionPage from './pages/ProfileCompletionPage';
 import TutorOnboardingPage from './pages/TutorOnboardingPage';
 import AppShell from './components/layout/AppShell';
+import AppLoadingSkeleton from './components/layout/AppLoadingSkeleton';
 import RoleGate from './components/layout/RoleGate';
 import { AppAccessProvider } from './context/AppAccessContext';
 import { useRoleAccess } from './hooks/useRoleAccess';
 import AppHomeRedirect from './pages/app/AppHomeRedirect';
 import UnauthorizedPage from './pages/app/UnauthorizedPage';
 import NotFoundPage from './pages/app/NotFoundPage';
-import AdminTutorManagementPage from './pages/app/AdminTutorManagementPage';
-import AdminClassAssignmentPage from './pages/app/AdminClassAssignmentPage';
-import AdminPayoutsPage from './pages/app/AdminPayoutsPage';
-import TutorDashboardPage from './pages/app/TutorDashboardPage';
-import TutorSessionsPage from './pages/app/TutorSessionsPage';
-import TutorBankAccountsPage from './pages/app/TutorBankAccountsPage';
-import TutorClassMarketplacePage from './pages/app/TutorClassMarketplacePage';
-import NotificationsPage from './pages/app/NotificationsPage';
-import AccountPage from './pages/app/AccountPage';
-import StudentClassesPage from './pages/app/StudentClassesPage';
-import StudentInvoicesPage from './pages/app/StudentInvoicesPage';
-import AdminStudentInvoicesPage from './pages/app/AdminStudentInvoicesPage';
 import StudentComingSoon from './pages/app/StudentComingSoon';
 import { getAuthUser, isAuthenticated } from './utils/storage';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import { startRealtime, stopRealtime } from './services/realtimeClient';
+
+const AdminTutorManagementPage = lazy(() => import('./pages/app/AdminTutorManagementPage'));
+const AdminClassAssignmentPage = lazy(() => import('./pages/app/AdminClassAssignmentPage'));
+const AdminPayoutsPage = lazy(() => import('./pages/app/AdminPayoutsPage'));
+const AdminStudentInvoicesPage = lazy(() => import('./pages/app/AdminStudentInvoicesPage'));
+const TutorDashboardPage = lazy(() => import('./pages/app/TutorDashboardPage'));
+const TutorSessionsPage = lazy(() => import('./pages/app/TutorSessionsPage'));
+const TutorBankAccountsPage = lazy(() => import('./pages/app/TutorBankAccountsPage'));
+const TutorClassMarketplacePage = lazy(() => import('./pages/app/TutorClassMarketplacePage'));
+const NotificationsPage = lazy(() => import('./pages/app/NotificationsPage'));
+const AccountPage = lazy(() => import('./pages/app/AccountPage'));
+const StudentClassesPage = lazy(() => import('./pages/app/StudentClassesPage'));
+const StudentInvoicesPage = lazy(() => import('./pages/app/StudentInvoicesPage'));
 
 interface RouteGuardProps {
   children: ReactElement;
@@ -83,12 +85,7 @@ function ProtectedAppLayout() {
   if (loading) {
     return (
       <div className="page">
-        <div className="container">
-          <div className="card">
-            <h2 className="title title-lg">Loading workspace...</h2>
-            <p className="subtitle">Resolving your role access from backend APIs.</p>
-          </div>
-        </div>
+        <AppLoadingSkeleton />
       </div>
     );
   }

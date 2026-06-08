@@ -150,7 +150,7 @@ function LandingPage() {
             <h1 className="title title-xl title-accent">Welcome Back</h1>
             <p className="subtitle">Sign in to manage your tutor operations.</p>
             {passwordResetBanner ? (
-              <p className="subtitle" style={{ color: 'var(--cta-teal-dark)', marginTop: 8 }}>
+              <p className="success-text" style={{ marginTop: 8 }}>
                 Password updated. You can sign in with your new password.
               </p>
             ) : null}

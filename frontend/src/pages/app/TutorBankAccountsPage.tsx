@@ -146,7 +146,7 @@ function TutorBankAccountsPage() {
                     </td>
                     <td>
                       <div className="table-actions">
-                        <Button variant="soft" size="sm" onClick={() => handleSetPrimary(item.id)} disabled={item.isPrimary}>
+                        <Button variant="ghost" size="sm" onClick={() => handleSetPrimary(item.id)} disabled={item.isPrimary}>
                           Set primary
                         </Button>
                         <Button variant="danger" size="sm" onClick={() => handleDelete(item.id)}>

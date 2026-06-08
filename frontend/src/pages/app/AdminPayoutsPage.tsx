@@ -18,16 +18,7 @@ import StatusPill from '../../components/ui/StatusPill';
 import ConfirmDialog from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { formatVnd, formatYearMonth, getCurrentYearMonth } from '../../utils/format';
-
-function payoutTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'PAID') {
-    return 'success';
-  }
-  if (status === 'LOCKED') {
-    return 'warning';
-  }
-  return 'danger';
-}
+import { payoutTone } from '../../utils/statusTone';
 
 function AdminPayoutsPage() {
   const { showToast } = useToast();
@@ -174,7 +165,7 @@ function AdminPayoutsPage() {
                       <div className="table-actions-stack">
                         <div className="table-actions">
                           <Button
-                            variant="soft"
+                            variant="secondary"
                             size="sm"
                             onClick={() => handleGenerateQr(item.id)}
                             disabled={item.status === 'PAID'}
@@ -206,7 +197,7 @@ function AdminPayoutsPage() {
                             }
                           />
                           <Button
-                            variant="soft"
+                            variant="secondary"
                             size="sm"
                             loading={overrideLoadingId === item.id}
                             onClick={() => handleOverrideNetSalary(item)}
@@ -252,9 +243,7 @@ function AdminPayoutsPage() {
           <div className="qr-panel">
             <QRCodeSVG value={selectedPayment.qrPayload} size={200} level="M" />
           </div>
-          <div className="panel">
-            <pre className="pre-wrap">{selectedPayment.qrPayload}</pre>
-          </div>
+          <pre className="pre-wrap muted">{selectedPayment.qrPayload}</pre>
         </PageSection>
       ) : null}
 

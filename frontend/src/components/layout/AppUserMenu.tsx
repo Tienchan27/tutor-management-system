@@ -11,11 +11,22 @@ interface AppUserMenuProps {
   switching?: boolean;
   onRoleSelect: (role: AppRole) => void;
   onSignOut: () => void;
+  variant?: 'header' | 'sidebar';
 }
 
-function AppUserMenu({ name, email, roles, activeRole, switching, onRoleSelect, onSignOut }: AppUserMenuProps) {
+function AppUserMenu({
+  name,
+  email,
+  roles,
+  activeRole,
+  switching,
+  onRoleSelect,
+  onSignOut,
+  variant = 'header',
+}: AppUserMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const initial = (name || email || 'U').charAt(0).toUpperCase();
   const orderedRoles = ROLE_ORDER.filter((role) => roles.includes(role));
 
@@ -25,13 +36,24 @@ function AppUserMenu({ name, email, roles, activeRole, switching, onRoleSelect, 
         setOpen(false);
       }
     }
+    function handleKey(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
   return (
-    <div className="app-user-menu" ref={rootRef}>
+    <div className={`app-user-menu ${variant === 'sidebar' ? 'app-user-menu-sidebar' : ''}`} ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="app-user-menu-trigger"
         aria-expanded={open}
@@ -48,6 +70,7 @@ function AppUserMenu({ name, email, roles, activeRole, switching, onRoleSelect, 
       </button>
       {open ? (
         <div className="app-user-menu-panel" role="menu">
+          {email ? <p className="app-user-menu-heading">{email}</p> : null}
           {roles.length > 1 ? (
             <>
               <p className="app-user-menu-heading">View as</p>
@@ -73,7 +96,15 @@ function AppUserMenu({ name, email, roles, activeRole, switching, onRoleSelect, 
           <Link to="/app/account" className="app-user-menu-item" role="menuitem" onClick={() => setOpen(false)}>
             Account
           </Link>
-          <button type="button" className="app-user-menu-item" role="menuitem" onClick={onSignOut}>
+          <button
+            type="button"
+            className="app-user-menu-item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSignOut();
+            }}
+          >
             Sign out
           </button>
         </div>
