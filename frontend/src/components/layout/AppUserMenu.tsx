@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 import { AppRole } from '../../types/app';
 import { ROLE_ORDER, roleLabel } from '../../utils/roleNavigation';
 
@@ -64,9 +65,7 @@ function AppUserMenu({
           {initial}
         </span>
         <span className="app-user-menu-name">{name}</span>
-        <span className="app-user-menu-chevron" aria-hidden="true">
-          ▾
-        </span>
+        <ChevronDown size={14} aria-hidden="true" className="app-user-menu-chevron" />
       </button>
       {open ? (
         <div className="app-user-menu-panel" role="menu">
@@ -98,7 +97,7 @@ function AppUserMenu({
           </Link>
           <button
             type="button"
-            className="app-user-menu-item"
+            className="app-user-menu-item app-user-menu-item-danger"
             role="menuitem"
             onClick={() => {
               setOpen(false);

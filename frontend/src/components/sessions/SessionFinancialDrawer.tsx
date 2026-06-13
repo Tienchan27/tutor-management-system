@@ -8,11 +8,19 @@ interface SessionFinancialDrawerProps {
   open: boolean;
   item: SessionListItem | null;
   loading?: boolean;
+  showSalaryRate?: boolean;
   onClose: () => void;
   onSave: (item: SessionListItem, reason: string) => void;
 }
 
-function SessionFinancialDrawer({ open, item, loading, onClose, onSave }: SessionFinancialDrawerProps) {
+function SessionFinancialDrawer({
+  open,
+  item,
+  loading,
+  showSalaryRate = false,
+  onClose,
+  onSave,
+}: SessionFinancialDrawerProps) {
   const [draft, setDraft] = useState<SessionListItem | null>(item);
   const [reason, setReason] = useState('');
 
@@ -53,16 +61,18 @@ function SessionFinancialDrawer({ open, item, loading, onClose, onSave }: Sessio
           onChange={(e) => setDraft({ ...current, tuitionAtLog: Math.round(Number(e.target.value)) })}
         />
       </label>
-      <label className="input-wrapper input-wrapper-tight">
-        <span className="input-label">Salary rate (%)</span>
-        <input
-          className="text-input"
-          type="number"
-          step="0.01"
-          value={(current.salaryRateAtLog * 100).toFixed(2)}
-          onChange={(e) => setDraft({ ...current, salaryRateAtLog: Number(e.target.value) / 100 })}
-        />
-      </label>
+      {showSalaryRate ? (
+        <label className="input-wrapper input-wrapper-tight">
+          <span className="input-label">Salary rate (%)</span>
+          <input
+            className="text-input"
+            type="number"
+            step="0.01"
+            value={(current.salaryRateAtLog * 100).toFixed(2)}
+            onChange={(e) => setDraft({ ...current, salaryRateAtLog: Number(e.target.value) / 100 })}
+          />
+        </label>
+      ) : null}
       <label className="input-wrapper input-wrapper-tight">
         <span className="input-label">Payroll month</span>
         <input

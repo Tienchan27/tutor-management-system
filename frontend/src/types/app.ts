@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+
 export type AppRole = 'ADMIN' | 'TUTOR' | 'STUDENT';
 
 export interface NavItemConfig {
@@ -5,4 +7,5 @@ export interface NavItemConfig {
   path: string;
   roles: AppRole[];
   disabled?: boolean;
+  icon?: LucideIcon;
 }

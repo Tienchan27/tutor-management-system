@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
@@ -35,6 +36,7 @@ function extractApiErrorMessage(error: unknown): string {
 }
 
 function ProfileCompletion({ user, onCompleted, onError }: ProfileCompletionProps) {
+  const navigate = useNavigate();
   const [form, setForm] = useState<ProfileFormState>({
     name: user?.name || '',
     phoneNumber: '',
@@ -68,7 +70,7 @@ function ProfileCompletion({ user, onCompleted, onError }: ProfileCompletionProp
         if (status === 401 || status === 403) {
           clearAuthSession();
           onError?.('Session expired. Please login with Google again.');
-          window.location.href = '/';
+          navigate('/');
           return;
         }
       } finally {

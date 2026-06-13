@@ -93,7 +93,7 @@ function RegisterForm({ onRegistered, onError }: RegisterFormProps) {
         errorText={passwordMismatch ? 'Passwords do not match' : undefined}
         required
       />
-      <Button type="submit" loading={loading} disabled={passwordMismatch}>
+      <Button type="submit" loading={loading} disabled={passwordMismatch} className="btn-block">
         Create Account
       </Button>
     </form>

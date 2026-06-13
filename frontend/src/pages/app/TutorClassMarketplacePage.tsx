@@ -57,8 +57,8 @@ function TutorClassMarketplacePage() {
   return (
     <div className="stack-16">
       <PageHeader
-        title="Class marketplace"
-        subtitle="Browse classes published by admin and apply for assignment."
+        title="Find classes"
+        subtitle="Browse admin-published classes and apply."
         actions={
           <Button variant="secondary" size="sm" onClick={load} loading={loading}>
             Refresh

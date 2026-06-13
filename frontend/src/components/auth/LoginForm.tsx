@@ -76,7 +76,7 @@ function LoginForm({ onSuccess, onError, onPendingVerification }: LoginFormProps
           Forgot password?
         </Link>
       </div>
-      <Button type="submit" loading={loading}>
+      <Button type="submit" loading={loading} className="btn-block">
         Sign In
       </Button>
     </form>

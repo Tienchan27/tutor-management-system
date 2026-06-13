@@ -1,39 +1,24 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  createSession,
   listMySessionClasses,
   listSessionsByPayrollMonth,
   updateSessionFinancial,
 } from '../../services/sessionService';
-import { CreateSessionRequest, SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
+import { SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
-import Tabs from '../../components/ui/Tabs';
+import PageSection from '../../components/layout/PageSection';
+import Button from '../../components/ui/Button';
 import SessionFinancialDrawer from '../../components/sessions/SessionFinancialDrawer';
-import { StudentTuitionRow } from '../../components/sessions/StudentTuitionDrawer';
+import LogSessionModal from '../../components/tutor/LogSessionModal';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { getCurrentYearMonth } from '../../utils/format';
-import TutorSessionCreateForm from './sessions/TutorSessionCreateForm';
 import TutorSessionMonthList from './sessions/TutorSessionMonthList';
-
-function getTodayDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`;
-}
-
-const initialForm: CreateSessionRequest = {
-  classId: '',
-  date: getTodayDate(),
-  durationHours: 1,
-  salaryRateAtLog: 0.75,
-  studentTuitions: [],
-  payrollMonth: getCurrentYearMonth(),
-  note: '',
-};
 
 function TutorSessionsPage() {
   const { showToast } = useToast();
   const [month, setMonth] = useState<string>(getCurrentYearMonth());
+  const [classFilterId, setClassFilterId] = useState<string>('');
   const [editItem, setEditItem] = useState<SessionListItem | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [items, setItems] = useState<SessionListItem[]>([]);
@@ -41,18 +26,18 @@ function TutorSessionsPage() {
   const [sessionHasNext, setSessionHasNext] = useState<boolean>(false);
   const [sessionPage, setSessionPage] = useState<number>(0);
   const [sessionLoadingMore, setSessionLoadingMore] = useState<boolean>(false);
-  const [form, setForm] = useState<CreateSessionRequest>(initialForm);
-  const [salaryRatePercent, setSalaryRatePercent] = useState<number>(75);
-  const [tuitionDrawerOpen, setTuitionDrawerOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [logModalOpen, setLogModalOpen] = useState(false);
 
-  const selectedClass = useMemo(
-    () => classes.find((c) => c.id === form.classId) || null,
-    [classes, form.classId]
-  );
+  const filteredItems = useMemo(() => {
+    if (!classFilterId) {
+      return items;
+    }
+    return items.filter((item) => item.classId === classFilterId);
+  }, [items, classFilterId]);
 
-  async function loadSessions(): Promise<void> {
+  const loadSessions = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError('');
     try {
@@ -65,7 +50,7 @@ function TutorSessionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [month]);
 
   async function loadMoreSessions(): Promise<void> {
     if (!sessionHasNext || sessionLoadingMore) {
@@ -96,90 +81,18 @@ function TutorSessionsPage() {
     }
   }
 
-  async function loadClasses(): Promise<void> {
+  const loadClasses = useCallback(async (): Promise<void> => {
     try {
-      const response = await listMySessionClasses();
-      setClasses(response);
+      setClasses(await listMySessionClasses());
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to load tutor classes'));
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadClasses();
-    loadSessions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
-
-  function resetForm(): void {
-    setForm({
-      ...initialForm,
-      payrollMonth: month,
-      date: getTodayDate(),
-    });
-    setSalaryRatePercent(75);
-    setTuitionDrawerOpen(false);
-  }
-
-  function overwriteAllStudentTuitions(
-    nextDurationHours: number,
-    nextClass: TutorSessionClassOptionResponse | null
-  ): void {
-    const tuitionPerStudent = Math.round((nextClass?.pricePerHour ?? 0) * nextDurationHours);
-    setForm((prev) => ({
-      ...prev,
-      durationHours: nextDurationHours,
-      studentTuitions: nextClass?.students?.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })) ?? [],
-    }));
-  }
-
-  function handleResetToDefault(): void {
-    if (!selectedClass) {
-      return;
-    }
-    overwriteAllStudentTuitions(form.durationHours, selectedClass);
-  }
-
-  function handleTuitionApply(rows: StudentTuitionRow[]): void {
-    setForm((prev) => ({
-      ...prev,
-      studentTuitions: rows.map((row) => ({ studentId: row.studentId, tuitionAtLog: row.tuitionAtLog })),
-    }));
-  }
-
-  function handleTuitionChange(studentId: string, tuitionAtLog: number): void {
-    setForm((prev) => {
-      const exists = prev.studentTuitions.some((t) => t.studentId === studentId);
-      if (!exists) {
-        return {
-          ...prev,
-          studentTuitions: [...prev.studentTuitions, { studentId, tuitionAtLog }],
-        };
-      }
-      return {
-        ...prev,
-        studentTuitions: prev.studentTuitions.map((t) =>
-          t.studentId === studentId ? { ...t, tuitionAtLog } : t
-        ),
-      };
-    });
-  }
-
-  async function handleCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setError('');
-    try {
-      await createSession({
-        ...form,
-        salaryRateAtLog: Number((salaryRatePercent / 100).toFixed(4)),
-      });
-      showToast('Session logged successfully', 'success');
-      resetForm();
-      await loadSessions();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to create session'));
-    }
-  }
+    void loadClasses();
+    void loadSessions();
+  }, [loadClasses, loadSessions]);
 
   async function handleUpdateFinancial(item: SessionListItem, reason: string): Promise<void> {
     if (!reason) {
@@ -208,62 +121,50 @@ function TutorSessionsPage() {
 
   return (
     <div className="stack-16">
-      <PageHeader title="Sessions" subtitle="Log teaching sessions after class and review monthly records." />
-      <Tabs
-        items={[
-          {
-            id: 'log',
-            label: 'Log session',
-            panel: (
-              <TutorSessionCreateForm
-                classes={classes}
-                form={form}
-                salaryRatePercent={salaryRatePercent}
-                error={error}
-                tuitionDrawerOpen={tuitionDrawerOpen}
-                onFormChange={setForm}
-                onSalaryRateChange={setSalaryRatePercent}
-                onClassChange={(classId, nextClass) => {
-                  setTuitionDrawerOpen(false);
-                  setForm((prev) => ({ ...prev, classId }));
-                  overwriteAllStudentTuitions(form.durationHours, nextClass);
-                }}
-                onDurationChange={(hours, nextClass) => overwriteAllStudentTuitions(hours, nextClass)}
-                onReset={resetForm}
-                onSubmit={(event) => void handleCreate(event)}
-                onOpenTuitionDrawer={() => setTuitionDrawerOpen(true)}
-                onCloseTuitionDrawer={() => setTuitionDrawerOpen(false)}
-                onTuitionChange={handleTuitionChange}
-                onTuitionReset={handleResetToDefault}
-                onTuitionApply={handleTuitionApply}
-              />
-            ),
-          },
-          {
-            id: 'list',
-            label: 'Monthly list',
-            panel: (
-              <TutorSessionMonthList
-                month={month}
-                items={items}
-                classes={classes}
-                loading={loading}
-                sessionHasNext={sessionHasNext}
-                sessionLoadingMore={sessionLoadingMore}
-                onMonthChange={setMonth}
-                onEdit={setEditItem}
-                onLoadMore={() => void loadMoreSessions()}
-              />
-            ),
-          },
-        ]}
+      <PageHeader
+        title="Sessions"
+        subtitle="Review and edit logged sessions by month."
+        actions={
+          <Button variant="primary" size="sm" onClick={() => setLogModalOpen(true)}>
+            Log session
+          </Button>
+        }
       />
+
+      <PageSection>
+        {error ? <p className="error-text">{error}</p> : null}
+        <TutorSessionMonthList
+          month={month}
+          items={filteredItems}
+          classes={classes}
+          classFilterId={classFilterId}
+          loading={loading}
+          sessionHasNext={sessionHasNext && !classFilterId}
+          sessionLoadingMore={sessionLoadingMore}
+          onMonthChange={setMonth}
+          onClassFilterChange={setClassFilterId}
+          onEdit={setEditItem}
+          onLoadMore={() => void loadMoreSessions()}
+        />
+      </PageSection>
+
       <SessionFinancialDrawer
         open={!!editItem}
         item={editItem}
         loading={saveLoading}
+        showSalaryRate={false}
         onClose={() => setEditItem(null)}
         onSave={(item, reason) => void handleUpdateFinancial(item, reason)}
+      />
+
+      <LogSessionModal
+        open={logModalOpen}
+        classes={classes}
+        onClose={() => setLogModalOpen(false)}
+        onSuccess={() => {
+          showToast('Session logged successfully', 'success');
+          void loadSessions();
+        }}
       />
     </div>
   );

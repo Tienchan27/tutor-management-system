@@ -7,6 +7,7 @@ import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
@@ -44,15 +45,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+        String token = extractBearerToken(request);
+        if (token == null) {
+            token = extractCookieToken(request);
+        }
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String token = authHeader.substring(7);
             jwtService.validateAccessToken(token);
 
             UUID userId = jwtService.extractUserId(token);
@@ -72,23 +75,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .map(GrantedAuthority.class::cast)
                     .toList();
 
-            // Create authentication object
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userId,
                     null,
                     authorities
             );
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            // Set authentication in SecurityContext
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (RuntimeException ex) {
-            // Token validation failed - let request continue without authentication
-            // SecurityConfig will reject if endpoint requires authentication
             SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String extractBearerToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
+    }
+
+    private String extractCookieToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie cookie : cookies) {
+            if ("accessToken".equals(cookie.getName())) {
+                String value = cookie.getValue();
+                return (value != null && !value.isBlank()) ? value : null;
+            }
+        }
+        return null;
     }
 }

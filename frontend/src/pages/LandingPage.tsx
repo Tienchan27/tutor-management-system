@@ -61,6 +61,7 @@ function LandingPage() {
     if (storedGoogle) {
       setGoogleLinkChallenge(storedGoogle);
     }
+    // Run once on mount to restore Google challenge / pending OTP from sessionStorage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -289,7 +289,7 @@ function AdminClassAssignmentPage() {
     setError('');
     try {
       await approveClassApplication(applicationId);
-      showToast('Application approved', 'success');
+      showToast('Tutor assigned. Other pending applications were rejected.', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to approve application'));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   confirmPayoutPaid,
@@ -32,7 +32,7 @@ function AdminPayoutsPage() {
   const [error, setError] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
 
-  async function loadMonth(): Promise<void> {
+  const loadMonth = useCallback(async (): Promise<void> => {
     setViewLoading(true);
     setError('');
     try {
@@ -43,7 +43,7 @@ function AdminPayoutsPage() {
     } finally {
       setViewLoading(false);
     }
-  }
+  }, [month]);
 
   async function handleClosePayroll(): Promise<void> {
     setCloseLoading(true);
@@ -102,6 +102,10 @@ function AdminPayoutsPage() {
     }
   }
 
+  useEffect(() => {
+    void loadMonth();
+  }, [loadMonth]);
+
   function copyText(value: string, label: string): void {
     navigator.clipboard.writeText(value).then(
       () => showToast(`${label} copied`, 'success'),
@@ -117,9 +121,6 @@ function AdminPayoutsPage() {
         actions={
           <>
             <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="input-month" />
-            <Button variant="secondary" onClick={loadMonth} loading={viewLoading}>
-              View month
-            </Button>
             <Button variant="primary" onClick={() => setConfirmClose(true)} disabled={closeLoading}>
               Close payroll
             </Button>
@@ -133,7 +134,7 @@ function AdminPayoutsPage() {
         {!viewLoading && !items.length ? (
           <EmptyState
             title="No payouts for this month"
-            description="Click View month to load existing records, or Close payroll to generate."
+            description="No payouts for this month. Close payroll to generate."
           />
         ) : null}
         {!!items.length ? (
@@ -173,7 +174,7 @@ function AdminPayoutsPage() {
                             Generate QR
                           </Button>
                           <Button
-                            variant="primary"
+                            variant="success"
                             size="sm"
                             onClick={() => handleConfirmPaid(item.id)}
                             disabled={item.status === 'PAID'}
@@ -257,7 +258,7 @@ function AdminPayoutsPage() {
           </>
         }
         confirmLabel="Close payroll"
-        danger
+        confirmVariant="success"
         loading={closeLoading}
         onConfirm={handleClosePayroll}
         onCancel={() => setConfirmClose(false)}

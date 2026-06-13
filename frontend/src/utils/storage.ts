@@ -1,12 +1,8 @@
 import { AuthSessionPayload, AuthUser } from '../types/auth';
 
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
 const AUTH_USER_KEY = 'authUser';
 
 function clearSessionKeys(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
 }
 
@@ -33,8 +29,6 @@ export function saveAuthSession(payload: AuthSessionPayload): void {
   const desiredActiveRole = (payload.activeRole || roles[0] || 'STUDENT') as AuthUser['activeRole'];
   const activeRole = roles.includes(desiredActiveRole) ? desiredActiveRole : ((roles[0] || 'STUDENT') as AuthUser['activeRole']);
 
-  localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken || '');
-  localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken || '');
   localStorage.setItem(
     AUTH_USER_KEY,
     JSON.stringify({
@@ -48,14 +42,6 @@ export function saveAuthSession(payload: AuthSessionPayload): void {
       activeRole,
     })
   );
-}
-
-export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
-}
-
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -76,7 +62,7 @@ export function getAuthUser(): AuthUser | null {
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAccessToken() && !!getAuthUser();
+  return !!getAuthUser();
 }
 
 export function clearAuthSession(): void {
@@ -86,22 +72,19 @@ export function clearAuthSession(): void {
 export function markProfileCompleted(): void {
   const user = getAuthUser();
   if (!user) return;
-  user.needsProfileCompletion = false;
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...user, needsProfileCompletion: false }));
 }
 
 export function setNeedsProfileCompletion(needsProfileCompletion: boolean): void {
   const user = getAuthUser();
   if (!user) return;
-  user.needsProfileCompletion = !!needsProfileCompletion;
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...user, needsProfileCompletion: !!needsProfileCompletion }));
 }
 
 export function setNeedsTutorOnboarding(needsTutorOnboarding: boolean): void {
   const user = getAuthUser();
   if (!user) return;
-  user.needsTutorOnboarding = !!needsTutorOnboarding;
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...user, needsTutorOnboarding: !!needsTutorOnboarding }));
 }
 
 export function setAuthUserName(name: string): void {
@@ -109,13 +92,11 @@ export function setAuthUserName(name: string): void {
   if (!user) return;
   const normalizedName = name?.trim();
   if (!normalizedName) return;
-  user.name = normalizedName;
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...user, name: normalizedName }));
 }
 
 export function setAuthUserActiveRole(activeRole: AuthUser['activeRole']): void {
   const user = getAuthUser();
   if (!user) return;
-  user.activeRole = activeRole;
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...user, activeRole }));
 }

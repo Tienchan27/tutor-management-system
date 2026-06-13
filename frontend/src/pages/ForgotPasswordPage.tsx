@@ -115,7 +115,7 @@ function ForgotPasswordPage() {
                 required
               />
               {error ? <p className="error-text">{error}</p> : null}
-              <Button type="submit" loading={loading}>
+              <Button type="submit" loading={loading} className="btn-block">
                 Send reset code
               </Button>
             </form>
@@ -151,7 +151,7 @@ function ForgotPasswordPage() {
                 maxLength={72}
               />
               {error ? <p className="error-text">{error}</p> : null}
-              <Button type="submit" loading={loading}>
+              <Button type="submit" loading={loading} className="btn-block">
                 Update password
               </Button>
               <div className="auth-form-row" style={{ justifyContent: 'flex-start', marginTop: 8 }}>

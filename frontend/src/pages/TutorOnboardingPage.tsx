@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createBankAccount, listMyBankAccounts } from '../services/bankAccountService';
 import { extractApiErrorMessage } from '../services/authService';
@@ -19,7 +19,7 @@ function TutorOnboardingPage() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
-  async function loadAccounts(): Promise<void> {
+  const loadAccounts = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError('');
     try {
@@ -34,12 +34,11 @@ function TutorOnboardingPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [navigate]);
 
   useEffect(() => {
-    loadAccounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadAccounts();
+  }, [loadAccounts]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -85,7 +84,7 @@ function TutorOnboardingPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, accountHolderName: event.target.value }))}
               required
             />
-            <button type="submit" className="btn btn-primary compact-btn" disabled={submitting || loading}>
+            <button type="submit" className="btn btn-primary btn-block" disabled={submitting || loading}>
               {submitting ? 'Saving...' : 'Save and continue'}
             </button>
           </form>

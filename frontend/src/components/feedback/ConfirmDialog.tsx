@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   loading?: boolean;
   danger?: boolean;
+  confirmVariant?: 'primary' | 'danger' | 'success';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -21,9 +22,11 @@ function ConfirmDialog({
   cancelLabel = 'Cancel',
   loading = false,
   danger = false,
+  confirmVariant,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const resolvedVariant = confirmVariant ?? (danger ? 'danger' : 'primary');
   if (!open) {
     return null;
   }
@@ -46,7 +49,7 @@ function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button
-            variant={danger ? 'danger' : 'primary'}
+            variant={resolvedVariant}
             type="button"
             onClick={onConfirm}
             loading={loading}

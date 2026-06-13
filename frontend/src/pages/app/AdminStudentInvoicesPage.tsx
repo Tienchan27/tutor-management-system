@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { closeStudentTuition, listAdminInvoices } from '../../services/adminInvoiceService';
 import { StudentInvoice } from '../../types/invoices';
 import { extractApiErrorMessage } from '../../services/authService';
@@ -22,7 +22,7 @@ function AdminStudentInvoicesPage() {
   const [confirmClose, setConfirmClose] = useState(false);
   const [lastResult, setLastResult] = useState('');
 
-  async function loadMonth(): Promise<void> {
+  const loadMonth = useCallback(async (): Promise<void> => {
     setViewLoading(true);
     setError('');
     try {
@@ -32,7 +32,7 @@ function AdminStudentInvoicesPage() {
     } finally {
       setViewLoading(false);
     }
-  }
+  }, [month]);
 
   async function handleClose(): Promise<void> {
     setCloseLoading(true);
@@ -50,6 +50,10 @@ function AdminStudentInvoicesPage() {
     }
   }
 
+  useEffect(() => {
+    void loadMonth();
+  }, [loadMonth]);
+
   return (
     <div className="stack-16">
       <PageHeader
@@ -58,9 +62,6 @@ function AdminStudentInvoicesPage() {
         actions={
           <>
             <input type="month" className="input-month" value={month} onChange={(e) => setMonth(e.target.value)} />
-            <Button variant="secondary" onClick={loadMonth} loading={viewLoading}>
-              View month
-            </Button>
             <Button variant="primary" onClick={() => setConfirmClose(true)}>
               Close student tuition
             </Button>
@@ -72,7 +73,7 @@ function AdminStudentInvoicesPage() {
         {lastResult ? <p className="muted">{lastResult}</p> : null}
         {viewLoading ? <Spinner label="Loading invoices..." /> : null}
         {!viewLoading && !items.length ? (
-          <EmptyState title="No invoices" description="View month or close tuition to generate invoices." />
+          <EmptyState title="No invoices" description="Close student tuition to generate invoices." />
         ) : null}
         {!!items.length ? (
           <div className="table-wrap">
@@ -113,7 +114,7 @@ function AdminStudentInvoicesPage() {
           </>
         }
         confirmLabel="Close student tuition"
-        danger
+        confirmVariant="success"
         loading={closeLoading}
         onConfirm={handleClose}
         onCancel={() => setConfirmClose(false)}

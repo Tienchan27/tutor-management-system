@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ReactNode, Suspense, useState } from 'react';
+import { Menu } from 'lucide-react';
 import { navigationItems } from '../../config/navigation';
 import { AppRole } from '../../types/app';
 import { clearAuthSession, getAuthUser } from '../../utils/storage';
@@ -7,6 +8,7 @@ import { logout, switchRole } from '../../services/authService';
 import { clearRoleCache } from '../../services/accessService';
 import { getRoleHomePath, roleLabel } from '../../utils/roleNavigation';
 import { useToast } from '../feedback/ToastProvider';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import AppUserMenu from './AppUserMenu';
 import AppLoadingSkeleton from './AppLoadingSkeleton';
 
@@ -61,6 +63,7 @@ function AppShell({ roles, children }: AppShellProps) {
   }
 
   const displayName = user?.name || user?.email || 'User';
+  const unreadCount = useUnreadNotifications();
 
   const sidebarContent = (
     <>
@@ -69,16 +72,29 @@ function AppShell({ roles, children }: AppShellProps) {
         <p className="muted">Operations portal</p>
       </div>
       <nav className="app-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}
-            onClick={() => setDrawerOpen(false)}
-          >
-            {item.label}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const badge = item.path === '/app/notifications' ? unreadCount : 0;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}
+              onClick={() => setDrawerOpen(false)}
+            >
+              {Icon ? <Icon size={16} aria-hidden="true" /> : null}
+              <span className="app-nav-link-label">{item.label}</span>
+              {badge > 0 ? (
+                <span
+                  className="nav-badge"
+                  aria-label={`${badge} unread notification${badge === 1 ? '' : 's'}`}
+                >
+                  {badge > 20 ? '20+' : badge}
+                </span>
+              ) : null}
+            </NavLink>
+          );
+        })}
       </nav>
       <div className="app-sidebar-footer">
         <AppUserMenu
@@ -115,7 +131,7 @@ function AppShell({ roles, children }: AppShellProps) {
             aria-expanded={drawerOpen}
             onClick={() => setDrawerOpen((value) => !value)}
           >
-            ☰
+            <Menu size={20} aria-hidden="true" />
           </button>
           <div className="app-header-spacer" />
           <div className="app-header-actions app-header-mobile-only">

@@ -15,8 +15,8 @@ export interface AuthSessionPayload {
   userId: string;
   email: string;
   name: string;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string; // set via httpOnly cookie — not stored in localStorage
+  refreshToken?: string; // set via httpOnly cookie — not stored in localStorage
   picture?: string | null;
   needsProfileCompletion?: boolean;
   needsTutorOnboarding?: boolean;
@@ -55,8 +55,8 @@ export interface AuthTokensResponse {
   userId: string;
   email: string;
   name: string;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string; // set via httpOnly cookie — not read from response body
+  refreshToken?: string; // set via httpOnly cookie — not read from response body
   needsProfileCompletion: boolean;
   needsTutorOnboarding: boolean;
   roles: AppRole[];

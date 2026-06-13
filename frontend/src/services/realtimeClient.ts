@@ -1,8 +1,9 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import { clearAuthSession, getAccessToken } from '../utils/storage';
+import { clearAuthSession } from '../utils/storage';
 import api from './api';
 import { refreshSessionFromStorage } from './sessionRefresh';
 import { ClientEvent, realtimeEventBus } from './realtimeEventBus';
+import { navigateTo } from '../utils/navigation';
 
 export type RealtimeConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
@@ -46,7 +47,7 @@ async function tryRefreshForSse(): Promise<'retry' | 'unauthorized'> {
   }
   clearAuthSession();
   if (result === 'failed') {
-    window.location.href = '/';
+    navigateTo('/');
   }
   return 'unauthorized';
 }
@@ -63,13 +64,6 @@ export async function startRealtime(): Promise<void> {
 
   let attempt = 0;
   while (running) {
-    const token = getAccessToken();
-    if (!token) {
-      setState('closed');
-      running = false;
-      return;
-    }
-
     controller = new AbortController();
     const baseURL = api.defaults.baseURL || '/api';
     const url = `${baseURL}/events/stream`;
@@ -77,9 +71,7 @@ export async function startRealtime(): Promise<void> {
     try {
       await fetchEventSource(url, {
         signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
         openWhenHidden: true,
         // onopen closes over loop vars intentionally; refresh path uses module-level tryRefreshForSse.
         // eslint-disable-next-line no-loop-func -- SSE lifecycle: reconnect loop + stream open callback
@@ -157,4 +149,3 @@ export function stopRealtime(): void {
     controller = null;
   }
 }
-

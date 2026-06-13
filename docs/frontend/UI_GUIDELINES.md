@@ -9,7 +9,7 @@
 ## Copy
 
 - **English only** for user-visible strings
-- Sentence case for actions: `Close payroll`, `View month`
+- Sentence case for actions: `Close payroll`, `Log session`
 - Enum display: title case (`Unpaid`, `Pending`)
 
 ## Money
@@ -42,7 +42,15 @@ Amber (`--brand-amber`) **only** for:
 
 **Never** amber for: secondary hovers, user menu hovers, accordion headers, panel backgrounds, table row hovers.
 
-Semantic colors (success/warning/danger) **only** via `StatusPill`, toasts, and `error-text` / `success-text`.
+Semantic colors (success/warning/danger) via `StatusPill`, toasts, `error-text` / `success-text`, and targeted actions:
+
+| Token | Use |
+|-------|-----|
+| `--success` / `btn-success` | Confirm paid, close payroll/tuition confirms |
+| `--danger-red` / `btn-danger` | Revoke, delete, destructive confirms |
+| `app-user-menu-item-danger` | Sign out in user menu |
+
+Do not use semantic greens/reds for navigation hovers or table stripes.
 
 ## Layout
 
@@ -54,7 +62,7 @@ Semantic colors (success/warning/danger) **only** via `StatusPill`, toasts, and 
 
 ## Components
 
-- `Button` variants: `primary`, `secondary`, `ghost`, `danger` — avoid raw `btn-*` classes in pages
+- `Button` variants: `primary`, `secondary`, `ghost`, `danger`, `success` — avoid raw `btn-*` classes in pages
 - `Tabs` — underline style
 - `Stepper` — multi-step flows (e.g. publish class)
 - `SlideOver` — drawers (tuition edit, roster, financials)

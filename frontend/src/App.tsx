@@ -1,5 +1,6 @@
 import { lazy, ReactElement, useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { setNavigator } from './utils/navigation';
 import LandingPage from './pages/LandingPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfileCompletionPage from './pages/ProfileCompletionPage';
@@ -22,8 +23,9 @@ const AdminClassAssignmentPage = lazy(() => import('./pages/app/AdminClassAssign
 const AdminPayoutsPage = lazy(() => import('./pages/app/AdminPayoutsPage'));
 const AdminStudentInvoicesPage = lazy(() => import('./pages/app/AdminStudentInvoicesPage'));
 const TutorDashboardPage = lazy(() => import('./pages/app/TutorDashboardPage'));
+const TutorMyClassesPage = lazy(() => import('./pages/app/TutorMyClassesPage'));
 const TutorSessionsPage = lazy(() => import('./pages/app/TutorSessionsPage'));
-const TutorBankAccountsPage = lazy(() => import('./pages/app/TutorBankAccountsPage'));
+const TutorEarningsPage = lazy(() => import('./pages/app/TutorEarningsPage'));
 const TutorClassMarketplacePage = lazy(() => import('./pages/app/TutorClassMarketplacePage'));
 const NotificationsPage = lazy(() => import('./pages/app/NotificationsPage'));
 const AccountPage = lazy(() => import('./pages/app/AccountPage'));
@@ -109,6 +111,11 @@ function ProtectedAppLayout() {
 }
 
 function App() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    setNavigator(navigate);
+  }, [navigate]);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -198,6 +205,14 @@ function App() {
           }
         />
         <Route
+          path="tutor/classes"
+          element={
+            <RoleGate allowed={['TUTOR']}>
+              <TutorMyClassesPage />
+            </RoleGate>
+          }
+        />
+        <Route
           path="tutor/sessions"
           element={
             <RoleGate allowed={['TUTOR']}>
@@ -206,13 +221,14 @@ function App() {
           }
         />
         <Route
-          path="tutor/bank-accounts"
+          path="tutor/earnings"
           element={
             <RoleGate allowed={['TUTOR']}>
-              <TutorBankAccountsPage />
+              <TutorEarningsPage />
             </RoleGate>
           }
         />
+        <Route path="tutor/bank-accounts" element={<Navigate to="/app/tutor/earnings" replace />} />
         <Route
           path="tutor/available-classes"
           element={

@@ -1,69 +1,50 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getTutorClassOverview, getTutorDashboard, getTutorClassRoster } from '../../services/dashboardService';
-import { listMySessionClasses } from '../../services/sessionService';
-import { TutorClassOverviewResponse, TutorClassRosterResponse, TutorDashboardResponse } from '../../types/dashboard';
-import { TutorSessionClassOptionResponse } from '../../types/sessions';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { getTutorClassOverview } from '../../services/dashboardService';
+import { listSessionsByPayrollMonth } from '../../services/sessionService';
+import { TutorClassOverviewResponse } from '../../types/dashboard';
 import { extractApiErrorMessage } from '../../services/authService';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
 import PageHeader from '../../components/ui/PageHeader';
 import PageSection from '../../components/layout/PageSection';
-import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
-import EmptyState from '../../components/ui/EmptyState';
-import StatusPill from '../../components/ui/StatusPill';
-import ClassRosterDrawer from '../../components/dashboard/ClassRosterDrawer';
-import { formatDate, formatVnd } from '../../utils/format';
-import { payoutTone } from '../../utils/statusTone';
+import StatCard from '../../components/tutor/StatCard';
+import { formatVnd, getCurrentYearMonth } from '../../utils/format';
 
 function TutorDashboardPage() {
-  const [items, setItems] = useState<TutorDashboardResponse[]>([]);
   const [classes, setClasses] = useState<TutorClassOverviewResponse[]>([]);
-  const [mySessionClasses, setMySessionClasses] = useState<TutorSessionClassOptionResponse[]>([]);
+  const [sessionCount, setSessionCount] = useState(0);
+  const [estimatedTuition, setEstimatedTuition] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [rosterLoading, setRosterLoading] = useState(false);
-  const [rosterError, setRosterError] = useState('');
-  const [roster, setRoster] = useState<TutorClassRosterResponse | null>(null);
-  const [rosterClassId, setRosterClassId] = useState('');
+  const currentMonth = getCurrentYearMonth();
 
-  const classNameByIdFromSessionApi = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of mySessionClasses) {
-      map.set(c.id, c.className);
-    }
-    return map;
-  }, [mySessionClasses]);
+  const activeClassCount = useMemo(
+    () => classes.filter((c) => c.classStatus === 'ACTIVE').length,
+    [classes]
+  );
 
-  function displayClassLabel(item: TutorClassOverviewResponse): string {
-    const fromOverview = item.classDisplayName?.trim();
-    if (fromOverview) {
-      return fromOverview;
+  const load = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setError('');
+    try {
+      const [classResponse, sessionsResponse] = await Promise.all([
+        getTutorClassOverview(),
+        listSessionsByPayrollMonth(currentMonth, 0),
+      ]);
+      setClasses(classResponse);
+      setSessionCount(sessionsResponse.items.length);
+      setEstimatedTuition(sessionsResponse.items.reduce((sum, item) => sum + item.tuitionAtLog, 0));
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to load overview'));
+    } finally {
+      setLoading(false);
     }
-    return classNameByIdFromSessionApi.get(item.classId) || item.subjectName;
-  }
+  }, [currentMonth]);
 
   useEffect(() => {
-    async function load(): Promise<void> {
-      setLoading(true);
-      setError('');
-      try {
-        const [dashboardResponse, classResponse, sessionClassesResponse] = await Promise.all([
-          getTutorDashboard(),
-          getTutorClassOverview(),
-          listMySessionClasses(),
-        ]);
-        setItems(dashboardResponse);
-        setClasses(classResponse);
-        setMySessionClasses(sessionClassesResponse);
-      } catch (err: unknown) {
-        setError(extractApiErrorMessage(err, 'Failed to load tutor dashboard'));
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-
+    void load();
     const unsub1 = realtimeEventBus.subscribe('PAYOUT_UPDATED', () => window.setTimeout(load, 250));
     const unsub2 = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', () => window.setTimeout(load, 250));
     const unsub3 = realtimeEventBus.subscribe('SESSION_FINANCIAL_UPDATED', () => window.setTimeout(load, 250));
@@ -72,123 +53,39 @@ function TutorDashboardPage() {
       unsub2();
       unsub3();
     };
-  }, []);
-
-  async function handleViewRoster(classId: string): Promise<void> {
-    setRosterClassId(classId);
-    setRosterLoading(true);
-    setRosterError('');
-    setRoster(null);
-    try {
-      setRoster(await getTutorClassRoster(classId));
-    } catch (err: unknown) {
-      setRosterError(extractApiErrorMessage(err, 'Failed to load class roster'));
-    } finally {
-      setRosterLoading(false);
-    }
-  }
-
-  function handleCloseRoster(): void {
-    setRoster(null);
-    setRosterError('');
-    setRosterClassId('');
-  }
-
-  const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
+  }, [load]);
 
   return (
     <div className="stack-16">
-      <PageHeader title="Dashboard" subtitle="Monthly payout summary and your assigned classes." />
+      <PageHeader title="Overview" subtitle="Your teaching activity at a glance." />
 
-      <PageSection title="Payout history">
-        {loading ? <Spinner label="Loading dashboard..." /> : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        {!loading && !items.length ? (
-          <EmptyState title="No payout records yet" description="Payouts appear after admin closes payroll for a month." />
-        ) : null}
-        {!!items.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th scope="col">Month</th>
-                  <th scope="col" className="money-cell">
-                    Gross
-                  </th>
-                  <th scope="col" className="money-cell">
-                    Net
-                  </th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={`${item.year}-${item.month}`}>
-                    <td>
-                      {item.year}-{`${item.month}`.padStart(2, '0')}
-                    </td>
-                    <td className="money-cell">{formatVnd(item.grossRevenue)}</td>
-                    <td className="money-cell">{formatVnd(item.netSalary)}</td>
-                    <td>
-                      <StatusPill label={item.status} tone={payoutTone(item.status)} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+      {loading ? <Spinner label="Loading overview..." /> : null}
+      {error ? <p className="error-text">{error}</p> : null}
+
+      <PageSection>
+        <div className="stat-card-grid">
+          <StatCard label="Sessions this month" value={sessionCount} hint={`Payroll month ${currentMonth}`} accent="amber" />
+          <StatCard label="Active classes" value={activeClassCount} accent="blue" />
+          <StatCard label="Estimated tuition" value={formatVnd(estimatedTuition)} hint="From logged sessions this month" accent="green" />
+        </div>
       </PageSection>
 
-      <PageSection title="Your classes">
-        {!loading && !classes.length ? (
-          <EmptyState title="No assigned classes" description="Apply on the marketplace or wait for admin approval." />
-        ) : null}
-        {!!classes.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th scope="col">Class</th>
-                  <th scope="col">Subject</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Rate</th>
-                  <th scope="col">Sessions</th>
-                  <th scope="col">Latest</th>
-                  <th scope="col"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {classes.map((item) => (
-                  <tr key={item.classId}>
-                    <td>{displayClassLabel(item)}</td>
-                    <td>{item.subjectName}</td>
-                    <td>{item.classStatus}</td>
-                    <td>{formatVnd(item.pricePerHour)}/hr</td>
-                    <td>{item.sessionCount}</td>
-                    <td>{item.latestSessionDate ? formatDate(item.latestSessionDate) : '—'}</td>
-                    <td>
-                      <Button variant="ghost" size="sm" onClick={() => handleViewRoster(item.classId)}>
-                        View roster
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+      <PageSection title="Quick links">
+        <div className="overview-quick-links">
+          <Link to="/app/tutor/classes" className="btn btn-secondary btn-sm">
+            My classes
+          </Link>
+          <Link to="/app/tutor/sessions" className="btn btn-secondary btn-sm">
+            Sessions
+          </Link>
+          <Link to="/app/tutor/available-classes" className="btn btn-secondary btn-sm">
+            Find classes
+          </Link>
+          <Link to="/app/tutor/earnings" className="btn btn-secondary btn-sm">
+            Earnings
+          </Link>
+        </div>
       </PageSection>
-
-      <ClassRosterDrawer
-        open={!!rosterClassId}
-        classLabel={rosterClass ? displayClassLabel(rosterClass) : 'Class'}
-        classStatus={rosterClass?.classStatus}
-        roster={roster}
-        loading={rosterLoading}
-        error={rosterError}
-        onClose={handleCloseRoster}
-      />
     </div>
   );
 }

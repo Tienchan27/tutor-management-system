@@ -11,10 +11,16 @@ import com.example.tms.api.dto.auth.ResetPasswordRequest;
 import com.example.tms.api.dto.auth.SwitchRoleRequest;
 import com.example.tms.api.dto.auth.VerifyGoogleLinkOtpRequest;
 import com.example.tms.api.dto.auth.VerifyOtpRequest;
+import com.example.tms.entity.enums.RoleName;
+import com.example.tms.exception.ApiException;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.AuthService;
+import com.example.tms.service.GoogleAuthService;
+import com.example.tms.util.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,11 +32,18 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
     private final CurrentUserResolver currentUserResolver;
 
-    public AuthController(AuthService authService, CurrentUserResolver currentUserResolver) {
+    public AuthController(
+            AuthService authService,
+            GoogleAuthService googleAuthService,
+            CurrentUserResolver currentUserResolver
+    ) {
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
         this.currentUserResolver = currentUserResolver;
     }
 
@@ -41,8 +54,14 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public AuthResponse verifyOtp(@Valid @RequestBody VerifyOtpRequest request, HttpServletRequest httpRequest) {
-        return authService.verifyOtp(request, httpRequest);
+    public AuthResponse verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        AuthResponse auth = authService.verifyOtp(request, httpRequest);
+        CookieUtils.setAuthCookies(httpResponse, auth);
+        return auth;
     }
 
     @PostMapping("/resend-otp")
@@ -52,8 +71,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return authService.login(request, httpRequest);
+    public AuthResponse login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        AuthResponse auth = authService.login(request, httpRequest);
+        CookieUtils.setAuthCookies(httpResponse, auth);
+        return auth;
     }
 
     @PostMapping("/forgot-password")
@@ -69,45 +94,85 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody Map<String, String> payload, HttpServletRequest httpRequest) {
-        String refreshToken = payload.get("refreshToken");
+    public AuthResponse refresh(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new IllegalArgumentException("Refresh token is required");
+            throw new ApiException("Refresh token required");
         }
-        return authService.refreshToken(refreshToken, httpRequest);
+        AuthResponse auth = authService.refreshToken(refreshToken, httpRequest);
+        CookieUtils.setAuthCookies(httpResponse, auth);
+        return auth;
     }
 
     @PostMapping("/logout")
-    public Map<String, String> logout() {
+    public Map<String, String> logout(HttpServletResponse httpResponse) {
         authService.logout(currentUserResolver.requireUserId());
+        CookieUtils.clearAuthCookies(httpResponse);
         return Map.of("message", "Logged out successfully");
     }
 
+    @PostMapping("/switch-role")
+    public AuthResponse switchRole(
+            @Valid @RequestBody SwitchRoleRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        RoleName role = request.activeRole();
+        AuthResponse auth = authService.switchRole(currentUserResolver.requireUserId(), role, httpRequest);
+        CookieUtils.setAuthCookies(httpResponse, auth);
+        return auth;
+    }
+
     @PostMapping("/google")
-    public GoogleAuthResponse googleLogin(@Valid @RequestBody GoogleAuthRequest request, HttpServletRequest httpRequest) {
-        return authService.googleLogin(request, httpRequest);
+    public GoogleAuthResponse googleLogin(
+            @Valid @RequestBody GoogleAuthRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    ) {
+        GoogleAuthResponse googleAuth = googleAuthService.googleLogin(request, httpRequest);
+        if (googleAuth.accessToken() != null) {
+            CookieUtils.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
+        }
+        return googleAuth;
     }
 
     @PostMapping("/google/verify-link-otp")
     public GoogleAuthResponse verifyGoogleLinkOtp(
             @Valid @RequestBody VerifyGoogleLinkOtpRequest request,
-            HttpServletRequest httpRequest
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
     ) {
-        return authService.verifyGoogleLinkOtp(request, httpRequest);
-    }
-
-    @PostMapping("/switch-role")
-    public AuthResponse switchRole(@Valid @RequestBody SwitchRoleRequest request, HttpServletRequest httpRequest) {
-        return authService.switchRole(currentUserResolver.requireUserId(), request.activeRole(), httpRequest);
+        GoogleAuthResponse googleAuth = googleAuthService.verifyGoogleLinkOtp(request, httpRequest);
+        if (googleAuth.accessToken() != null) {
+            CookieUtils.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
+        }
+        return googleAuth;
     }
 
     @PostMapping("/google/link")
     public Map<String, String> linkGoogle(@Valid @RequestBody LinkGoogleRequest request) {
-        authService.linkGoogleAccount(
+        googleAuthService.linkGoogleAccount(
                 currentUserResolver.requireUserId(),
                 request.idToken(),
                 request.currentPassword()
         );
         return Map.of("message", "Google account linked successfully");
+    }
+
+    private AuthResponse toAuthResponse(GoogleAuthResponse g) {
+        return new AuthResponse(
+                g.userId(),
+                g.email(),
+                g.name(),
+                g.accessToken(),
+                g.refreshToken(),
+                g.needsProfileCompletion(),
+                g.needsTutorOnboarding(),
+                g.roles(),
+                g.activeRole()
+        );
     }
 }

@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { clearAuthSession, getAccessToken } from '../utils/storage';
+import { clearAuthSession } from '../utils/storage';
 import { refreshSessionFromStorage } from './sessionRefresh';
+import { navigateTo } from '../utils/navigation';
 
 interface RetryRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -8,6 +9,7 @@ interface RetryRequestConfig extends InternalAxiosRequestConfig {
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
+  withCredentials: true,
 });
 
 const PUBLIC_AUTH_ENDPOINTS = new Set([
@@ -47,14 +49,6 @@ function isPublicAuthEndpoint(url?: string): boolean {
   return false;
 }
 
-api.interceptors.request.use((config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-  const token = getAccessToken();
-  if (token && !isPublicAuthEndpoint(config.url)) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 api.interceptors.response.use(
   (response: AxiosResponse): AxiosResponse => response,
   async (error: AxiosError): Promise<AxiosResponse> => {
@@ -64,18 +58,12 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       const result = await refreshSessionFromStorage();
       if (result === 'ok') {
-        const accessToken = getAccessToken();
-        if (!accessToken) {
-          clearAuthSession();
-          return Promise.reject(error);
-        }
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        // Cookie set by server during refresh — retry with credentials already on instance
         return api(originalRequest);
       }
       clearAuthSession();
       if (result === 'failed') {
-        window.location.href = '/';
+        navigateTo('/');
       }
       return Promise.reject(error);
     }

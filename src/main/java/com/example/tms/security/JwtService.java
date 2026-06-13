@@ -26,7 +26,12 @@ public class JwtService {
     private static final long REFRESH_TOKEN_TTL_SECONDS = 2592000L; //30 days
 
     public JwtService(@Value("${app.security.jwt-secret}") String secret) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                "app.security.jwt-secret must be at least 32 bytes; got " + keyBytes.length);
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateAccessToken(UUID userId, String email, String activeRole) {
