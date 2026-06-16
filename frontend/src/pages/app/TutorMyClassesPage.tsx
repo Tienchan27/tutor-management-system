@@ -21,6 +21,7 @@ function TutorMyClassesPage() {
   const [mySessionClasses, setMySessionClasses] = useState<TutorSessionClassOptionResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inactiveExpanded, setInactiveExpanded] = useState(false);
 
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [logClassId, setLogClassId] = useState('');
@@ -105,6 +106,9 @@ function TutorMyClassesPage() {
 
   const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
 
+  const activeClasses = classes.filter((c) => c.classStatus === 'ACTIVE');
+  const inactiveClasses = classes.filter((c) => c.classStatus !== 'ACTIVE');
+
   return (
     <div className="stack-16">
       <PageHeader title="My classes" subtitle="Your assigned classes and quick actions." />
@@ -121,20 +125,56 @@ function TutorMyClassesPage() {
           </>
         ) : null}
         {!!classes.length ? (
-          <div className="class-card-grid">
-            {classes.map((item) => (
-              <ClassCard
-                key={item.classId}
-                classLabel={displayClassLabel(item)}
-                subjectName={item.subjectName}
-                classStatus={item.classStatus}
-                pricePerHour={item.pricePerHour}
-                sessionCount={item.sessionCount}
-                latestSessionDate={item.latestSessionDate}
-                onLogSession={() => handleOpenLogSession(item.classId)}
-                onViewRoster={() => void handleViewRoster(item.classId)}
-              />
-            ))}
+          <div className="class-list">
+            {activeClasses.length > 0 ? (
+              <>
+                <div className="class-section-header class-section-header-active">
+                  <span>Active classes</span>
+                  <span className="class-section-count">{activeClasses.length}</span>
+                </div>
+                {activeClasses.map((item) => (
+                  <ClassCard
+                    key={item.classId}
+                    classLabel={displayClassLabel(item)}
+                    subjectName={item.subjectName}
+                    classStatus={item.classStatus}
+                    pricePerHour={item.pricePerHour}
+                    sessionCount={item.sessionCount}
+                    latestSessionDate={item.latestSessionDate}
+                    onLogSession={() => handleOpenLogSession(item.classId)}
+                    onViewRoster={() => void handleViewRoster(item.classId)}
+                  />
+                ))}
+              </>
+            ) : null}
+            {inactiveClasses.length > 0 ? (
+              <>
+                <button
+                  type="button"
+                  className="class-section-header class-section-header-inactive"
+                  onClick={() => setInactiveExpanded((v) => !v)}
+                >
+                  <span>Inactive classes</span>
+                  <span className="class-section-count">{inactiveClasses.length}</span>
+                  <span className={`class-section-chevron${inactiveExpanded ? ' expanded' : ''}`}>▸</span>
+                </button>
+                {inactiveExpanded
+                  ? inactiveClasses.map((item) => (
+                      <ClassCard
+                        key={item.classId}
+                        classLabel={displayClassLabel(item)}
+                        subjectName={item.subjectName}
+                        classStatus={item.classStatus}
+                        pricePerHour={item.pricePerHour}
+                        sessionCount={item.sessionCount}
+                        latestSessionDate={item.latestSessionDate}
+                        onLogSession={() => handleOpenLogSession(item.classId)}
+                        onViewRoster={() => void handleViewRoster(item.classId)}
+                      />
+                    ))
+                  : null}
+              </>
+            ) : null}
           </div>
         ) : null}
       </PageSection>

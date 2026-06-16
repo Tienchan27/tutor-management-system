@@ -35,7 +35,7 @@ function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }
     <div className="dialog-overlay" role="presentation" onClick={onClose}>
       <div
         ref={panelRef}
-        className={`dialog-card modal-card modal-card-${size}`}
+        className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -44,17 +44,17 @@ function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }
       >
         <div className="modal-header">
           <div>
-            <h2 id="modal-title" className="dialog-title">
+            <h2 id="modal-title" className="modal-title">
               {title}
             </h2>
-            {subtitle ? <p className="muted mb-0">{subtitle}</p> : null}
+            {subtitle ? <p className="modal-subtitle">{subtitle}</p> : null}
           </div>
-          <button type="button" className="slide-over-close" aria-label="Close" onClick={onClose}>
-            ×
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            ✕
           </button>
         </div>
         <div className="modal-body">{children}</div>
-        {footer ? <div className="dialog-actions modal-footer">{footer}</div> : null}
+        {footer ? <div className="modal-footer">{footer}</div> : null}
       </div>
     </div>
   );

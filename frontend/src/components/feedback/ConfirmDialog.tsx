@@ -34,17 +34,19 @@ function ConfirmDialog({
   return (
     <div className="dialog-overlay" role="presentation" onClick={onCancel}>
       <div
-        className="dialog-card"
+        className="modal-panel"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="confirm-dialog-title" className="dialog-title">
-          {title}
-        </h2>
-        <div className="dialog-body">{message}</div>
-        <div className="dialog-actions">
+        <div className="modal-header">
+          <h2 id="confirm-dialog-title" className="modal-title">
+            {title}
+          </h2>
+        </div>
+        <div className="modal-body">{message}</div>
+        <div className="modal-footer">
           <Button variant="secondary" type="button" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>

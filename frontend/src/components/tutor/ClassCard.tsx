@@ -23,33 +23,35 @@ function ClassCard({
   onLogSession,
   onViewRoster,
 }: ClassCardProps) {
+  const isInactive = classStatus !== 'ACTIVE';
+
   return (
-    <article className="class-card">
-      <div className="class-card-header">
-        <h3 className="class-card-title">{classLabel}</h3>
-        <StatusPill label={classStatus} tone={classStatus === 'ACTIVE' ? 'success' : 'neutral'} />
+    <article className={`class-row${isInactive ? ' class-row-inactive' : ''}`}>
+      <div className="class-row-info">
+        <div className="class-row-name">{classLabel}</div>
+        <div className="class-row-subject">{subjectName}</div>
       </div>
-      <p className="class-card-subject muted mb-0">{subjectName}</p>
-      <dl className="class-card-meta">
-        <div>
-          <dt>Rate</dt>
-          <dd>{formatVnd(pricePerHour)}/hr</dd>
+      <div className="class-row-stats">
+        <div className="class-stat">
+          <div className="class-stat-label">Rate</div>
+          <div className="class-stat-value">{formatVnd(pricePerHour)}/hr</div>
         </div>
-        <div>
-          <dt>Sessions</dt>
-          <dd>{sessionCount}</dd>
+        <div className="class-stat">
+          <div className="class-stat-label">Sessions</div>
+          <div className="class-stat-value">{sessionCount}</div>
         </div>
-        <div>
-          <dt>Latest</dt>
-          <dd>{latestSessionDate ? formatDate(latestSessionDate) : '—'}</dd>
+        <div className="class-stat">
+          <div className="class-stat-label">Latest</div>
+          <div className="class-stat-value">{latestSessionDate ? formatDate(latestSessionDate) : '—'}</div>
         </div>
-      </dl>
-      <div className="class-card-actions">
-        <Button type="button" onClick={onLogSession}>
+      </div>
+      <div className="class-row-actions">
+        <StatusPill label={classStatus} tone={classStatus === 'ACTIVE' ? 'success' : 'neutral'} />
+        <Button type="button" onClick={onLogSession} disabled={isInactive}>
           Log session
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onViewRoster}>
-          View roster
+          Roster
         </Button>
       </div>
     </article>
