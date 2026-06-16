@@ -9,6 +9,7 @@ import Stepper from '../../components/ui/Stepper';
 import StudentChipList from '../../components/admin/StudentChipList';
 import StatusPill from '../../components/ui/StatusPill';
 import EmptyState from '../../components/ui/EmptyState';
+import ConfirmDialog from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { formatDate, formatVnd } from '../../utils/format';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
@@ -61,6 +62,25 @@ function buildSuggestedClassName(subjectName: string, studentNames: string[]): s
   return `[${subjectName}] ${studentNames.join(' - ')}`;
 }
 
+function classStatusTone(status: string): 'success' | 'warning' | 'neutral' {
+  if (status === 'ACTIVE') return 'success';
+  if (status === 'AVAILABLE') return 'warning';
+  return 'neutral';
+}
+
+function classStatusLabel(status: string): string {
+  if (status === 'ACTIVE') return 'Active';
+  if (status === 'AVAILABLE') return 'Awaiting tutor';
+  return status;
+}
+
+function applicationStatusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'APPROVED') return 'success';
+  if (status === 'REJECTED') return 'danger';
+  if (status === 'PENDING') return 'warning';
+  return 'neutral';
+}
+
 function AdminClassAssignmentPage() {
   const { showToast } = useToast();
   const [subjects, setSubjects] = useState<SubjectOptionResponse[]>([]);
@@ -80,6 +100,11 @@ function AdminClassAssignmentPage() {
   const [isDisplayNameManuallyEdited, setIsDisplayNameManuallyEdited] = useState<boolean>(false);
   const [lastAutoDisplayName, setLastAutoDisplayName] = useState<string>('');
   const [note, setNote] = useState<string>('');
+
+  // Confirm dialogs
+  const [confirmApproveId, setConfirmApproveId] = useState<string>('');
+  const [confirmRejectId, setConfirmRejectId] = useState<string>('');
+  const [rejectReason, setRejectReason] = useState<string>('');
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === subjectId) || null,
@@ -230,6 +255,11 @@ function AdminClassAssignmentPage() {
         setError('Please select a subject.');
         return;
       }
+      const price = Number(pricePerHour);
+      if (!pricePerHour || isNaN(price) || price < 1) {
+        setError('Please enter a valid tuition fee (minimum 1).');
+        return;
+      }
       setPublishStep('review');
     }
   }
@@ -284,29 +314,33 @@ function AdminClassAssignmentPage() {
     }
   }
 
-  async function handleApprove(applicationId: string): Promise<void> {
-    setApplicationLoadingId(applicationId);
-    setError('');
+  async function handleApproveConfirmed(): Promise<void> {
+    const id = confirmApproveId;
+    setConfirmApproveId('');
+    setApplicationLoadingId(id);
     try {
-      await approveClassApplication(applicationId);
+      await approveClassApplication(id);
       showToast('Tutor assigned. Other pending applications were rejected.', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to approve application'));
+      showToast(extractApiErrorMessage(err, 'Failed to approve application'), 'error');
     } finally {
       setApplicationLoadingId('');
     }
   }
 
-  async function handleReject(applicationId: string): Promise<void> {
-    setApplicationLoadingId(applicationId);
-    setError('');
+  async function handleRejectConfirmed(): Promise<void> {
+    const id = confirmRejectId;
+    const reason = rejectReason.trim() || undefined;
+    setConfirmRejectId('');
+    setRejectReason('');
+    setApplicationLoadingId(id);
     try {
-      await rejectClassApplication(applicationId);
+      await rejectClassApplication(id, reason);
       showToast('Application rejected', 'success');
       await loadAssignmentData();
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to reject application'));
+      showToast(extractApiErrorMessage(err, 'Failed to reject application'), 'error');
     } finally {
       setApplicationLoadingId('');
     }
@@ -356,6 +390,7 @@ function AdminClassAssignmentPage() {
                 placeholder="Student name"
                 value={studentDraft.name}
                 onChange={(event) => setStudentDraft((prev) => ({ ...prev, name: event.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); } }}
               />
               <Button type="button" variant="secondary" className="compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
                 {studentLookupLoading ? 'Checking...' : 'Add student'}
@@ -382,6 +417,7 @@ function AdminClassAssignmentPage() {
                     className="text-input money-number"
                     type="number"
                     step="1"
+                    min="1"
                     placeholder="Tuition fee"
                     value={pricePerHour}
                     onChange={(event) => {
@@ -481,20 +517,33 @@ function AdminClassAssignmentPage() {
             <thead>
               <tr>
                 <th scope="col">Class</th>
+                <th scope="col">Status</th>
                 <th scope="col">Students</th>
                 <th scope="col">Applications</th>
                 <th scope="col">Rate</th>
               </tr>
             </thead>
             <tbody>
-              {publishedClasses.map((item) => (
-                <tr key={item.classId}>
-                  <td>{item.displayName}</td>
-                  <td>{item.studentNames.join(', ') || '—'}</td>
-                  <td>{item.applications.length}</td>
-                  <td>{formatVnd(item.pricePerHour || 0)}/hr</td>
-                </tr>
-              ))}
+              {publishedClasses.map((item) => {
+                const pendingCount = item.applications.filter((a) => a.status === 'PENDING').length;
+                return (
+                  <tr key={item.classId}>
+                    <td>{item.displayName}</td>
+                    <td>
+                      <StatusPill label={classStatusLabel(item.status)} tone={classStatusTone(item.status)} />
+                    </td>
+                    <td>{item.studentNames.join(', ') || '—'}</td>
+                    <td>
+                      {pendingCount > 0 ? (
+                        <StatusPill label={`${pendingCount} pending`} tone="warning" />
+                      ) : (
+                        <span className="muted">{item.applications.length > 0 ? 'Reviewed' : '—'}</span>
+                      )}
+                    </td>
+                    <td>{formatVnd(item.pricePerHour || 0)}/hr</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -502,19 +551,24 @@ function AdminClassAssignmentPage() {
     </PageSection>
   );
 
+  const classesWithPending = publishedClasses.filter(
+    (c) => c.status === 'AVAILABLE' && c.applications.some((a) => a.status === 'PENDING')
+  );
+
   const applicationsPanel = (
     <PageSection title="Tutor applications">
-      {!publishedClasses.length ? (
-        <EmptyState title="No applications" description="Published classes will show tutor applications here." />
+      {!classesWithPending.length ? (
+        <EmptyState title="No pending applications" description="Pending tutor applications will appear here." />
       ) : null}
-      {publishedClasses.map((item) => (
-        <SectionBlock key={item.classId} title={item.displayName}>
-          <div className="section-header">
-            <p className="muted mb-0">Students: {item.studentNames.join(' - ') || '—'}</p>
-            <StatusPill label={`${item.applications.length} pending`} tone="warning" />
-          </div>
-          {item.note ? <p className="muted">Note: {item.note}</p> : null}
-          {item.applications.length ? (
+      {classesWithPending.map((item) => {
+        const pendingApps = item.applications.filter((a) => a.status === 'PENDING');
+        return (
+          <SectionBlock key={item.classId} title={item.displayName}>
+            <div className="section-header">
+              <p className="muted mb-0">Students: {item.studentNames.join(' - ') || '—'}</p>
+              <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
+            </div>
+            {item.note ? <p className="muted">Note: {item.note}</p> : null}
             <div className="table-wrap">
               <table className="table">
                 <thead>
@@ -526,47 +580,46 @@ function AdminClassAssignmentPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {item.applications.map((application) => (
+                  {pendingApps.map((application) => (
                     <tr key={application.applicationId}>
                       <td>
                         {application.tutorName} ({application.tutorEmail})
                       </td>
-                      <td>{application.status}</td>
+                      <td>
+                        <StatusPill
+                          label={application.status}
+                          tone={applicationStatusTone(application.status)}
+                        />
+                      </td>
                       <td>{formatDate(application.appliedAt)}</td>
                       <td>
-                        {application.status === 'PENDING' ? (
-                          <div className="table-actions">
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleApprove(application.applicationId)}
-                              loading={applicationLoadingId === application.applicationId}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleReject(application.applicationId)}
-                              disabled={applicationLoadingId === application.applicationId}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          '—'
-                        )}
+                        <div className="table-actions">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => setConfirmApproveId(application.applicationId)}
+                            loading={applicationLoadingId === application.applicationId}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => { setConfirmRejectId(application.applicationId); setRejectReason(''); }}
+                            disabled={!!applicationLoadingId}
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : (
-            <p className="muted mb-0">No tutor applications yet.</p>
-          )}
-        </SectionBlock>
-      ))}
+          </SectionBlock>
+        );
+      })}
     </PageSection>
   );
 
@@ -579,6 +632,38 @@ function AdminClassAssignmentPage() {
           { id: 'published', label: 'Published', panel: publishedPanel },
           { id: 'applications', label: 'Applications', panel: applicationsPanel },
         ]}
+      />
+
+      <ConfirmDialog
+        open={!!confirmApproveId}
+        title="Approve application"
+        message="Assign this tutor to the class? All other pending applications for this class will be automatically rejected."
+        confirmLabel="Approve"
+        confirmVariant="primary"
+        loading={!!applicationLoadingId}
+        onConfirm={() => void handleApproveConfirmed()}
+        onCancel={() => setConfirmApproveId('')}
+      />
+
+      <ConfirmDialog
+        open={!!confirmRejectId}
+        title="Reject application"
+        message={
+          <div className="stack-8">
+            <p className="mb-0">Are you sure you want to reject this application?</p>
+            <textarea
+              className="text-input text-area-notes"
+              placeholder="Reason (optional)"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+        }
+        confirmLabel="Reject"
+        confirmVariant="danger"
+        loading={!!applicationLoadingId}
+        onConfirm={() => void handleRejectConfirmed()}
+        onCancel={() => { setConfirmRejectId(''); setRejectReason(''); }}
       />
     </div>
   );

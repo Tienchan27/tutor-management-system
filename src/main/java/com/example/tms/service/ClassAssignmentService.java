@@ -40,7 +40,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ClassAssignmentService {
@@ -158,8 +160,23 @@ public class ClassAssignmentService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public Slice<PublishedClassResponse> listPublishedClasses(User admin, Pageable pageable) {
-        return tutorClassRepository.findByStatus(ClassStatus.AVAILABLE, pageable)
-                .map(this::toPublishedClassResponse);
+        Slice<TutorClass> classes = tutorClassRepository.findByStatusIn(
+                List.of(ClassStatus.AVAILABLE, ClassStatus.ACTIVE), pageable);
+        List<UUID> classIds = classes.stream().map(TutorClass::getId).toList();
+        if (classIds.isEmpty()) {
+            return classes.map(tc -> mapPublishedClassResponse(tc, List.of(), List.of()));
+        }
+        Map<UUID, List<Enrollment>> enrollmentsByClass = enrollmentRepository
+                .findByClassIdsAndStatus(classIds, EnrollmentStatus.ACTIVE)
+                .stream().collect(Collectors.groupingBy(e -> e.getTutorClass().getId()));
+        Map<UUID, List<TutorClassApplication>> applicationsByClass = classApplicationRepository
+                .findByClassIdsOrderByAppliedAtAsc(classIds)
+                .stream().collect(Collectors.groupingBy(a -> a.getTutorClass().getId()));
+        return classes.map(tc -> mapPublishedClassResponse(
+                tc,
+                enrollmentsByClass.getOrDefault(tc.getId(), List.of()),
+                applicationsByClass.getOrDefault(tc.getId(), List.of())
+        ));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -304,8 +321,21 @@ public class ClassAssignmentService {
 
     @PreAuthorize("hasRole('TUTOR')")
     public Slice<AvailableClassResponse> listAvailableClasses(User tutor, Pageable pageable) {
-        return tutorClassRepository.findByStatus(ClassStatus.AVAILABLE, pageable)
-                .map(tutorClass -> toAvailableClassResponse(tutorClass, tutor));
+        Slice<TutorClass> classes = tutorClassRepository.findByStatus(ClassStatus.AVAILABLE, pageable);
+        List<UUID> classIds = classes.stream().map(TutorClass::getId).toList();
+        if (classIds.isEmpty()) {
+            return classes.map(tc -> toAvailableClassResponse(tc, List.of(), false));
+        }
+        Map<UUID, List<Enrollment>> enrollmentsByClass = enrollmentRepository
+                .findByClassIdsAndStatus(classIds, EnrollmentStatus.ACTIVE)
+                .stream().collect(Collectors.groupingBy(e -> e.getTutorClass().getId()));
+        Set<UUID> appliedClassIds = classApplicationRepository.findClassIdsByTutorIdAndStatus(
+                tutor.getId(), classIds, TutorClassApplicationStatus.PENDING);
+        return classes.map(tc -> toAvailableClassResponse(
+                tc,
+                enrollmentsByClass.getOrDefault(tc.getId(), List.of()),
+                appliedClassIds.contains(tc.getId())
+        ));
     }
 
     @Transactional
@@ -449,18 +479,12 @@ public class ClassAssignmentService {
         );
     }
 
-    private AvailableClassResponse toAvailableClassResponse(TutorClass tutorClass, User tutor) {
-        List<Enrollment> enrollments = enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE);
-        List<String> studentNames = enrollments.stream().map(enrollment -> enrollment.getStudent().getName()).toList();
-        boolean hasApplied = classApplicationRepository.findByTutorClassIdAndTutorId(tutorClass.getId(), tutor.getId())
-                .map(application -> application.getStatus() == TutorClassApplicationStatus.PENDING)
-                .orElse(false);
-
+    private AvailableClassResponse toAvailableClassResponse(TutorClass tutorClass, List<Enrollment> enrollments, boolean hasApplied) {
+        List<String> studentNames = enrollments.stream().map(e -> e.getStudent().getName()).toList();
         String displayName = tutorClass.getDisplayName();
         if (displayName == null || displayName.isBlank()) {
             displayName = defaultClassName(tutorClass.getSubject().getName(), studentNames);
         }
-
         return new AvailableClassResponse(
                 tutorClass.getId(),
                 displayName,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { applyClass, listAvailableClasses } from '../../services/classAssignmentService';
 import { AvailableClassResponse } from '../../types/classAssignment';
 import { extractApiErrorMessage } from '../../services/authService';
@@ -19,7 +19,7 @@ function TutorClassMarketplacePage() {
   const [actionLoadingId, setActionLoadingId] = useState('');
   const [error, setError] = useState('');
 
-  async function load(): Promise<void> {
+  const load = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError('');
     try {
@@ -30,15 +30,15 @@ function TutorClassMarketplacePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load();
+    void load();
     const unsubscribe = realtimeEventBus.subscribe('MARKETPLACE_UPDATED', () => {
-      window.setTimeout(() => load(), 250);
+      window.setTimeout(() => void load(), 250);
     });
     return () => unsubscribe();
-  }, []);
+  }, [load]);
 
   async function handleApply(classId: string): Promise<void> {
     setActionLoadingId(classId);
@@ -60,7 +60,7 @@ function TutorClassMarketplacePage() {
         title="Find classes"
         subtitle="Browse admin-published classes and apply."
         actions={
-          <Button variant="secondary" size="sm" onClick={load} loading={loading}>
+          <Button variant="secondary" size="sm" onClick={() => void load()} loading={loading}>
             Refresh
           </Button>
         }
@@ -80,6 +80,7 @@ function TutorClassMarketplacePage() {
                   <th scope="col">Subject</th>
                   <th scope="col">Students</th>
                   <th scope="col">Rate</th>
+                  <th scope="col">Note</th>
                   <th scope="col">Status</th>
                   <th scope="col"></th>
                 </tr>
@@ -91,6 +92,7 @@ function TutorClassMarketplacePage() {
                     <td>{item.subjectName}</td>
                     <td>{item.studentNames.join(', ') || '—'}</td>
                     <td>{formatVnd(item.pricePerHour)}/hr</td>
+                    <td>{item.note ? <span className="muted">{item.note}</span> : <span className="muted">—</span>}</td>
                     <td>
                       <StatusPill
                         label={item.hasApplied ? 'Applied' : 'Open'}
@@ -103,7 +105,7 @@ function TutorClassMarketplacePage() {
                         size="sm"
                         disabled={item.hasApplied || actionLoadingId === item.classId}
                         loading={actionLoadingId === item.classId}
-                        onClick={() => handleApply(item.classId)}
+                        onClick={() => void handleApply(item.classId)}
                       >
                         {item.hasApplied ? 'Applied' : 'Apply'}
                       </Button>
