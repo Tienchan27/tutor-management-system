@@ -116,6 +116,7 @@ public class DashboardService {
         return new SliceImpl<>(summaries, pageable, userRolesSlice.hasNext());
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     @Cacheable(cacheNames = "dashboard:admin:detail", key = "'adminDetail:' + #admin.id + ':' + #tutorId + ':' + #month")
     public AdminTutorDetailResponse adminTutorDetail(User admin, UUID tutorId, YearMonth month) {
@@ -162,6 +163,7 @@ public class DashboardService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('TUTOR')")
     @Cacheable(cacheNames = "dashboard:tutor:classes", key = "'tutorClasses:' + #tutor.id")
     public List<TutorClassOverviewResponse> tutorClassOverview(User tutor) {
