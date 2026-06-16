@@ -27,7 +27,14 @@ function Button({
       className={`btn btn-${variant} btn-${size} ${className}`.trim()}
       {...props}
     >
-      {loading ? 'Loading...' : children}
+      {loading ? (
+        <>
+          <span className="btn-spinner" aria-hidden="true" />
+          {children}
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

@@ -115,7 +115,6 @@ function NotificationsPage() {
         }
       />
       <PageSection>
-        <p className="muted small">Unread filter is applied on the client for loaded pages.</p>
         {loading ? <Spinner label="Loading notifications..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
         {!loading && !visibleItems.length ? (

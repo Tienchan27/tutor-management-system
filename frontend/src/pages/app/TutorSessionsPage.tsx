@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  listMySessionClasses,
-  listSessionsByPayrollMonth,
-  updateSessionFinancial,
-} from '../../services/sessionService';
+import { listMySessionClasses, listSessionsByPayrollMonth } from '../../services/sessionService';
 import { SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
 import PageSection from '../../components/layout/PageSection';
 import Button from '../../components/ui/Button';
-import SessionFinancialDrawer from '../../components/sessions/SessionFinancialDrawer';
 import LogSessionModal from '../../components/tutor/LogSessionModal';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { getCurrentYearMonth } from '../../utils/format';
@@ -19,8 +14,6 @@ function TutorSessionsPage() {
   const { showToast } = useToast();
   const [month, setMonth] = useState<string>(getCurrentYearMonth());
   const [classFilterId, setClassFilterId] = useState<string>('');
-  const [editItem, setEditItem] = useState<SessionListItem | null>(null);
-  const [saveLoading, setSaveLoading] = useState(false);
   const [items, setItems] = useState<SessionListItem[]>([]);
   const [classes, setClasses] = useState<TutorSessionClassOptionResponse[]>([]);
   const [sessionHasNext, setSessionHasNext] = useState<boolean>(false);
@@ -94,36 +87,11 @@ function TutorSessionsPage() {
     void loadSessions();
   }, [loadClasses, loadSessions]);
 
-  async function handleUpdateFinancial(item: SessionListItem, reason: string): Promise<void> {
-    if (!reason) {
-      setError('Update reason is required for financial changes.');
-      return;
-    }
-    setError('');
-    setSaveLoading(true);
-    try {
-      await updateSessionFinancial(item.id, {
-        tuitionAtLog: item.tuitionAtLog,
-        salaryRateAtLog: item.salaryRateAtLog,
-        payrollMonth: item.payrollMonth,
-        note: item.note || '',
-        reason,
-      });
-      showToast('Financials updated', 'success');
-      setEditItem(null);
-      await loadSessions();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to update session'));
-    } finally {
-      setSaveLoading(false);
-    }
-  }
-
   return (
     <div className="stack-16">
       <PageHeader
         title="Sessions"
-        subtitle="Review and edit logged sessions by month."
+        subtitle="Review your logged sessions by month."
         actions={
           <Button variant="primary" size="sm" onClick={() => setLogModalOpen(true)}>
             Log session
@@ -143,19 +111,9 @@ function TutorSessionsPage() {
           sessionLoadingMore={sessionLoadingMore}
           onMonthChange={setMonth}
           onClassFilterChange={setClassFilterId}
-          onEdit={setEditItem}
           onLoadMore={() => void loadMoreSessions()}
         />
       </PageSection>
-
-      <SessionFinancialDrawer
-        open={!!editItem}
-        item={editItem}
-        loading={saveLoading}
-        showSalaryRate={false}
-        onClose={() => setEditItem(null)}
-        onSave={(item, reason) => void handleUpdateFinancial(item, reason)}
-      />
 
       <LogSessionModal
         open={logModalOpen}

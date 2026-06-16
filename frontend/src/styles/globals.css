@@ -185,7 +185,7 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
 .card-featured {
@@ -218,7 +218,7 @@ a {
 
 .btn-primary {
   background: var(--primary);
-  color: #ffffff;
+  color: #111111;
   border-color: var(--primary);
 }
 
@@ -286,6 +286,22 @@ a {
 
 .btn-block {
   width: 100%;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .input-wrapper {
@@ -1386,26 +1402,27 @@ select {
 }
 
 .status-pill-success {
-  background: #ecfdf3;
-  color: var(--success);
-  border-color: rgba(47, 158, 95, 0.25);
+  background: #d1fae5;
+  color: #065f46;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .status-pill-warning {
-  background: #fff8eb;
-  color: var(--warning);
-  border-color: rgba(200, 138, 30, 0.25);
+  background: #fef3c7;
+  color: #92400e;
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 .status-pill-danger {
-  background: var(--danger-red-light);
-  color: var(--danger-red);
-  border-color: rgba(220, 74, 74, 0.25);
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: rgba(220, 74, 74, 0.35);
 }
 
 .status-pill-neutral {
-  background: var(--surface-soft);
-  color: var(--text-muted);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
 }
 
 .empty-state {

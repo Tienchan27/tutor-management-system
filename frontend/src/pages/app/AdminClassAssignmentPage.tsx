@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
 import Tabs from '../../components/ui/Tabs';
@@ -10,6 +10,7 @@ import StudentChipList from '../../components/admin/StudentChipList';
 import StatusPill from '../../components/ui/StatusPill';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/feedback/ConfirmDialog';
+import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { formatDate, formatVnd } from '../../utils/format';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
@@ -100,6 +101,8 @@ function AdminClassAssignmentPage() {
   const [isDisplayNameManuallyEdited, setIsDisplayNameManuallyEdited] = useState<boolean>(false);
   const [lastAutoDisplayName, setLastAutoDisplayName] = useState<string>('');
   const [note, setNote] = useState<string>('');
+  const [publishedClassName, setPublishedClassName] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
 
   // Confirm dialogs
   const [confirmApproveId, setConfirmApproveId] = useState<string>('');
@@ -188,9 +191,9 @@ function AdminClassAssignmentPage() {
         };
       });
       if (response.exists) {
-        setStudentLookupHint('Existing student found. Name has been auto-filled and is still editable.');
+        setStudentLookupHint('Student found — name filled in automatically.');
       } else {
-        setStudentLookupHint('No student found with this email. You can set the name manually.');
+        setStudentLookupHint('New student — enter a display name below.');
       }
     } catch {
       setStudentLookupHint('');
@@ -209,13 +212,20 @@ function AdminClassAssignmentPage() {
       return;
     }
     if (students.some((student) => normalizeEmail(student.email) === email)) {
-      setError('This student email is already in the class list.');
+      setError('This student is already in the class list.');
       return;
     }
 
     setStudents((prev) => [...prev, { email, name }]);
     setStudentDraft({ email: '', name: '' });
     setStudentLookupHint('');
+  }
+
+  function handleEmailKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddStudent();
+    }
   }
 
   function handleRemoveStudent(email: string): void {
@@ -275,8 +285,7 @@ function AdminClassAssignmentPage() {
     }
   }
 
-  async function handlePublishClass(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function handlePublishClass(): Promise<void> {
     setError('');
     if (!students.length) {
       setError('Please add at least one student before publishing.');
@@ -284,6 +293,7 @@ function AdminClassAssignmentPage() {
     }
     setPublishing(true);
     try {
+      const finalName = displayName.trim() || suggestedDisplayName;
       await publishClass({
         students,
         subjectId,
@@ -291,6 +301,7 @@ function AdminClassAssignmentPage() {
         displayName: displayName.trim() || null,
         note: note.trim() || null,
       });
+      setPublishedClassName(finalName);
       setStudents([]);
       setStudentDraft({ email: '', name: '' });
       setDisplayName('');
@@ -305,7 +316,7 @@ function AdminClassAssignmentPage() {
         setPricePerHour('');
       }
       setIsPriceManuallyEdited(false);
-      showToast('Class published successfully', 'success');
+      setShowSuccessModal(true);
       await loadAssignmentData();
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to publish class'));
@@ -373,7 +384,7 @@ function AdminClassAssignmentPage() {
     <PageSection title="Publish new class">
       {error ? <p className="error-text">{error}</p> : null}
       <Stepper steps={PUBLISH_STEPS} activeStepId={publishStep} />
-      <form onSubmit={handlePublishClass} className="stack-16">
+      <div className="stack-16">
         {publishStep === 'students' ? (
           <SectionBlock title="Add students">
             <div className="grid-form grid-form-no-margin">
@@ -384,6 +395,7 @@ function AdminClassAssignmentPage() {
                 value={studentDraft.email}
                 onChange={(event) => setStudentDraft((prev) => ({ ...prev, email: event.target.value }))}
                 onBlur={() => void handleStudentLookupOnBlur()}
+                onKeyDown={handleEmailKeyDown}
               />
               <input
                 className="text-input"
@@ -406,7 +418,7 @@ function AdminClassAssignmentPage() {
             <div className="stack-16">
               <SectionBlock title="Subject and pricing">
                 <div className="grid-form grid-form-no-margin">
-                  <select className="text-input" value={subjectId} onChange={(event) => handleSubjectChange(event.target.value)} required>
+                  <select className="text-input" value={subjectId} onChange={(event) => handleSubjectChange(event.target.value)}>
                     {subjects.map((subject) => (
                       <option key={subject.id} value={subject.id}>
                         {subject.name}
@@ -498,12 +510,12 @@ function AdminClassAssignmentPage() {
               Next
             </Button>
           ) : (
-            <Button type="submit" loading={publishing}>
+            <Button type="button" onClick={() => void handlePublishClass()} loading={publishing}>
               Publish class
             </Button>
           )}
         </div>
-      </form>
+      </div>
     </PageSection>
   );
 
@@ -568,7 +580,7 @@ function AdminClassAssignmentPage() {
               <p className="muted mb-0">Students: {item.studentNames.join(' - ') || '—'}</p>
               <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
             </div>
-            {item.note ? <p className="muted">Note: {item.note}</p> : null}
+            {item.note ? <p className="muted">{item.note}</p> : null}
             <div className="table-wrap">
               <table className="table">
                 <thead>
@@ -603,7 +615,7 @@ function AdminClassAssignmentPage() {
                             Approve
                           </Button>
                           <Button
-                            variant="secondary"
+                            variant="danger"
                             size="sm"
                             onClick={() => { setConfirmRejectId(application.applicationId); setRejectReason(''); }}
                             disabled={!!applicationLoadingId}
@@ -633,6 +645,24 @@ function AdminClassAssignmentPage() {
           { id: 'applications', label: 'Applications', panel: applicationsPanel },
         ]}
       />
+
+      <Modal
+        open={showSuccessModal}
+        title="Class published"
+        onClose={() => setShowSuccessModal(false)}
+      >
+        <div className="stack-16">
+          <p className="muted">
+            <strong>{publishedClassName || 'The class'}</strong> has been published and is now visible to tutors.
+            Tutors can apply and you can review their applications in the Applications tab.
+          </p>
+          <div className="form-actions">
+            <Button variant="primary" onClick={() => setShowSuccessModal(false)}>
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={!!confirmApproveId}

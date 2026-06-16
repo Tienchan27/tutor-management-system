@@ -1,7 +1,6 @@
 import { SessionListItem, TutorSessionClassOptionResponse } from '../../../types/sessions';
 
 import Button from '../../../components/ui/Button';
-
 import { formatVnd } from '../../../utils/format';
 
 
@@ -25,8 +24,6 @@ interface TutorSessionMonthListProps {
   onMonthChange: (month: string) => void;
 
   onClassFilterChange: (classId: string) => void;
-
-  onEdit: (item: SessionListItem) => void;
 
   onLoadMore: () => void;
 
@@ -53,8 +50,6 @@ function TutorSessionMonthList({
   onMonthChange,
 
   onClassFilterChange,
-
-  onEdit,
 
   onLoadMore,
 
@@ -148,8 +143,6 @@ function TutorSessionMonthList({
 
                   </th>
 
-                  <th scope="col"></th>
-
                 </tr>
 
               </thead>
@@ -167,16 +160,6 @@ function TutorSessionMonthList({
                     <td>{item.durationHours}h</td>
 
                     <td className="money-cell">{formatVnd(item.tuitionAtLog)}</td>
-
-                    <td>
-
-                      <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(item)}>
-
-                        Edit financials
-
-                      </Button>
-
-                    </td>
 
                   </tr>
 
