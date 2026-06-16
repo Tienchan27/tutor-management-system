@@ -1,6 +1,7 @@
 package com.example.tms.config;
 
 import com.example.tms.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .anonymous(anonymous -> anonymous.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // ASYNC and ERROR dispatcher types must be permitted — Spring Security
+                        // re-runs the filter chain on async dispatches (e.g. SSE stream cleanup),
+                        // but SecurityContext is empty at that point, causing 500s on other threads.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // Public auth endpoints
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
