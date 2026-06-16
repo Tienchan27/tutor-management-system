@@ -276,14 +276,14 @@ a {
 .btn-outline {
   background: var(--bg-surface);
   color: var(--text);
-  border-color: var(--border-strong);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  border-color: #94a3b8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
 }
 
 .btn-secondary:hover:not(:disabled),
 .btn-outline:hover:not(:disabled) {
   background: var(--bg-subtle);
-  border-color: #94a3b8;
+  border-color: #64748b;
 }
 
 .btn-block {
@@ -1786,13 +1786,14 @@ select {
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--surface-soft);
-  border-color: var(--border);
+  background: var(--bg-subtle);
+  border-color: #94a3b8;
+  color: var(--text);
 }
 
 @media (max-width: 920px) {
@@ -1953,8 +1954,8 @@ select {
   color: var(--error);
 }
 
-/* Class cards (AdminClassAssignmentPage) */
-.class-card {
+/* Admin class assignment cards (AdminClassAssignmentPage) */
+.ac-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1962,16 +1963,16 @@ select {
   overflow: hidden;
 }
 
-.class-card-header {
+.ac-card-header {
   padding: 14px 16px;
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
 
-.class-card-body { flex: 1; min-width: 0; }
+.ac-card-body { flex: 1; min-width: 0; }
 
-.class-card-title-row {
+.ac-card-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1979,13 +1980,13 @@ select {
   margin-bottom: 4px;
 }
 
-.class-card-name {
+.ac-card-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 
-.class-card-meta {
+.ac-card-meta {
   display: flex;
   gap: 14px;
   font-size: 12px;
@@ -1994,7 +1995,7 @@ select {
   margin-bottom: 6px;
 }
 
-.class-card-students {
+.ac-card-students {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -2009,7 +2010,7 @@ select {
   color: var(--text-secondary);
 }
 
-.class-card-actions {
+.ac-card-edit-actions {
   display: flex;
   gap: 4px;
   align-items: center;
@@ -2040,13 +2041,13 @@ select {
   border-color: rgba(220, 74, 74, 0.3);
 }
 
-.class-card-applications {
+.ac-card-applications {
   border-top: 1px solid var(--border);
   background: var(--bg-subtle);
   padding: 10px 16px 12px;
 }
 
-.class-card-apps-label {
+.ac-card-apps-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);

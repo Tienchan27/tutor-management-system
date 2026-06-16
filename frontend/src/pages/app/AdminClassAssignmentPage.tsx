@@ -352,17 +352,17 @@ function AdminClassAssignmentPage() {
         {publishedClasses.map((cls) => {
           const pendingApps = cls.applications.filter((a) => a.status === 'PENDING');
           return (
-            <div key={cls.classId} className="class-card">
-              <div className="class-card-header">
-                <div className="class-card-body">
-                  <div className="class-card-title-row">
-                    <span className="class-card-name">{cls.displayName}</span>
+            <div key={cls.classId} className="ac-card">
+              <div className="ac-card-header">
+                <div className="ac-card-body">
+                  <div className="ac-card-title-row">
+                    <span className="ac-card-name">{cls.displayName}</span>
                     <StatusPill label={classStatusLabel(cls.status)} tone={classStatusTone(cls.status)} />
                     {pendingApps.length > 0 ? (
                       <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
                     ) : null}
                   </div>
-                  <div className="class-card-meta">
+                  <div className="ac-card-meta">
                     <span>{cls.subjectName}</span>
                     <span>{formatVnd(cls.pricePerHour)}/hr</span>
                     {cls.applications.find((a) => a.status === 'APPROVED') ? (
@@ -370,7 +370,7 @@ function AdminClassAssignmentPage() {
                     ) : null}
                   </div>
                   {cls.studentNames.length > 0 ? (
-                    <div className="class-card-students">
+                    <div className="ac-card-students">
                       {cls.studentNames.map((name) => (
                         <span key={name} className="student-chip-label">{name}</span>
                       ))}
@@ -378,7 +378,7 @@ function AdminClassAssignmentPage() {
                   ) : null}
                   {cls.note ? <p className="muted small mb-0 mt-4">{cls.note}</p> : null}
                 </div>
-                <div className="class-card-actions">
+                <div className="ac-card-edit-actions">
                   <button
                     type="button"
                     className="icon-btn"
@@ -400,8 +400,8 @@ function AdminClassAssignmentPage() {
               </div>
 
               {pendingApps.length > 0 ? (
-                <div className="class-card-applications">
-                  <p className="class-card-apps-label">Pending applications</p>
+                <div className="ac-card-applications">
+                  <p className="ac-card-apps-label">Pending applications</p>
                   {pendingApps.map((app) => (
                     <div key={app.applicationId} className="application-row">
                       <div className="application-info">
@@ -433,7 +433,7 @@ function AdminClassAssignmentPage() {
               ) : null}
 
               {cls.status !== 'ACTIVE' && cls.applications.filter((a) => a.status !== 'PENDING').length > 0 && pendingApps.length === 0 ? (
-                <div className="class-card-applications">
+                <div className="ac-card-applications">
                   {cls.applications
                     .filter((a) => a.status !== 'PENDING')
                     .map((app) => (
