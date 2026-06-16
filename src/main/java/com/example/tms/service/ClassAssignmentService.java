@@ -8,6 +8,7 @@ import com.example.tms.api.dto.classes.PublishedClassResponse;
 import com.example.tms.api.dto.classes.StudentLookupResponse;
 import com.example.tms.api.dto.classes.SubjectOptionResponse;
 import com.example.tms.api.dto.classes.TutorClassApplicationResponse;
+import com.example.tms.api.dto.classes.UpdateClassRequest;
 import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.Subject;
 import com.example.tms.entity.TutorClass;
@@ -384,6 +385,41 @@ public class ClassAssignmentService {
         );
         realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + classId, adminQueueEvent);
         return new ApplyClassResponse(application.getId(), classId, application.getStatus().name(), application.getAppliedAt());
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public PublishedClassResponse updateClass(User admin, UUID classId, UpdateClassRequest request) {
+        TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
+                .orElseThrow(() -> new ApiException("Class not found"));
+        if (request.displayName() != null && !request.displayName().isBlank()) {
+            tutorClass.setDisplayName(request.displayName().trim());
+        }
+        if (request.pricePerHour() != null) {
+            tutorClass.setPricePerHour(request.pricePerHour());
+        }
+        tutorClass.setNote(request.note() != null && !request.note().isBlank() ? request.note().trim() : null);
+        tutorClass = tutorClassRepository.save(tutorClass);
+        return toPublishedClassResponse(tutorClass);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteClass(User admin, UUID classId) {
+        TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
+                .orElseThrow(() -> new ApiException("Class not found"));
+        if (!tutorClass.getSessions().isEmpty()) {
+            throw new ApiException("Cannot delete a class that has logged sessions");
+        }
+        tutorClassRepository.delete(tutorClass);
+
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.MARKETPLACE_UPDATED,
+                "role:" + RoleName.TUTOR.name(),
+                "class:" + classId,
+                Map.of("classId", String.valueOf(classId), "status", "DELETED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.TUTOR.name(), "class:" + classId, event);
     }
 
     @Transactional

@@ -1,5 +1,5 @@
 import Button from '../ui/Button';
-import SlideOver from '../ui/SlideOver';
+import Modal from '../ui/Modal';
 import { formatVnd } from '../../utils/format';
 
 export interface StudentTuitionRow {
@@ -30,7 +30,7 @@ function StudentTuitionDrawer({
   const total = students.reduce((sum, row) => sum + row.tuitionAtLog, 0);
 
   return (
-    <SlideOver
+    <Modal
       open={open}
       title="Student tuitions"
       subtitle={`Default per student: ${formatVnd(defaultTuitionPerStudent)}`}
@@ -82,7 +82,7 @@ function StudentTuitionDrawer({
           </tfoot>
         </table>
       </div>
-    </SlideOver>
+    </Modal>
   );
 }
 

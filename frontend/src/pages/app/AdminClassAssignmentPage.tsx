@@ -1,11 +1,9 @@
 import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
-import Tabs from '../../components/ui/Tabs';
 import PageSection from '../../components/layout/PageSection';
 import SectionBlock from '../../components/ui/SectionBlock';
 import Button from '../../components/ui/Button';
-import Stepper from '../../components/ui/Stepper';
 import StudentChipList from '../../components/admin/StudentChipList';
 import StatusPill from '../../components/ui/StatusPill';
 import EmptyState from '../../components/ui/EmptyState';
@@ -16,24 +14,20 @@ import { formatDate, formatVnd } from '../../utils/format';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
 import {
   approveClassApplication,
+  deleteClass,
   listPublishedClasses,
   listSubjects,
   lookupStudentByEmail,
   publishClass,
   rejectClassApplication,
+  updateClass,
 } from '../../services/classAssignmentService';
 import { PublishClassStudentInput, PublishedClassResponse, SubjectOptionResponse } from '../../types/classAssignment';
 
-interface PublishStudentDraft {
+interface StudentDraft {
   email: string;
   name: string;
 }
-
-const PUBLISH_STEPS = [
-  { id: 'students', label: 'Students' },
-  { id: 'setup', label: 'Class setup' },
-  { id: 'review', label: 'Review' },
-];
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -44,22 +38,13 @@ function isLikelyEmail(email: string): boolean {
 }
 
 function defaultNameFromEmail(email: string): string {
-  const normalized = normalizeEmail(email);
-  const localPart = normalized.split('@')[0] || 'student';
-  const safeLocal = localPart.trim();
-  if (!safeLocal) {
-    return 'Student';
-  }
-  return `${safeLocal[0].toUpperCase()}${safeLocal.slice(1)}`;
+  const local = normalizeEmail(email).split('@')[0] || 'student';
+  return local ? `${local[0].toUpperCase()}${local.slice(1)}` : 'Student';
 }
 
 function buildSuggestedClassName(subjectName: string, studentNames: string[]): string {
-  if (!subjectName) {
-    return '';
-  }
-  if (!studentNames.length) {
-    return `[${subjectName}] Class`;
-  }
+  if (!subjectName) return '';
+  if (!studentNames.length) return `[${subjectName}] Class`;
   return `[${subjectName}] ${studentNames.join(' - ')}`;
 }
 
@@ -82,246 +67,233 @@ function applicationStatusTone(status: string): 'success' | 'warning' | 'danger'
   return 'neutral';
 }
 
+interface ClassFormState {
+  students: PublishClassStudentInput[];
+  studentDraft: StudentDraft;
+  studentLookupHint: string;
+  studentLookupLoading: boolean;
+  subjectId: string;
+  pricePerHour: string;
+  isPriceManuallyEdited: boolean;
+  displayName: string;
+  isDisplayNameManuallyEdited: boolean;
+  lastAutoDisplayName: string;
+  note: string;
+}
+
+function emptyForm(subjects: SubjectOptionResponse[]): ClassFormState {
+  const firstSubject = subjects[0];
+  return {
+    students: [],
+    studentDraft: { email: '', name: '' },
+    studentLookupHint: '',
+    studentLookupLoading: false,
+    subjectId: firstSubject?.id ?? '',
+    pricePerHour: firstSubject ? String(firstSubject.defaultPricePerHour) : '',
+    isPriceManuallyEdited: false,
+    displayName: '',
+    isDisplayNameManuallyEdited: false,
+    lastAutoDisplayName: '',
+    note: '',
+  };
+}
+
 function AdminClassAssignmentPage() {
   const { showToast } = useToast();
   const [subjects, setSubjects] = useState<SubjectOptionResponse[]>([]);
   const [publishedClasses, setPublishedClasses] = useState<PublishedClassResponse[]>([]);
-  const [publishing, setPublishing] = useState<boolean>(false);
-  const [applicationLoadingId, setApplicationLoadingId] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [publishStep, setPublishStep] = useState<string>('students');
-  const [studentDraft, setStudentDraft] = useState<PublishStudentDraft>({ email: '', name: '' });
-  const [students, setStudents] = useState<PublishClassStudentInput[]>([]);
-  const [studentLookupHint, setStudentLookupHint] = useState<string>('');
-  const [studentLookupLoading, setStudentLookupLoading] = useState<boolean>(false);
-  const [subjectId, setSubjectId] = useState<string>('');
-  const [pricePerHour, setPricePerHour] = useState<string>('');
-  const [isPriceManuallyEdited, setIsPriceManuallyEdited] = useState<boolean>(false);
-  const [displayName, setDisplayName] = useState<string>('');
-  const [isDisplayNameManuallyEdited, setIsDisplayNameManuallyEdited] = useState<boolean>(false);
-  const [lastAutoDisplayName, setLastAutoDisplayName] = useState<string>('');
-  const [note, setNote] = useState<string>('');
-  const [publishedClassName, setPublishedClassName] = useState<string>('');
-  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState('');
+  const [formError, setFormError] = useState('');
 
-  // Confirm dialogs
-  const [confirmApproveId, setConfirmApproveId] = useState<string>('');
-  const [confirmRejectId, setConfirmRejectId] = useState<string>('');
-  const [rejectReason, setRejectReason] = useState<string>('');
+  const [modalMode, setModalMode] = useState<'new' | 'edit' | null>(null);
+  const [editingClassId, setEditingClassId] = useState<string>('');
+  const [form, setForm] = useState<ClassFormState>(emptyForm([]));
+  const [submitting, setSubmitting] = useState(false);
+
+  const [deleteTargetId, setDeleteTargetId] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [applicationLoadingId, setApplicationLoadingId] = useState('');
+  const [confirmApproveId, setConfirmApproveId] = useState('');
+  const [confirmRejectId, setConfirmRejectId] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
 
   const selectedSubject = useMemo(
-    () => subjects.find((subject) => subject.id === subjectId) || null,
-    [subjects, subjectId]
+    () => subjects.find((s) => s.id === form.subjectId) ?? null,
+    [subjects, form.subjectId]
   );
+
   const suggestedDisplayName = useMemo(
-    () => buildSuggestedClassName(selectedSubject?.name || '', students.map((student) => student.name || 'Student')),
-    [selectedSubject, students]
+    () => buildSuggestedClassName(selectedSubject?.name ?? '', form.students.map((s) => s.name || 'Student')),
+    [selectedSubject, form.students]
   );
 
   useEffect(() => {
-    if (!suggestedDisplayName) {
-      return;
-    }
-    const current = displayName;
-    const shouldAutofill =
-      !isDisplayNameManuallyEdited || current.trim() === '' || current === lastAutoDisplayName;
-    if (!shouldAutofill) {
-      return;
-    }
-    setDisplayName(suggestedDisplayName);
-    setLastAutoDisplayName(suggestedDisplayName);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestedDisplayName]);
+    if (!suggestedDisplayName || form.isDisplayNameManuallyEdited) return;
+    setForm((prev) => ({ ...prev, displayName: suggestedDisplayName, lastAutoDisplayName: suggestedDisplayName }));
+  }, [suggestedDisplayName, form.isDisplayNameManuallyEdited]);
 
-  function handleResetDisplayNameToSuggested(): void {
-    setDisplayName(suggestedDisplayName);
-    setLastAutoDisplayName(suggestedDisplayName);
-    setIsDisplayNameManuallyEdited(false);
-  }
-
-  const loadAssignmentData = useCallback(async (): Promise<void> => {
+  const loadData = useCallback(async (): Promise<void> => {
     try {
-      const [subjectResponse, publishedResponse] = await Promise.all([listSubjects(), listPublishedClasses()]);
-      setSubjects(subjectResponse);
+      const [subjectList, publishedResponse] = await Promise.all([listSubjects(), listPublishedClasses()]);
+      setSubjects(subjectList);
       setPublishedClasses(publishedResponse.items);
-      if (subjectResponse.length > 0) {
-        const nextSubjectId = subjectId || subjectResponse[0].id;
-        setSubjectId(nextSubjectId);
-        if (!isPriceManuallyEdited) {
-          const nextSubject = subjectResponse.find((subject) => subject.id === nextSubjectId) || subjectResponse[0];
-          setPricePerHour(nextSubject.defaultPricePerHour.toString());
-        }
-      }
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to load class assignment data'));
+      setLoadError(extractApiErrorMessage(err, 'Failed to load class data'));
     }
-  }, [subjectId, isPriceManuallyEdited]);
+  }, []);
 
   useEffect(() => {
-    loadAssignmentData();
-
-    const unsubscribe = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', (event) => {
+    loadData();
+    const unsub = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', (event) => {
       if (event.scope?.startsWith('role:ADMIN')) {
-        window.setTimeout(() => {
-          loadAssignmentData();
-        }, 250);
+        window.setTimeout(() => loadData(), 250);
       }
     });
-    return () => {
-      unsubscribe();
-    };
-  }, [loadAssignmentData]);
+    return () => unsub();
+  }, [loadData]);
 
-  async function handleStudentLookupOnBlur(): Promise<void> {
-    setStudentLookupHint('');
-    const normalized = normalizeEmail(studentDraft.email);
-    if (!isLikelyEmail(normalized)) {
-      return;
-    }
-    setStudentLookupLoading(true);
+  function openNewModal(): void {
+    setFormError('');
+    setForm(emptyForm(subjects));
+    setEditingClassId('');
+    setModalMode('new');
+  }
+
+  function openEditModal(cls: PublishedClassResponse): void {
+    setFormError('');
+    const subject = subjects.find((s) => s.name === cls.subjectName);
+    setForm({
+      students: [],
+      studentDraft: { email: '', name: '' },
+      studentLookupHint: '',
+      studentLookupLoading: false,
+      subjectId: subject?.id ?? subjects[0]?.id ?? '',
+      pricePerHour: String(cls.pricePerHour),
+      isPriceManuallyEdited: true,
+      displayName: cls.displayName,
+      isDisplayNameManuallyEdited: true,
+      lastAutoDisplayName: '',
+      note: cls.note ?? '',
+    });
+    setEditingClassId(cls.classId);
+    setModalMode('edit');
+  }
+
+  function closeModal(): void {
+    setModalMode(null);
+    setEditingClassId('');
+    setFormError('');
+  }
+
+  async function handleStudentLookup(): Promise<void> {
+    setForm((prev) => ({ ...prev, studentLookupHint: '' }));
+    const normalized = normalizeEmail(form.studentDraft.email);
+    if (!isLikelyEmail(normalized)) return;
+    setForm((prev) => ({ ...prev, studentLookupLoading: true }));
     try {
-      const response = await lookupStudentByEmail(normalized);
-      setStudentDraft((prev) => {
-        if (normalizeEmail(prev.email) !== normalized) {
-          return prev;
-        }
+      const result = await lookupStudentByEmail(normalized);
+      setForm((prev) => {
+        if (normalizeEmail(prev.studentDraft.email) !== normalized) return prev;
         return {
-          email: response.email,
-          name: response.name || prev.name || defaultNameFromEmail(response.email),
+          ...prev,
+          studentDraft: { email: result.email, name: result.name || prev.studentDraft.name || defaultNameFromEmail(result.email) },
+          studentLookupHint: result.exists ? 'Student found — name filled in automatically.' : 'New student — enter a display name below.',
+          studentLookupLoading: false,
         };
       });
-      if (response.exists) {
-        setStudentLookupHint('Student found — name filled in automatically.');
-      } else {
-        setStudentLookupHint('New student — enter a display name below.');
-      }
     } catch {
-      setStudentLookupHint('');
-    } finally {
-      setStudentLookupLoading(false);
+      setForm((prev) => ({ ...prev, studentLookupLoading: false }));
     }
   }
 
   function handleAddStudent(): void {
-    setError('');
-    const email = normalizeEmail(studentDraft.email);
-    const name = studentDraft.name.trim() || defaultNameFromEmail(email);
-
-    if (!isLikelyEmail(email)) {
-      setError('Please enter a valid student email before adding.');
-      return;
-    }
-    if (students.some((student) => normalizeEmail(student.email) === email)) {
-      setError('This student is already in the class list.');
-      return;
-    }
-
-    setStudents((prev) => [...prev, { email, name }]);
-    setStudentDraft({ email: '', name: '' });
-    setStudentLookupHint('');
+    setFormError('');
+    const email = normalizeEmail(form.studentDraft.email);
+    const name = form.studentDraft.name.trim() || defaultNameFromEmail(email);
+    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email before adding.'); return; }
+    if (form.students.some((s) => normalizeEmail(s.email) === email)) { setFormError('This student is already in the list.'); return; }
+    setForm((prev) => ({
+      ...prev,
+      students: [...prev.students, { email, name }],
+      studentDraft: { email: '', name: '' },
+      studentLookupHint: '',
+    }));
   }
 
   function handleEmailKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddStudent();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); }
   }
 
   function handleRemoveStudent(email: string): void {
-    setStudents((prev) => prev.filter((student) => normalizeEmail(student.email) !== normalizeEmail(email)));
+    setForm((prev) => ({ ...prev, students: prev.students.filter((s) => normalizeEmail(s.email) !== normalizeEmail(email)) }));
   }
 
-  function handleSubjectChange(nextSubjectId: string): void {
-    setSubjectId(nextSubjectId);
-    if (!isPriceManuallyEdited) {
-      const subject = subjects.find((item) => item.id === nextSubjectId);
-      if (subject) {
-        setPricePerHour(subject.defaultPricePerHour.toString());
+  function handleSubjectChange(subjectId: string): void {
+    const subject = subjects.find((s) => s.id === subjectId);
+    setForm((prev) => ({
+      ...prev,
+      subjectId,
+      pricePerHour: prev.isPriceManuallyEdited ? prev.pricePerHour : String(subject?.defaultPricePerHour ?? ''),
+    }));
+  }
+
+  async function handleSubmit(): Promise<void> {
+    setFormError('');
+    const price = Number(form.pricePerHour);
+    if (!form.subjectId) { setFormError('Please select a subject.'); return; }
+    if (!form.pricePerHour || isNaN(price) || price < 1) { setFormError('Please enter a valid tuition fee.'); return; }
+
+    if (modalMode === 'new') {
+      if (!form.students.length) { setFormError('Please add at least one student.'); return; }
+      setSubmitting(true);
+      try {
+        await publishClass({
+          students: form.students,
+          subjectId: form.subjectId,
+          pricePerHour: Math.round(price),
+          displayName: form.displayName.trim() || null,
+          note: form.note.trim() || null,
+        });
+        closeModal();
+        showToast('Class published successfully.', 'success');
+        await loadData();
+      } catch (err: unknown) {
+        setFormError(extractApiErrorMessage(err, 'Failed to publish class'));
+      } finally {
+        setSubmitting(false);
+      }
+    } else if (modalMode === 'edit' && editingClassId) {
+      setSubmitting(true);
+      try {
+        await updateClass(editingClassId, {
+          displayName: form.displayName.trim() || null,
+          pricePerHour: Math.round(price),
+          note: form.note.trim() || null,
+        });
+        closeModal();
+        showToast('Class updated.', 'success');
+        await loadData();
+      } catch (err: unknown) {
+        setFormError(extractApiErrorMessage(err, 'Failed to update class'));
+      } finally {
+        setSubmitting(false);
       }
     }
   }
 
-  function handleResetToSubjectPrice(): void {
-    if (!selectedSubject) {
-      return;
-    }
-    setPricePerHour(selectedSubject.defaultPricePerHour.toString());
-    setIsPriceManuallyEdited(false);
-  }
-
-  function goToNextStep(): void {
-    setError('');
-    if (publishStep === 'students') {
-      if (!students.length) {
-        setError('Please add at least one student before continuing.');
-        return;
-      }
-      setPublishStep('setup');
-      return;
-    }
-    if (publishStep === 'setup') {
-      if (!subjectId) {
-        setError('Please select a subject.');
-        return;
-      }
-      const price = Number(pricePerHour);
-      if (!pricePerHour || isNaN(price) || price < 1) {
-        setError('Please enter a valid tuition fee (minimum 1).');
-        return;
-      }
-      setPublishStep('review');
-    }
-  }
-
-  function goToPreviousStep(): void {
-    setError('');
-    if (publishStep === 'setup') {
-      setPublishStep('students');
-      return;
-    }
-    if (publishStep === 'review') {
-      setPublishStep('setup');
-    }
-  }
-
-  async function handlePublishClass(): Promise<void> {
-    setError('');
-    if (!students.length) {
-      setError('Please add at least one student before publishing.');
-      return;
-    }
-    setPublishing(true);
+  async function handleDeleteConfirmed(): Promise<void> {
+    const id = deleteTargetId;
+    setDeleteTargetId('');
+    setDeleteLoading(true);
     try {
-      const finalName = displayName.trim() || suggestedDisplayName;
-      await publishClass({
-        students,
-        subjectId,
-        pricePerHour: pricePerHour ? Math.round(Number(pricePerHour)) : null,
-        displayName: displayName.trim() || null,
-        note: note.trim() || null,
-      });
-      setPublishedClassName(finalName);
-      setStudents([]);
-      setStudentDraft({ email: '', name: '' });
-      setDisplayName('');
-      setIsDisplayNameManuallyEdited(false);
-      setLastAutoDisplayName('');
-      setNote('');
-      setStudentLookupHint('');
-      setPublishStep('students');
-      if (selectedSubject) {
-        setPricePerHour(selectedSubject.defaultPricePerHour.toString());
-      } else {
-        setPricePerHour('');
-      }
-      setIsPriceManuallyEdited(false);
-      setShowSuccessModal(true);
-      await loadAssignmentData();
+      await deleteClass(id);
+      showToast('Class deleted.', 'success');
+      await loadData();
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to publish class'));
+      showToast(extractApiErrorMessage(err, 'Failed to delete class'), 'error');
     } finally {
-      setPublishing(false);
+      setDeleteLoading(false);
     }
   }
 
@@ -332,7 +304,7 @@ function AdminClassAssignmentPage() {
     try {
       await approveClassApplication(id);
       showToast('Tutor assigned. Other pending applications were rejected.', 'success');
-      await loadAssignmentData();
+      await loadData();
     } catch (err: unknown) {
       showToast(extractApiErrorMessage(err, 'Failed to approve application'), 'error');
     } finally {
@@ -348,8 +320,8 @@ function AdminClassAssignmentPage() {
     setApplicationLoadingId(id);
     try {
       await rejectClassApplication(id, reason);
-      showToast('Application rejected', 'success');
-      await loadAssignmentData();
+      showToast('Application rejected.', 'success');
+      await loadData();
     } catch (err: unknown) {
       showToast(extractApiErrorMessage(err, 'Failed to reject application'), 'error');
     } finally {
@@ -357,317 +329,237 @@ function AdminClassAssignmentPage() {
     }
   }
 
-  const previewCard = (
-    <div className="card publish-preview-card">
-      <h4 className="section-title mb-8">Preview</h4>
-      <p className="muted mb-8">
-        <strong>Class:</strong> {displayName.trim() || suggestedDisplayName || '—'}
-      </p>
-      <p className="muted mb-8">
-        <strong>Subject:</strong> {selectedSubject?.name || '—'}
-      </p>
-      <p className="muted mb-8">
-        <strong>Rate:</strong> {pricePerHour ? `${formatVnd(Number(pricePerHour))}/hr` : '—'}
-      </p>
-      <p className="muted mb-8">
-        <strong>Students:</strong> {students.length}
-      </p>
-      {note.trim() ? (
-        <p className="muted mb-0">
-          <strong>Note:</strong> {note.trim()}
-        </p>
-      ) : null}
-    </div>
-  );
-
-  const publishForm = (
-    <PageSection title="Publish new class">
-      {error ? <p className="error-text">{error}</p> : null}
-      <Stepper steps={PUBLISH_STEPS} activeStepId={publishStep} />
-      <div className="stack-16">
-        {publishStep === 'students' ? (
-          <SectionBlock title="Add students">
-            <div className="grid-form grid-form-no-margin">
-              <input
-                type="email"
-                className="text-input"
-                placeholder="Student email"
-                value={studentDraft.email}
-                onChange={(event) => setStudentDraft((prev) => ({ ...prev, email: event.target.value }))}
-                onBlur={() => void handleStudentLookupOnBlur()}
-                onKeyDown={handleEmailKeyDown}
-              />
-              <input
-                className="text-input"
-                placeholder="Student name"
-                value={studentDraft.name}
-                onChange={(event) => setStudentDraft((prev) => ({ ...prev, name: event.target.value }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); } }}
-              />
-              <Button type="button" variant="secondary" className="compact-btn" onClick={handleAddStudent} disabled={studentLookupLoading}>
-                {studentLookupLoading ? 'Checking...' : 'Add student'}
-              </Button>
-            </div>
-            {studentLookupHint ? <p className="muted mb-0">{studentLookupHint}</p> : null}
-            <StudentChipList students={students} onRemove={handleRemoveStudent} />
-          </SectionBlock>
-        ) : null}
-
-        {publishStep === 'setup' ? (
-          <div className="publish-setup-grid">
-            <div className="stack-16">
-              <SectionBlock title="Subject and pricing">
-                <div className="grid-form grid-form-no-margin">
-                  <select className="text-input" value={subjectId} onChange={(event) => handleSubjectChange(event.target.value)}>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="text-input money-number"
-                    type="number"
-                    step="1"
-                    min="1"
-                    placeholder="Tuition fee"
-                    value={pricePerHour}
-                    onChange={(event) => {
-                      setPricePerHour(event.target.value);
-                      setIsPriceManuallyEdited(true);
-                    }}
-                  />
-                  <Button type="button" variant="ghost" className="compact-btn" onClick={handleResetToSubjectPrice}>
-                    Use subject default price
-                  </Button>
-                </div>
-              </SectionBlock>
-              <SectionBlock title="Class details">
-                <div className="grid-form grid-form-no-margin">
-                  <input
-                    className="text-input"
-                    placeholder="Class display name"
-                    value={displayName}
-                    onChange={(event) => {
-                      setDisplayName(event.target.value);
-                      setIsDisplayNameManuallyEdited(true);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="compact-btn"
-                    onClick={handleResetDisplayNameToSuggested}
-                    disabled={!suggestedDisplayName}
-                  >
-                    Reset to suggested
-                  </Button>
-                </div>
-                {suggestedDisplayName && isDisplayNameManuallyEdited ? (
-                  <p className="muted mb-0">Suggested: {suggestedDisplayName}</p>
-                ) : null}
-                <textarea
-                  className="text-input text-area-notes"
-                  placeholder="Note (optional)"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                />
-              </SectionBlock>
-            </div>
-            {previewCard}
-          </div>
-        ) : null}
-
-        {publishStep === 'review' ? (
-          <SectionBlock title="Review and publish">
-            <StudentChipList students={students} onRemove={handleRemoveStudent} />
-            <div className="card-divider" />
-            <p className="muted mb-8">
-              <strong>Display name:</strong> {displayName.trim() || suggestedDisplayName}
-            </p>
-            <p className="muted mb-8">
-              <strong>Subject:</strong> {selectedSubject?.name}
-            </p>
-            <p className="muted mb-8">
-              <strong>Rate:</strong> {formatVnd(Number(pricePerHour || 0))}/hr
-            </p>
-            {note.trim() ? (
-              <p className="muted mb-0">
-                <strong>Note:</strong> {note.trim()}
-              </p>
-            ) : null}
-          </SectionBlock>
-        ) : null}
-
-        <div className="form-actions">
-          {publishStep !== 'students' ? (
-            <Button type="button" variant="secondary" onClick={goToPreviousStep}>
-              Back
-            </Button>
-          ) : null}
-          {publishStep !== 'review' ? (
-            <Button type="button" onClick={goToNextStep}>
-              Next
-            </Button>
-          ) : (
-            <Button type="button" onClick={() => void handlePublishClass()} loading={publishing}>
-              Publish class
-            </Button>
-          )}
-        </div>
-      </div>
-    </PageSection>
-  );
-
-  const publishedPanel = (
-    <PageSection title="Published classes">
-      {!publishedClasses.length ? (
-        <EmptyState title="No published classes" description="Publish a class to make it visible to tutors." />
-      ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Class</th>
-                <th scope="col">Status</th>
-                <th scope="col">Students</th>
-                <th scope="col">Applications</th>
-                <th scope="col">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {publishedClasses.map((item) => {
-                const pendingCount = item.applications.filter((a) => a.status === 'PENDING').length;
-                return (
-                  <tr key={item.classId}>
-                    <td>{item.displayName}</td>
-                    <td>
-                      <StatusPill label={classStatusLabel(item.status)} tone={classStatusTone(item.status)} />
-                    </td>
-                    <td>{item.studentNames.join(', ') || '—'}</td>
-                    <td>
-                      {pendingCount > 0 ? (
-                        <StatusPill label={`${pendingCount} pending`} tone="warning" />
-                      ) : (
-                        <span className="muted">{item.applications.length > 0 ? 'Reviewed' : '—'}</span>
-                      )}
-                    </td>
-                    <td>{formatVnd(item.pricePerHour || 0)}/hr</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </PageSection>
-  );
-
-  const classesWithPending = publishedClasses.filter(
-    (c) => c.status === 'AVAILABLE' && c.applications.some((a) => a.status === 'PENDING')
-  );
-
-  const applicationsPanel = (
-    <PageSection title="Tutor applications">
-      {!classesWithPending.length ? (
-        <EmptyState title="No pending applications" description="Pending tutor applications will appear here." />
-      ) : null}
-      {classesWithPending.map((item) => {
-        const pendingApps = item.applications.filter((a) => a.status === 'PENDING');
-        return (
-          <SectionBlock key={item.classId} title={item.displayName}>
-            <div className="section-header">
-              <p className="muted mb-0">Students: {item.studentNames.join(' - ') || '—'}</p>
-              <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
-            </div>
-            {item.note ? <p className="muted">{item.note}</p> : null}
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Tutor</th>
-                    <th>Status</th>
-                    <th>Applied At</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingApps.map((application) => (
-                    <tr key={application.applicationId}>
-                      <td>
-                        {application.tutorName} ({application.tutorEmail})
-                      </td>
-                      <td>
-                        <StatusPill
-                          label={application.status}
-                          tone={applicationStatusTone(application.status)}
-                        />
-                      </td>
-                      <td>{formatDate(application.appliedAt)}</td>
-                      <td>
-                        <div className="table-actions">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setConfirmApproveId(application.applicationId)}
-                            loading={applicationLoadingId === application.applicationId}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => { setConfirmRejectId(application.applicationId); setRejectReason(''); }}
-                            disabled={!!applicationLoadingId}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionBlock>
-        );
-      })}
-    </PageSection>
-  );
+  const isEditMode = modalMode === 'edit';
+  const modalTitle = isEditMode ? 'Edit class' : 'New class';
 
   return (
     <div className="stack-16">
-      <PageHeader title="Class assignment" subtitle="Publish classes and review tutor applications." />
-      <Tabs
-        items={[
-          { id: 'publish', label: 'Publish', panel: publishForm },
-          { id: 'published', label: 'Published', panel: publishedPanel },
-          { id: 'applications', label: 'Applications', panel: applicationsPanel },
-        ]}
+      <PageHeader
+        title="Class assignment"
+        subtitle="Publish classes and review tutor applications."
+        actions={
+          <Button variant="primary" onClick={openNewModal}>
+            + New class
+          </Button>
+        }
       />
 
-      <Modal
-        open={showSuccessModal}
-        title="Class published"
-        onClose={() => setShowSuccessModal(false)}
-      >
+      <PageSection>
+        {loadError ? <p className="error-text">{loadError}</p> : null}
+        {!publishedClasses.length && !loadError ? (
+          <EmptyState title="No classes yet" description="Publish a class to make it visible to tutors." />
+        ) : null}
+        {publishedClasses.map((cls) => {
+          const pendingApps = cls.applications.filter((a) => a.status === 'PENDING');
+          return (
+            <div key={cls.classId} className="class-card">
+              <div className="class-card-header">
+                <div className="class-card-body">
+                  <div className="class-card-title-row">
+                    <span className="class-card-name">{cls.displayName}</span>
+                    <StatusPill label={classStatusLabel(cls.status)} tone={classStatusTone(cls.status)} />
+                    {pendingApps.length > 0 ? (
+                      <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
+                    ) : null}
+                  </div>
+                  <div className="class-card-meta">
+                    <span>{cls.subjectName}</span>
+                    <span>{formatVnd(cls.pricePerHour)}/hr</span>
+                    {cls.applications.find((a) => a.status === 'APPROVED') ? (
+                      <span>Tutor: {cls.applications.find((a) => a.status === 'APPROVED')?.tutorName}</span>
+                    ) : null}
+                  </div>
+                  {cls.studentNames.length > 0 ? (
+                    <div className="class-card-students">
+                      {cls.studentNames.map((name) => (
+                        <span key={name} className="student-chip-label">{name}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {cls.note ? <p className="muted small mb-0 mt-4">{cls.note}</p> : null}
+                </div>
+                <div className="class-card-actions">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Edit class"
+                    onClick={() => openEditModal(cls)}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn-danger"
+                    title="Delete class"
+                    onClick={() => setDeleteTargetId(cls.classId)}
+                    disabled={deleteLoading}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {pendingApps.length > 0 ? (
+                <div className="class-card-applications">
+                  <p className="class-card-apps-label">Pending applications</p>
+                  {pendingApps.map((app) => (
+                    <div key={app.applicationId} className="application-row">
+                      <div className="application-info">
+                        <span className="application-name">{app.tutorName}</span>
+                        <span className="application-email muted small">{app.tutorEmail}</span>
+                        <span className="application-date muted small">{formatDate(app.appliedAt)}</span>
+                      </div>
+                      <div className="table-actions">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setConfirmApproveId(app.applicationId)}
+                          loading={applicationLoadingId === app.applicationId}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => { setConfirmRejectId(app.applicationId); setRejectReason(''); }}
+                          disabled={!!applicationLoadingId}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {cls.status !== 'ACTIVE' && cls.applications.filter((a) => a.status !== 'PENDING').length > 0 && pendingApps.length === 0 ? (
+                <div className="class-card-applications">
+                  {cls.applications
+                    .filter((a) => a.status !== 'PENDING')
+                    .map((app) => (
+                      <div key={app.applicationId} className="application-row">
+                        <div className="application-info">
+                          <span className="application-name">{app.tutorName}</span>
+                          <span className="application-email muted small">{app.tutorEmail}</span>
+                        </div>
+                        <StatusPill label={app.status} tone={applicationStatusTone(app.status)} />
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </PageSection>
+
+      <Modal open={modalMode !== null} title={modalTitle} onClose={closeModal}>
         <div className="stack-16">
-          <p className="muted">
-            <strong>{publishedClassName || 'The class'}</strong> has been published and is now visible to tutors.
-            Tutors can apply and you can review their applications in the Applications tab.
-          </p>
+          {formError ? <p className="error-text">{formError}</p> : null}
+
+          {!isEditMode ? (
+            <SectionBlock title="Students">
+              <div className="grid-form grid-form-no-margin">
+                <input
+                  type="email"
+                  className="text-input"
+                  placeholder="Student email — press Enter to add"
+                  value={form.studentDraft.email}
+                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, email: e.target.value } }))}
+                  onBlur={() => void handleStudentLookup()}
+                  onKeyDown={handleEmailKeyDown}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Student name"
+                  value={form.studentDraft.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, name: e.target.value } }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); } }}
+                />
+                <Button type="button" variant="secondary" className="compact-btn" onClick={handleAddStudent} disabled={form.studentLookupLoading}>
+                  {form.studentLookupLoading ? 'Checking...' : 'Add'}
+                </Button>
+              </div>
+              {form.studentLookupHint ? <p className="muted mb-0">{form.studentLookupHint}</p> : null}
+              <StudentChipList students={form.students} onRemove={handleRemoveStudent} />
+            </SectionBlock>
+          ) : null}
+
+          <SectionBlock title="Subject and pricing">
+            <div className="grid-form grid-form-no-margin">
+              <select
+                className="text-input"
+                value={form.subjectId}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                disabled={isEditMode}
+              >
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <input
+                className="text-input money-number"
+                type="number"
+                step="1"
+                min="1"
+                placeholder="Tuition fee (₫/hr)"
+                value={form.pricePerHour}
+                onChange={(e) => setForm((prev) => ({ ...prev, pricePerHour: e.target.value, isPriceManuallyEdited: true }))}
+              />
+              {!isEditMode && selectedSubject ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="compact-btn"
+                  onClick={() => setForm((prev) => ({ ...prev, pricePerHour: String(selectedSubject.defaultPricePerHour), isPriceManuallyEdited: false }))}
+                >
+                  Use default
+                </Button>
+              ) : null}
+            </div>
+          </SectionBlock>
+
+          <SectionBlock title="Class details">
+            <input
+              className="text-input"
+              placeholder="Class display name"
+              value={form.displayName}
+              onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value, isDisplayNameManuallyEdited: true }))}
+            />
+            {suggestedDisplayName && form.isDisplayNameManuallyEdited && !isEditMode ? (
+              <p className="muted mb-4">Suggested: {suggestedDisplayName}</p>
+            ) : null}
+            <textarea
+              className="text-input text-area-notes"
+              placeholder="Note for tutors (optional)"
+              value={form.note}
+              onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+            />
+          </SectionBlock>
+
           <div className="form-actions">
-            <Button variant="primary" onClick={() => setShowSuccessModal(false)}>
-              Got it
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="primary" onClick={() => void handleSubmit()} loading={submitting}>
+              {isEditMode ? 'Save changes' : 'Publish class'}
             </Button>
           </div>
         </div>
       </Modal>
 
       <ConfirmDialog
+        open={!!deleteTargetId}
+        title="Delete class"
+        message="Delete this class? This cannot be undone. Classes with logged sessions cannot be deleted."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleteLoading}
+        onConfirm={() => void handleDeleteConfirmed()}
+        onCancel={() => setDeleteTargetId('')}
+      />
+
+      <ConfirmDialog
         open={!!confirmApproveId}
         title="Approve application"
-        message="Assign this tutor to the class? All other pending applications for this class will be automatically rejected."
+        message="Assign this tutor to the class? All other pending applications will be automatically rejected."
         confirmLabel="Approve"
         confirmVariant="primary"
         loading={!!applicationLoadingId}

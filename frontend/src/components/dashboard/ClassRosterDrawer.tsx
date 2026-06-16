@@ -1,6 +1,6 @@
 import { TutorClassRosterResponse } from '../../types/dashboard';
 import Button from '../ui/Button';
-import SlideOver from '../ui/SlideOver';
+import Modal from '../ui/Modal';
 import Spinner from '../ui/Spinner';
 import { formatVnd } from '../../utils/format';
 
@@ -24,10 +24,10 @@ function ClassRosterDrawer({
   onClose,
 }: ClassRosterDrawerProps) {
   return (
-    <SlideOver
+    <Modal
       open={open}
       title="Class roster"
-      subtitle={`${classLabel}${classStatus ? ` • ${classStatus}` : ''}`}
+      subtitle={`${classLabel}${classStatus ? ` · ${classStatus}` : ''}`}
       onClose={onClose}
       footer={
         <Button variant="secondary" onClick={onClose}>
@@ -38,7 +38,7 @@ function ClassRosterDrawer({
       {error ? <p className="error-text">{error}</p> : null}
       {loading ? <Spinner label="Loading roster..." /> : null}
       {!loading && roster ? (
-        <>
+        <div className="stack-8">
           <p className="muted mb-0">
             Tuition amounts reflect per-student allocation from the latest recorded session. Until a session exists,
             amounts show as 0 VND.
@@ -51,9 +51,7 @@ function ClassRosterDrawer({
                 <thead>
                   <tr>
                     <th scope="col">Student</th>
-                    <th scope="col" className="money-cell">
-                      Tuition
-                    </th>
+                    <th scope="col" className="money-cell">Tuition</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -67,9 +65,9 @@ function ClassRosterDrawer({
               </table>
             </div>
           )}
-        </>
+        </div>
       ) : null}
-    </SlideOver>
+    </Modal>
   );
 }
 

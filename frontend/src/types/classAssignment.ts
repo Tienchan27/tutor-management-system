@@ -55,6 +55,12 @@ export interface AvailableClassResponse {
   hasApplied: boolean;
 }
 
+export interface UpdateClassRequest {
+  displayName?: string | null;
+  pricePerHour?: number | null;
+  note?: string | null;
+}
+
 export interface ApplyClassResponse {
   applicationId: string;
   classId: string;

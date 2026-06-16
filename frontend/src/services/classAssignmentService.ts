@@ -7,6 +7,7 @@ import {
   PublishedClassResponse,
   SubjectOptionResponse,
   TutorClassApplicationResponse,
+  UpdateClassRequest,
 } from '../types/classAssignment';
 import { SliceResponse } from '../types/pagination';
 
@@ -51,6 +52,15 @@ export async function rejectClassApplication(applicationId: string, reason?: str
     reason: reason || null,
   });
   return response.data;
+}
+
+export async function updateClass(classId: string, payload: UpdateClassRequest): Promise<PublishedClassResponse> {
+  const response = await api.put<PublishedClassResponse>(`/admin/classes/${classId}`, payload);
+  return response.data;
+}
+
+export async function deleteClass(classId: string): Promise<void> {
+  await api.delete(`/admin/classes/${classId}`);
 }
 
 export async function updateClassDisplayName(classId: string, displayName: string): Promise<PublishedClassResponse> {
