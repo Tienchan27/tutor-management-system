@@ -16,7 +16,7 @@ import {
 
 export const navigationItems: NavItemConfig[] = [
   { label: 'Tutor Management', path: '/app/admin/tutors', roles: ['ADMIN'], icon: Users },
-  { label: 'Class Assignment', path: '/app/admin/class-assignment', roles: ['ADMIN'], icon: BookOpen },
+  { label: 'Class management', path: '/app/admin/class-assignment', roles: ['ADMIN'], icon: BookOpen },
   { label: 'Payouts', path: '/app/admin/payouts', roles: ['ADMIN'], icon: DollarSign },
   { label: 'Student tuition', path: '/app/admin/student-invoices', roles: ['ADMIN'], icon: Receipt },
   { label: 'Overview', path: '/app/tutor/dashboard', roles: ['TUTOR'], icon: LayoutDashboard },

@@ -67,6 +67,10 @@ function applicationStatusTone(status: string): 'success' | 'warning' | 'danger'
   return 'neutral';
 }
 
+function assignedTutor(cls: PublishedClassResponse): string | null {
+  return cls.applications.find((a) => a.status === 'APPROVED')?.tutorName ?? null;
+}
+
 interface ClassFormState {
   students: PublishClassStudentInput[];
   studentDraft: StudentDraft;
@@ -104,6 +108,9 @@ function AdminClassAssignmentPage() {
   const [publishedClasses, setPublishedClasses] = useState<PublishedClassResponse[]>([]);
   const [loadError, setLoadError] = useState('');
   const [formError, setFormError] = useState('');
+
+  const [activeTab, setActiveTab] = useState<'classes' | 'applications'>('classes');
+  const [inactiveExpanded, setInactiveExpanded] = useState(false);
 
   const [modalMode, setModalMode] = useState<'new' | 'edit' | null>(null);
   const [editingClassId, setEditingClassId] = useState<string>('');
@@ -332,11 +339,21 @@ function AdminClassAssignmentPage() {
   const isEditMode = modalMode === 'edit';
   const modalTitle = isEditMode ? 'Edit class' : 'New class';
 
+  const activeClasses = publishedClasses.filter((c) => c.status === 'ACTIVE');
+  const inactiveClasses = publishedClasses.filter((c) => c.status !== 'ACTIVE');
+  const classesWithPending = publishedClasses.filter((c) =>
+    c.applications.some((a) => a.status === 'PENDING')
+  );
+  const totalPending = classesWithPending.reduce(
+    (sum, c) => sum + c.applications.filter((a) => a.status === 'PENDING').length,
+    0
+  );
+
   return (
     <div className="stack-16">
       <PageHeader
-        title="Class assignment"
-        subtitle="Publish classes and review tutor applications."
+        title="Class management"
+        subtitle="Manage classes and review tutor applications."
         actions={
           <Button variant="primary" onClick={openNewModal}>
             + New class
@@ -346,62 +363,177 @@ function AdminClassAssignmentPage() {
 
       <PageSection>
         {loadError ? <p className="error-text">{loadError}</p> : null}
-        {!publishedClasses.length && !loadError ? (
-          <EmptyState title="No classes yet" description="Publish a class to make it visible to tutors." />
-        ) : null}
-        {publishedClasses.map((cls) => {
-          const pendingApps = cls.applications.filter((a) => a.status === 'PENDING');
-          return (
-            <div key={cls.classId} className="ac-card">
-              <div className="ac-card-header">
-                <div className="ac-card-body">
-                  <div className="ac-card-title-row">
-                    <span className="ac-card-name">{cls.displayName}</span>
-                    <StatusPill label={classStatusLabel(cls.status)} tone={classStatusTone(cls.status)} />
-                    {pendingApps.length > 0 ? (
-                      <StatusPill label={`${pendingApps.length} pending`} tone="warning" />
-                    ) : null}
-                  </div>
-                  <div className="ac-card-meta">
-                    <span>{cls.subjectName}</span>
-                    <span>{formatVnd(cls.pricePerHour)}/hr</span>
-                    {cls.applications.find((a) => a.status === 'APPROVED') ? (
-                      <span>Tutor: {cls.applications.find((a) => a.status === 'APPROVED')?.tutorName}</span>
-                    ) : null}
-                  </div>
-                  {cls.studentNames.length > 0 ? (
-                    <div className="ac-card-students">
-                      {cls.studentNames.map((name) => (
-                        <span key={name} className="student-chip-label">{name}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {cls.note ? <p className="muted small mb-0 mt-4">{cls.note}</p> : null}
-                </div>
-                <div className="ac-card-edit-actions">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Edit class"
-                    onClick={() => openEditModal(cls)}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn-danger"
-                    title="Delete class"
-                    onClick={() => setDeleteTargetId(cls.classId)}
-                    disabled={deleteLoading}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
 
-              {pendingApps.length > 0 ? (
-                <div className="ac-card-applications">
-                  <p className="ac-card-apps-label">Pending applications</p>
+        {/* Tabs */}
+        <div className="cm-tabs">
+          <button
+            type="button"
+            className={`cm-tab-btn${activeTab === 'classes' ? ' active' : ''}`}
+            onClick={() => setActiveTab('classes')}
+          >
+            Classes
+          </button>
+          <button
+            type="button"
+            className={`cm-tab-btn${activeTab === 'applications' ? ' active' : ''}`}
+            onClick={() => setActiveTab('applications')}
+          >
+            Applications
+            {totalPending > 0 ? <span className="cm-tab-badge">{totalPending}</span> : null}
+          </button>
+        </div>
+
+        {/* Tab: Classes */}
+        {activeTab === 'classes' ? (
+          <>
+            {!publishedClasses.length && !loadError ? (
+              <EmptyState title="No classes yet" description="Publish a class to make it visible to tutors." />
+            ) : null}
+            {!!publishedClasses.length ? (
+              <div className="class-list">
+                {activeClasses.length > 0 ? (
+                  <>
+                    <div className="class-section-header class-section-header-active">
+                      <span>Active classes</span>
+                      <span className="class-section-count">{activeClasses.length}</span>
+                    </div>
+                    {activeClasses.map((cls) => (
+                      <article
+                        key={cls.classId}
+                        className="class-row"
+                      >
+                        <div className="class-row-info">
+                          <div className="class-row-name">{cls.displayName}</div>
+                          <div className="class-row-subject">{cls.subjectName}</div>
+                          {cls.studentNames.length > 0 ? (
+                            <div className="ac-card-students mt-6">
+                              {cls.studentNames.map((name) => (
+                                <span key={name} className="student-chip-label">{name}</span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="class-row-stats">
+                          <div className="class-stat">
+                            <div className="class-stat-label">Fee</div>
+                            <div className="class-stat-value">{formatVnd(cls.pricePerHour)}/hr</div>
+                          </div>
+                          <div className="class-stat">
+                            <div className="class-stat-label">Tutor</div>
+                            <div className="class-stat-value">
+                              {assignedTutor(cls) ?? <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>None yet</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="class-row-actions">
+                          <StatusPill label={classStatusLabel(cls.status)} tone={classStatusTone(cls.status)} />
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Edit class"
+                            onClick={() => openEditModal(cls)}
+                          >
+                            ✎
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn icon-btn-danger"
+                            title="Delete class"
+                            onClick={() => setDeleteTargetId(cls.classId)}
+                            disabled={deleteLoading}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </>
+                ) : null}
+
+                {inactiveClasses.length > 0 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="class-section-header class-section-header-inactive"
+                      onClick={() => setInactiveExpanded((v) => !v)}
+                    >
+                      <span>Inactive classes</span>
+                      <span className="class-section-count">{inactiveClasses.length}</span>
+                      <span className={`class-section-chevron${inactiveExpanded ? ' expanded' : ''}`}>▸</span>
+                    </button>
+                    {inactiveExpanded
+                      ? inactiveClasses.map((cls) => (
+                          <article key={cls.classId} className="class-row class-row-inactive">
+                            <div className="class-row-info">
+                              <div className="class-row-name">{cls.displayName}</div>
+                              <div className="class-row-subject">{cls.subjectName}</div>
+                              {cls.studentNames.length > 0 ? (
+                                <div className="ac-card-students mt-6">
+                                  {cls.studentNames.map((name) => (
+                                    <span key={name} className="student-chip-label">{name}</span>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="class-row-stats">
+                              <div className="class-stat">
+                                <div className="class-stat-label">Fee</div>
+                                <div className="class-stat-value">{formatVnd(cls.pricePerHour)}/hr</div>
+                              </div>
+                              <div className="class-stat">
+                                <div className="class-stat-label">Tutor</div>
+                                <div className="class-stat-value">
+                                  {assignedTutor(cls) ?? <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>None yet</span>}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="class-row-actions">
+                              <StatusPill label={classStatusLabel(cls.status)} tone={classStatusTone(cls.status)} />
+                              <button
+                                type="button"
+                                className="icon-btn"
+                                title="Edit class"
+                                onClick={() => openEditModal(cls)}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                type="button"
+                                className="icon-btn icon-btn-danger"
+                                title="Delete class"
+                                onClick={() => setDeleteTargetId(cls.classId)}
+                                disabled={deleteLoading}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </article>
+                        ))
+                      : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Tab: Applications (pending only, grouped by class) */}
+        {activeTab === 'applications' ? (
+          <>
+            {classesWithPending.length === 0 ? (
+              <EmptyState
+                title="No pending applications"
+                description="All tutor applications have been reviewed."
+              />
+            ) : null}
+            {classesWithPending.map((cls) => {
+              const pendingApps = cls.applications.filter((a) => a.status === 'PENDING');
+              return (
+                <div key={cls.classId} className="mb-16">
+                  <div className="class-section-header class-section-header-active">
+                    <span>{cls.displayName}</span>
+                    <span className="class-section-count">{pendingApps.length}</span>
+                  </div>
                   {pendingApps.map((app) => (
                     <div key={app.applicationId} className="application-row">
                       <div className="application-info">
@@ -430,26 +562,10 @@ function AdminClassAssignmentPage() {
                     </div>
                   ))}
                 </div>
-              ) : null}
-
-              {cls.status !== 'ACTIVE' && cls.applications.filter((a) => a.status !== 'PENDING').length > 0 && pendingApps.length === 0 ? (
-                <div className="ac-card-applications">
-                  {cls.applications
-                    .filter((a) => a.status !== 'PENDING')
-                    .map((app) => (
-                      <div key={app.applicationId} className="application-row">
-                        <div className="application-info">
-                          <span className="application-name">{app.tutorName}</span>
-                          <span className="application-email muted small">{app.tutorEmail}</span>
-                        </div>
-                        <StatusPill label={app.status} tone={applicationStatusTone(app.status)} />
-                      </div>
-                    ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+              );
+            })}
+          </>
+        ) : null}
       </PageSection>
 
       <Modal open={modalMode !== null} title={modalTitle} onClose={closeModal}>

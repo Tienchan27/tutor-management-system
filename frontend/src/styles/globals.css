@@ -50,6 +50,7 @@
 
   /* Accent colors */
   --accent-blue: #3b82f6;
+  --accent-indigo: #6366f1;
 
   --space-2: 8px;
   --space-3: 12px;
@@ -753,12 +754,12 @@ a {
 }
 
 .table th {
-  font-weight: 700;
-  color: var(--text-muted);
-  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: var(--bg-subtle);
+  letter-spacing: 0.06em;
+  background: #1e293b;
 }
 
 .table tbody tr {
@@ -821,20 +822,32 @@ a {
 
 .notification-item {
   border: 1px solid var(--border);
+  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+  transition: opacity 0.15s;
+}
+
+.notification-item.unread {
+  background: var(--bg-surface);
+  border-left-color: var(--brand-amber);
+  border-color: var(--border-strong);
+}
+
+.notification-item.read {
+  opacity: 0.5;
 }
 
 .notification-meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .notification-badge {
@@ -850,9 +863,11 @@ a {
   color: var(--text);
 }
 
-.notification-item.unread {
-  border-color: var(--border-strong);
-  background: var(--bg-subtle);
+.notification-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
 }
 
 .app-shell {
@@ -1304,9 +1319,57 @@ a {
 
 .feed-item-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
+}
+
+/* Class management tabs */
+.cm-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+}
+
+.cm-tab-btn {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.cm-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.cm-tab-btn.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--brand-amber);
+}
+
+.cm-tab-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger-red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .queue-item {
@@ -1694,15 +1757,37 @@ select {
 .stat-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
   padding: var(--space-4);
 }
 
-.stat-card-accent-amber { border-left-color: var(--brand-amber); }
-.stat-card-accent-blue  { border-left-color: var(--accent-blue); }
-.stat-card-accent-green { border-left-color: var(--success); }
-.stat-card-accent-red   { border-left-color: var(--danger-red); }
+.stat-card-accent-amber {
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.stat-card-accent-amber .stat-card-label { color: #92400e; }
+.stat-card-accent-amber .stat-card-value { color: #b45309; }
+
+.stat-card-accent-blue {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+.stat-card-accent-blue .stat-card-label { color: #1e3a8a; }
+.stat-card-accent-blue .stat-card-value { color: #1d4ed8; }
+
+.stat-card-accent-green {
+  background: linear-gradient(135deg, #d1fae5 0%, #f0fdf4 100%);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+.stat-card-accent-green .stat-card-label { color: #064e3b; }
+.stat-card-accent-green .stat-card-value { color: #065f46; }
+
+.stat-card-accent-red {
+  background: linear-gradient(135deg, #fee2e2 0%, #fff5f5 100%);
+  border-color: rgba(220, 74, 74, 0.2);
+}
+.stat-card-accent-red .stat-card-label { color: #7f1d1d; }
+.stat-card-accent-red .stat-card-value { color: #b91c1c; }
 
 .stat-card-label {
   margin: 0 0 6px;

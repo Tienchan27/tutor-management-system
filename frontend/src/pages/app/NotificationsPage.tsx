@@ -123,15 +123,14 @@ function NotificationsPage() {
         {!!visibleItems.length ? (
           <div className="notification-list">
             {visibleItems.map((item) => (
-              <article key={item.id} className={`notification-item ${item.read ? 'read' : 'unread'}`}>
+              <article key={item.id} className={`notification-item${item.read ? ' read' : ' unread'}`}>
                 <div>
                   <div className="notification-meta">
                     <StatusPill label={formatNotificationType(item.type)} tone="neutral" />
                     <span className="muted small">{formatDate(item.createdAt)}</span>
-                    {!item.read ? <StatusPill label="Unread" tone="warning" /> : null}
                   </div>
                   <h3 className="feed-item-title">{item.title}</h3>
-                  <p className="muted">{item.content}</p>
+                  <p className="notification-content">{item.content}</p>
                 </div>
                 {!item.read ? (
                   <Button variant="ghost" size="sm" onClick={() => handleMarkRead(item.id)}>
