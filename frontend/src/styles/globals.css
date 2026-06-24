@@ -1,14 +1,14 @@
 :root {
-  /* Surfaces — cool neutral */
-  --bg-page: #f0f4f8;
-  --bg-sidebar: #f1f5f9;
+  /* Surfaces — warm neutral (Hands for Hands) */
+  --bg-page: #faf7f2;
+  --bg-sidebar: #f3eee6;
   --bg-surface: #ffffff;
-  --bg-subtle: #eef2f7;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-tertiary: #94a3b8;
+  --bg-subtle: #f3eee6;
+  --border: #ece5da;
+  --border-strong: #ded3c4;
+  --text-primary: #2b2320;
+  --text-secondary: #8a7e72;
+  --text-tertiary: #b3a899;
 
   /* Brand */
   --brand-amber: #f59e0b;
@@ -37,16 +37,16 @@
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
   --shadow-soft: 0 4px 14px rgba(15, 23, 42, 0.04);
 
-  /* Dark sidebar */
-  --sidebar-bg: #1e293b;
-  --sidebar-bg-hover: #273549;
-  --sidebar-bg-active: rgba(245, 158, 11, 0.12);
-  --sidebar-border: rgba(255, 255, 255, 0.07);
-  --sidebar-text: #94a3b8;
-  --sidebar-text-hover: #e2e8f0;
-  --sidebar-text-active: #f59e0b;
-  --sidebar-brand-text: #f1f5f9;
-  --sidebar-brand-muted: #64748b;
+  /* Espresso sidebar */
+  --sidebar-bg: #2a2320;
+  --sidebar-bg-hover: #3a302b;
+  --sidebar-bg-active: rgba(232, 114, 43, 0.16);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #a89a8a;
+  --sidebar-text-hover: #efe6d7;
+  --sidebar-text-active: #f0935a;
+  --sidebar-brand-text: #efe6d7;
+  --sidebar-brand-muted: #a0907e;
 
   /* Accent colors */
   --accent-blue: #3b82f6;

@@ -68,8 +68,8 @@ function AppShell({ roles, children }: AppShellProps) {
   const sidebarContent = (
     <>
       <div className="app-brand">
-        <h2 className="title">TutorMS</h2>
-        <p className="muted">Operations portal</p>
+        <h2 className="title">Hands for Hands</h2>
+        <p className="muted">Tutor management</p>
       </div>
       <nav className="app-nav">
         {navItems.map((item) => {
