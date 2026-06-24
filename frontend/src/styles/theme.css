@@ -1,0 +1,46 @@
+/*
+ * Tailwind v4 — token layer for the "Hands for Hands" warm rebrand.
+ *
+ * Preflight (Tailwind's CSS reset) is intentionally NOT imported yet: the app
+ * is mid-migration and still relies on globals.css for base styling. We pull in
+ * only the theme tokens and utility classes so new screens can use bg-action,
+ * text-ink, etc. without resetting the existing look. Preflight gets enabled in
+ * the cleanup phase once every screen is converted.
+ */
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  /* Neutrals */
+  --color-canvas: #faf7f2;
+  --color-surface: #ffffff;
+  --color-sunken: #f3eee6;
+  --color-border: #ece5da;
+  --color-border-strong: #ded3c4;
+  --color-ink: #2b2320;
+  --color-ink-muted: #8a7e72;
+  --color-ink-faint: #b3a899;
+
+  /* Sidebar (espresso) */
+  --color-sidebar: #2a2320;
+  --color-sidebar-hover: #3a302b;
+  --color-sidebar-text: #a89a8a;
+  --color-sidebar-active: #f0935a;
+
+  /* Brand */
+  --color-brand: #c5392b;
+  --color-brand-dark: #a92e22;
+  --color-action: #e8722b;
+  --color-action-hover: #cf6020;
+  --color-gold: #eba63c;
+
+  /* Semantic */
+  --color-success: #2e9e5f;
+  --color-success-bg: #e7f4ec;
+  --color-warning: #d98a1e;
+  --color-warning-bg: #fbf0da;
+  --color-danger: #dc4a3d;
+  --color-danger-bg: #fbe7e4;
+}
