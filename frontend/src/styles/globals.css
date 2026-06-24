@@ -277,14 +277,14 @@ a {
 .btn-outline {
   background: var(--bg-surface);
   color: var(--text);
-  border-color: #94a3b8;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 3px rgba(43, 35, 32, 0.08);
 }
 
 .btn-secondary:hover:not(:disabled),
 .btn-outline:hover:not(:disabled) {
   background: var(--bg-subtle);
-  border-color: #64748b;
+  border-color: var(--text-tertiary);
 }
 
 .btn-block {
@@ -2041,7 +2041,7 @@ select {
 
 .btn-ghost:hover:not(:disabled) {
   background: var(--bg-subtle);
-  border-color: #94a3b8;
+  border-color: var(--text-tertiary);
   color: var(--text);
 }
 
