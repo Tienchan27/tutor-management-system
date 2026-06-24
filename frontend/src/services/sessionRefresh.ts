@@ -2,7 +2,7 @@ import axios from 'axios';
 import { saveAuthSession } from '../utils/storage';
 import { AuthTokensResponse } from '../types/auth';
 
-const apiBaseUrl = process.env.REACT_APP_API_URL || '/api';
+const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
 
 export type RefreshSessionResult = 'ok' | 'no_refresh_token' | 'failed';
 

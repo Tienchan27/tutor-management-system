@@ -56,7 +56,7 @@ export async function startRealtime(): Promise<void> {
   if (running) {
     return;
   }
-  if (String(process.env.REACT_APP_REALTIME_ENABLED || 'true').toLowerCase() === 'false') {
+  if (String(import.meta.env.VITE_REALTIME_ENABLED || 'true').toLowerCase() === 'false') {
     return;
   }
   running = true;
