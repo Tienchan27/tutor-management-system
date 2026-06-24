@@ -10,10 +10,10 @@
   --text-secondary: #8a7e72;
   --text-tertiary: #b3a899;
 
-  /* Brand */
-  --brand-amber: #f59e0b;
-  --brand-amber-dark: #d97706;
-  --brand-amber-light: #fffbeb;
+  /* Brand (warm action orange) */
+  --brand-amber: #e8722b;
+  --brand-amber-dark: #cf6020;
+  --brand-amber-light: #fdebd3;
 
   /* Legacy aliases */
   --background: var(--bg-page);
@@ -755,11 +755,11 @@ a {
 
 .table th {
   font-weight: 600;
-  color: #94a3b8;
+  color: #cbbba8;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: #1e293b;
+  background: #2a2320;
 }
 
 .table tbody tr {
@@ -1769,11 +1769,11 @@ select {
 .stat-card-accent-amber .stat-card-value { color: #b45309; }
 
 .stat-card-accent-blue {
-  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
-  border-color: rgba(59, 130, 246, 0.2);
+  background: linear-gradient(135deg, #fbe2de 0%, #fff5f4 100%);
+  border-color: rgba(197, 57, 43, 0.18);
 }
-.stat-card-accent-blue .stat-card-label { color: #1e3a8a; }
-.stat-card-accent-blue .stat-card-value { color: #1d4ed8; }
+.stat-card-accent-blue .stat-card-label { color: #a23a2e; }
+.stat-card-accent-blue .stat-card-value { color: #922f25; }
 
 .stat-card-accent-green {
   background: linear-gradient(135deg, #d1fae5 0%, #f0fdf4 100%);

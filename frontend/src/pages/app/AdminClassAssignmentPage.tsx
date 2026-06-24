@@ -543,7 +543,7 @@ function AdminClassAssignmentPage() {
                       </div>
                       <div className="table-actions">
                         <Button
-                          variant="primary"
+                          variant="success"
                           size="sm"
                           onClick={() => setConfirmApproveId(app.applicationId)}
                           loading={applicationLoadingId === app.applicationId}
@@ -677,7 +677,7 @@ function AdminClassAssignmentPage() {
         title="Approve application"
         message="Assign this tutor to the class? All other pending applications will be automatically rejected."
         confirmLabel="Approve"
-        confirmVariant="primary"
+        confirmVariant="success"
         loading={!!applicationLoadingId}
         onConfirm={() => void handleApproveConfirmed()}
         onCancel={() => setConfirmApproveId('')}
