@@ -132,10 +132,15 @@ public class SessionService {
     @PreAuthorize("hasRole('TUTOR')")
     public SessionListItemResponse create(User tutor, CreateSessionRequest request) {
         TutorClass tutorClass = tutorClassRepository.findById(request.classId())
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (!tutorClass.getTutor().getId().equals(tutor.getId())) {
-            throw new ApiException("Tutor can only log own class session");
+            throw ApiException.forbidden("FORBIDDEN", "Tutor can only log own class session");
         }
+        String resolvedPayrollMonth = request.payrollMonth() == null || request.payrollMonth().isBlank()
+                ? YearMonth.now().toString()
+                : request.payrollMonth();
+        // Cannot log a session into a month whose payout is already finalized — it would never be paid.
+        assertMonthNotFinalized(tutorClass.getTutor().getId(), resolvedPayrollMonth);
         List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(
                 tutorClass.getId(),
                 EnrollmentStatus.ACTIVE
@@ -184,11 +189,7 @@ public class SessionService {
         session.setDurationHours(request.durationHours());
         session.setTuitionAtLog(tuitionSum);
         session.setSalaryRateAtLog(request.salaryRateAtLog());
-        session.setPayrollMonth(
-                request.payrollMonth() == null || request.payrollMonth().isBlank()
-                        ? YearMonth.now().toString()
-                        : request.payrollMonth()
-        );
+        session.setPayrollMonth(resolvedPayrollMonth);
         session.setNote(request.note());
         session.setCreatedBy(tutor);
         session.setUpdatedBy(tutor);
