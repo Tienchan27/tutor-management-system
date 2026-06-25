@@ -13,34 +13,39 @@
 @import 'tailwindcss/utilities.css' layer(utilities);
 
 @theme {
-  /* Neutrals */
-  --color-canvas: #faf7f2;
+  /* Neutrals — bright */
+  --color-canvas: #fffdfb;
   --color-surface: #ffffff;
-  --color-sunken: #f3eee6;
-  --color-border: #ece5da;
-  --color-border-strong: #ded3c4;
-  --color-ink: #2b2320;
-  --color-ink-muted: #8a7e72;
-  --color-ink-faint: #b3a899;
+  --color-sunken: #f8f5f1;
+  --color-border: #f1ece4;
+  --color-border-strong: #e7dfd5;
+  --color-ink: #1c1917;
+  --color-ink-muted: #6b6560;
+  --color-ink-faint: #a39b92;
 
-  /* Sidebar (espresso) */
-  --color-sidebar: #2a2320;
-  --color-sidebar-hover: #3a302b;
-  --color-sidebar-text: #a89a8a;
-  --color-sidebar-active: #f0935a;
+  /* Peach rail (light) */
+  --color-sidebar: #fff4ec;
+  --color-sidebar-hover: #ffe9d8;
+  --color-sidebar-text: #b08968;
+  --color-sidebar-active: #f97316;
 
   /* Brand */
-  --color-brand: #c5392b;
-  --color-brand-dark: #a92e22;
-  --color-action: #e8722b;
-  --color-action-hover: #cf6020;
-  --color-gold: #eba63c;
+  --color-brand: #ea580c;
+  --color-brand-dark: #c2410c;
+  --color-action: #f97316;
+  --color-action-hover: #ea580c;
+  --color-gold: #fbbf24;
+
+  /* Accent tints */
+  --color-peach: #fff1e6;
+  --color-mint: #e6f7f1;
+  --color-violet: #f1ecfe;
 
   /* Semantic */
-  --color-success: #2e9e5f;
-  --color-success-bg: #e7f4ec;
-  --color-warning: #d98a1e;
-  --color-warning-bg: #fbf0da;
-  --color-danger: #dc4a3d;
-  --color-danger-bg: #fbe7e4;
+  --color-success: #16a34a;
+  --color-success-bg: #e7f6ec;
+  --color-warning: #d97706;
+  --color-warning-bg: #fef3c7;
+  --color-danger: #ef4444;
+  --color-danger-bg: #fee7e5;
 }

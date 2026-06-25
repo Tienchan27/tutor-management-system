@@ -1,19 +1,19 @@
 :root {
-  /* Surfaces — warm neutral (Hands for Hands) */
-  --bg-page: #faf7f2;
-  --bg-sidebar: #f3eee6;
+  /* Surfaces — bright (Hands for Hands) */
+  --bg-page: #fffdfb;
+  --bg-sidebar: #fff4ec;
   --bg-surface: #ffffff;
-  --bg-subtle: #f3eee6;
-  --border: #ece5da;
-  --border-strong: #ded3c4;
-  --text-primary: #2b2320;
-  --text-secondary: #8a7e72;
-  --text-tertiary: #b3a899;
+  --bg-subtle: #f8f5f1;
+  --border: #f1ece4;
+  --border-strong: #e7dfd5;
+  --text-primary: #1c1917;
+  --text-secondary: #6b6560;
+  --text-tertiary: #a39b92;
 
-  /* Brand (warm action orange) */
-  --brand-amber: #e8722b;
-  --brand-amber-dark: #cf6020;
-  --brand-amber-light: #fdebd3;
+  /* Brand (vivid action orange) */
+  --brand-amber: #f97316;
+  --brand-amber-dark: #ea580c;
+  --brand-amber-light: #fff1e6;
 
   /* Legacy aliases */
   --background: var(--bg-page);
@@ -25,28 +25,28 @@
   --primary-dark: var(--brand-amber-dark);
   --primary-light: var(--brand-amber-light);
 
-  /* Semantic */
-  --success: #2f9e5f;
-  --success-dark: #247a4a;
-  --success-bg: #ecfdf3;
-  --warning: #c88a1e;
-  --error: #dc4a4a;
-  --danger-red: #dc4a4a;
-  --danger-red-light: #fff0f0;
-  --title-accent-red: #c84343;
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  --shadow-soft: 0 4px 14px rgba(15, 23, 42, 0.04);
+  /* Semantic (vivid) */
+  --success: #16a34a;
+  --success-dark: #15803d;
+  --success-bg: #e7f6ec;
+  --warning: #d97706;
+  --error: #ef4444;
+  --danger-red: #ef4444;
+  --danger-red-light: #fee7e5;
+  --title-accent-red: #dc2626;
+  --shadow: 0 1px 2px rgba(40, 28, 16, 0.05), 0 8px 20px rgba(40, 28, 16, 0.06);
+  --shadow-soft: 0 1px 2px rgba(40, 28, 16, 0.04), 0 4px 12px rgba(40, 28, 16, 0.05);
 
-  /* Espresso sidebar */
-  --sidebar-bg: #2a2320;
-  --sidebar-bg-hover: #3a302b;
-  --sidebar-bg-active: rgba(232, 114, 43, 0.16);
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-text: #a89a8a;
-  --sidebar-text-hover: #efe6d7;
-  --sidebar-text-active: #f0935a;
-  --sidebar-brand-text: #efe6d7;
-  --sidebar-brand-muted: #a0907e;
+  /* Peach rail (light) */
+  --sidebar-bg: #fff4ec;
+  --sidebar-bg-hover: #ffe9d8;
+  --sidebar-bg-active: #f97316;
+  --sidebar-border: #fbe2cd;
+  --sidebar-text: #b08968;
+  --sidebar-text-hover: #9a3412;
+  --sidebar-text-active: #ffffff;
+  --sidebar-brand-text: #9a3412;
+  --sidebar-brand-muted: #b08968;
 
   /* Accent colors */
   --accent-blue: #3b82f6;
