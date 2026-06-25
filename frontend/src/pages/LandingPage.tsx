@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
 import LoginForm from '../components/auth/LoginForm';
 import RegisterForm from '../components/auth/RegisterForm';
 import OTPVerification from '../components/auth/OTPVerification';
@@ -146,10 +145,11 @@ function LandingPage() {
   return (
     <div className="page auth-page">
       <div className="auth-layout">
+        <div className="auth-card-wrap">
         <Card featured className="auth-card">
           <div className="auth-head">
-            <h1 className="title title-xl title-accent">Welcome Back</h1>
-            <p className="subtitle">Sign in to manage your tutor operations.</p>
+            <h1 className="title title-xl title-accent">Welcome back 👋</h1>
+            <p className="subtitle">Sign in to your Hands for Hands account.</p>
             {passwordResetBanner ? (
               <p className="success-text" style={{ marginTop: 8 }}>
                 Password updated. You can sign in with your new password.
@@ -228,24 +228,30 @@ function LandingPage() {
 
           {error ? <p className="error-text">{error}</p> : null}
         </Card>
+        </div>
 
-        <aside className="auth-side">
-          <h2 className="title title-lg title-accent">Tutor Management System</h2>
-          <p className="subtitle">A clean operational workspace for admin, tutor, and student workflows.</p>
-          <div className="feature-list">
-            <div className="feature-item">
-              <Badge>Email + Password</Badge>
-              <span className="muted">Secure sign-in and registration flow.</span>
+        <aside className="auth-hero">
+          <div className="auth-hero-content">
+            <div className="auth-hero-brand">
+              <span className="auth-hero-logo" aria-hidden="true">
+                <span>H</span>
+                <img src="/brand/logo.png" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </span>
+              <span className="auth-hero-name">Hands for Hands</span>
             </div>
-            <div className="feature-item">
-              <Badge>Google Login</Badge>
-              <span className="muted">One-click OAuth with conflict handling.</span>
-            </div>
-            <div className="feature-item">
-              <Badge>Role-Based Portal</Badge>
-              <span className="muted">Dedicated navigation and workspaces by user role.</span>
+            <h2 className="auth-hero-title">Learn with Hands for Hands</h2>
+            <p className="auth-hero-sub">
+              Personalised IELTS, SAT &amp; AP tutoring and study-abroad guidance — for students,
+              tutors, and admins, all in one friendly place.
+            </p>
+            <div className="auth-hero-chips">
+              <span className="auth-hero-chip">IELTS · SAT · AP</span>
+              <span className="auth-hero-chip">Study-abroad support</span>
+              <span className="auth-hero-chip">Since 2020</span>
             </div>
           </div>
+          <span className="auth-hero-blob auth-hero-blob-1" aria-hidden="true" />
+          <span className="auth-hero-blob auth-hero-blob-2" aria-hidden="true" />
         </aside>
       </div>
     </div>
