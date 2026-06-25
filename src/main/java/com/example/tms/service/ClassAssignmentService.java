@@ -104,7 +104,7 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('ADMIN')")
     public PublishedClassResponse publishClass(User admin, PublishClassRequest request) {
         Subject subject = subjectRepository.findById(request.subjectId())
-                .orElseThrow(() -> new ApiException("Subject not found"));
+                .orElseThrow(() -> ApiException.notFound("SUBJECT_NOT_FOUND", "Subject not found"));
         List<PublishClassStudentRequest> students = request.students();
         if (students == null || students.isEmpty()) {
             throw new ApiException("At least one student is required");
@@ -113,7 +113,7 @@ public class ClassAssignmentService {
         for (PublishClassStudentRequest student : students) {
             String normalizedEmail = normalizeEmail(student.email());
             if (deduplicatedStudents.containsKey(normalizedEmail)) {
-                throw new ApiException("Duplicate student email: " + normalizedEmail);
+                throw ApiException.conflict("DUPLICATE_STUDENT", "Duplicate student email: " + normalizedEmail);
             }
             deduplicatedStudents.put(normalizedEmail, student);
         }
@@ -182,7 +182,7 @@ public class ClassAssignmentService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public Slice<TutorClassApplicationResponse> listClassApplications(User admin, UUID classId, Pageable pageable) {
-        tutorClassRepository.findById(classId).orElseThrow(() -> new ApiException("Class not found"));
+        tutorClassRepository.findById(classId).orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         return classApplicationRepository.findByClassId(classId, pageable)
                 .map(this::toApplicationResponse);
     }
@@ -191,12 +191,16 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('ADMIN')")
     public PublishedClassResponse approveApplication(User admin, UUID applicationId) {
         TutorClassApplication approved = classApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ApiException("Application not found"));
+                .orElseThrow(() -> ApiException.notFound("APPLICATION_NOT_FOUND", "Application not found"));
+
+        if (approved.getStatus() != TutorClassApplicationStatus.PENDING) {
+            throw ApiException.conflict("APPLICATION_NOT_PENDING", "Only pending applications can be approved");
+        }
 
         TutorClass tutorClass = tutorClassRepository.findDetailedById(approved.getTutorClass().getId())
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (tutorClass.getStatus() != ClassStatus.AVAILABLE) {
-            throw new ApiException("Class is not available for assignment");
+            throw ApiException.conflict("CLASS_NOT_AVAILABLE", "Class is not available for assignment");
         }
 
         tutorClass.setTutor(approved.getTutor());
@@ -280,10 +284,10 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('ADMIN')")
     public TutorClassApplicationResponse rejectApplication(User admin, UUID applicationId, String reason) {
         TutorClassApplication application = classApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ApiException("Application not found"));
+                .orElseThrow(() -> ApiException.notFound("APPLICATION_NOT_FOUND", "Application not found"));
 
         if (application.getStatus() != TutorClassApplicationStatus.PENDING) {
-            throw new ApiException("Only pending applications can be rejected");
+            throw ApiException.conflict("APPLICATION_NOT_PENDING", "Only pending applications can be rejected");
         }
 
         application.setStatus(TutorClassApplicationStatus.REJECTED);
@@ -343,9 +347,9 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('TUTOR')")
     public ApplyClassResponse applyClass(User tutor, UUID classId) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (tutorClass.getStatus() != ClassStatus.AVAILABLE) {
-            throw new ApiException("Class is no longer available");
+            throw ApiException.conflict("CLASS_NOT_AVAILABLE", "Class is no longer available");
         }
 
         TutorClassApplication existing = classApplicationRepository.findByTutorClassIdAndTutorId(classId, tutor.getId()).orElse(null);
@@ -354,7 +358,7 @@ public class ClassAssignmentService {
                 return new ApplyClassResponse(existing.getId(), classId, existing.getStatus().name(), existing.getAppliedAt());
             }
             if (existing.getStatus() == TutorClassApplicationStatus.APPROVED) {
-                throw new ApiException("You already got approved for this class");
+                throw ApiException.conflict("ALREADY_APPROVED", "You already got approved for this class");
             }
             existing.setStatus(TutorClassApplicationStatus.PENDING);
             existing.setReviewedBy(null);
@@ -391,7 +395,7 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('ADMIN')")
     public PublishedClassResponse updateClass(User admin, UUID classId, UpdateClassRequest request) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (request.displayName() != null && !request.displayName().isBlank()) {
             tutorClass.setDisplayName(request.displayName().trim());
         }
@@ -407,9 +411,9 @@ public class ClassAssignmentService {
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteClass(User admin, UUID classId) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (!tutorClass.getSessions().isEmpty()) {
-            throw new ApiException("Cannot delete a class that has logged sessions");
+            throw ApiException.conflict("CLASS_HAS_SESSIONS", "Cannot delete a class that has logged sessions");
         }
         tutorClassRepository.delete(tutorClass);
 
@@ -426,14 +430,14 @@ public class ClassAssignmentService {
     @PreAuthorize("hasAnyRole('ADMIN','TUTOR')")
     public PublishedClassResponse updateClassDisplayName(User actor, UUID classId, String displayName) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
 
         boolean isAdmin = hasRole(actor, RoleName.ADMIN);
         boolean isAssignedTutor = tutorClass.getTutor() != null
                 && tutorClass.getTutor().getId().equals(actor.getId())
                 && hasRole(actor, RoleName.TUTOR);
         if (!isAdmin && !isAssignedTutor) {
-            throw new ApiException("Not authorized to rename this class");
+            throw ApiException.forbidden("FORBIDDEN", "Not authorized to rename this class");
         }
 
         tutorClass.setDisplayName(displayName.trim());

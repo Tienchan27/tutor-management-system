@@ -59,7 +59,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/google/link").authenticated()
                         // Protected user endpoints - all authenticated users
                         .requestMatchers("/users/me/**").authenticated()
-                        .requestMatchers("/bank-accounts/**").authenticated()
+                        .requestMatchers("/bank-accounts/**").hasAnyRole("TUTOR", "ADMIN")
                         .requestMatchers("/dashboard/admin/**").hasRole("ADMIN")
                         .requestMatchers("/dashboard/tutor/**").hasAnyRole("TUTOR", "ADMIN")
                         // Admin endpoints

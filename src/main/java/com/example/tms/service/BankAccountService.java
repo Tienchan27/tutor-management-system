@@ -28,7 +28,7 @@ public class BankAccountService {
     @Transactional
     public BankAccountResponse createBankAccount(UUID userId, CreateBankAccountRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException("User not found"));
+                .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found"));
 
         // Check if user already has a primary account
         boolean hasPrimary = bankAccountRepository.existsByUserIdAndIsPrimaryTrue(userId);
@@ -57,14 +57,14 @@ public class BankAccountService {
     @Transactional
     public BankAccountResponse setPrimaryAccount(UUID userId, UUID accountId) {
         TutorBankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ApiException("Bank account not found"));
+                .orElseThrow(() -> ApiException.notFound("BANK_ACCOUNT_NOT_FOUND", "Bank account not found"));
 
         if (!account.getUser().getId().equals(userId)) {
-            throw new ApiException("Not authorized to modify this account");
+            throw ApiException.forbidden("FORBIDDEN", "Not authorized to modify this account");
         }
 
         if (account.isPrimary()) {
-            throw new ApiException("This account is already primary");
+            throw ApiException.conflict("ALREADY_PRIMARY", "This account is already primary");
         }
 
         // Unset current primary account
@@ -84,16 +84,16 @@ public class BankAccountService {
     @Transactional
     public void deleteBankAccount(UUID userId, UUID accountId) {
         TutorBankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ApiException("Bank account not found"));
+                .orElseThrow(() -> ApiException.notFound("BANK_ACCOUNT_NOT_FOUND", "Bank account not found"));
 
         if (!account.getUser().getId().equals(userId)) {
-            throw new ApiException("Not authorized to delete this account");
+            throw ApiException.forbidden("FORBIDDEN", "Not authorized to delete this account");
         }
 
         if (account.isPrimary()) {
             long totalAccounts = bankAccountRepository.countByUserId(userId);
             if (totalAccounts == 1) {
-                throw new ApiException("Cannot delete the only bank account. Add another account first.");
+                throw ApiException.conflict("LAST_BANK_ACCOUNT", "Cannot delete the only bank account. Add another account first.");
             }
         }
 

@@ -3,7 +3,11 @@ package com.example.tms.messaging;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record NotificationKafkaPayload(
+/**
+ * Serialized form of a notification stored in the outbox payload column and
+ * drained in-process by {@link NotificationOutboxDispatcher}.
+ */
+public record NotificationPayload(
         UUID eventId,
         String eventType,
         UUID recipientUserId,
@@ -14,4 +18,3 @@ public record NotificationKafkaPayload(
         LocalDateTime occurredAt
 ) {
 }
-

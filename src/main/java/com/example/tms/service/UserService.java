@@ -20,14 +20,14 @@ public class UserService {
 
     public ProfileResponse getProfile(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException("User not found"));
+                .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found"));
         return mapToProfileResponse(user);
     }
 
     @Transactional
     public ProfileResponse updateProfile(UUID userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException("User not found"));
+                .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found"));
 
         if (request.name() != null && !request.name().isBlank()) {
             user.setName(request.name().trim());

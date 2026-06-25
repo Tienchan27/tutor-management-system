@@ -102,14 +102,20 @@ public class StudentInvoiceService {
                     month.getYear(),
                     month.getMonthValue()
             );
-            if (existing.isPresent() && !allowRecalculate) {
-                skipped++;
-                results.add(InvoiceMapper.toResponse(existing.get()));
-                continue;
+            if (existing.isPresent()) {
+                InvoiceStatus status = existing.get().getStatus();
+                // Never overwrite a settled invoice — recalculation must not reset a PAID/PARTIALLY_PAID
+                // invoice back to UNPAID or change its amount. Only UNPAID invoices are recalculated.
+                boolean settled = status == InvoiceStatus.PAID || status == InvoiceStatus.PARTIALLY_PAID;
+                if (settled || !allowRecalculate) {
+                    skipped++;
+                    results.add(InvoiceMapper.toResponse(existing.get()));
+                    continue;
+                }
             }
 
             User student = userRepository.findById(studentId)
-                    .orElseThrow(() -> new ApiException("Student not found"));
+                    .orElseThrow(() -> ApiException.notFound("STUDENT_NOT_FOUND", "Student not found"));
             Invoice invoice = existing.orElseGet(Invoice::new);
             invoice.setStudent(student);
             invoice.setYear(month.getYear());

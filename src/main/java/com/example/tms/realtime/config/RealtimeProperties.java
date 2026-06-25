@@ -6,7 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record RealtimeProperties(
         boolean enabled,
         Sse sse,
-        Kafka kafka,
         Outbox outbox
 ) {
     public record Sse(
@@ -14,17 +13,6 @@ public record RealtimeProperties(
             long emitterTimeoutMs,
             int maxConnectionsPerUser,
             int connectLimitPerMinute
-    ) {
-    }
-
-    public record Kafka(
-            Topic topic
-    ) {
-    }
-
-    public record Topic(
-            String events,
-            String eventsDlq
     ) {
     }
 

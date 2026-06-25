@@ -4,7 +4,7 @@ import com.example.tms.entity.NotificationOutboxEvent;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.NotificationType;
 import com.example.tms.exception.ApiException;
-import com.example.tms.messaging.NotificationKafkaPayload;
+import com.example.tms.messaging.NotificationPayload;
 import com.example.tms.repository.NotificationOutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,7 +53,7 @@ public class NotificationOutboxService {
         String correlationId = correlationIdAccessor.getOrCreateCorrelationId();
         LocalDateTime now = LocalDateTime.now();
 
-        NotificationKafkaPayload payload = new NotificationKafkaPayload(
+        NotificationPayload payload = new NotificationPayload(
                 eventId,
                 type.name(),
                 recipient.getId(),
