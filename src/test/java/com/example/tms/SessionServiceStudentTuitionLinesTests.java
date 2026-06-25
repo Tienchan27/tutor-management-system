@@ -15,6 +15,7 @@ import com.example.tms.repository.SessionFinancialEditAuditRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorClassRepository;
+import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.SessionService;
@@ -56,6 +57,9 @@ class SessionServiceStudentTuitionLinesTests {
 
     @Mock
     private SessionFinancialEditAuditRepository auditRepository;
+
+    @Mock
+    private TutorPayoutRepository tutorPayoutRepository;
 
     @Mock
     private NotificationOutboxService notificationOutboxService;
@@ -106,6 +110,7 @@ class SessionServiceStudentTuitionLinesTests {
                 sessionStudentTuitionRepository,
                 userRoleRepository,
                 auditRepository,
+                tutorPayoutRepository,
                 notificationOutboxService,
                 realtimeOutboxService
         );

@@ -15,6 +15,7 @@ import com.example.tms.entity.User;
 import com.example.tms.entity.UserRole;
 import com.example.tms.entity.enums.EnrollmentStatus;
 import com.example.tms.entity.enums.NotificationType;
+import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
@@ -26,6 +27,7 @@ import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.TutorClassRepository;
+import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRoleRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,7 @@ public class SessionService {
     private final SessionStudentTuitionRepository sessionStudentTuitionRepository;
     private final UserRoleRepository userRoleRepository;
     private final SessionFinancialEditAuditRepository auditRepository;
+    private final TutorPayoutRepository tutorPayoutRepository;
     private final NotificationOutboxService notificationOutboxService;
     private final RealtimeOutboxService realtimeOutboxService;
 
@@ -62,6 +65,7 @@ public class SessionService {
             SessionStudentTuitionRepository sessionStudentTuitionRepository,
             UserRoleRepository userRoleRepository,
             SessionFinancialEditAuditRepository auditRepository,
+            TutorPayoutRepository tutorPayoutRepository,
             NotificationOutboxService notificationOutboxService,
             RealtimeOutboxService realtimeOutboxService
     ) {
@@ -71,6 +75,7 @@ public class SessionService {
         this.sessionStudentTuitionRepository = sessionStudentTuitionRepository;
         this.userRoleRepository = userRoleRepository;
         this.auditRepository = auditRepository;
+        this.tutorPayoutRepository = tutorPayoutRepository;
         this.notificationOutboxService = notificationOutboxService;
         this.realtimeOutboxService = realtimeOutboxService;
     }
@@ -213,6 +218,16 @@ public class SessionService {
             throw new ApiException("Tutor can only edit own class session");
         }
 
+        // Once the payroll month has been finalized (payout LOCKED or PAID), the tutor must not be
+        // able to retroactively change financial figures (their own rate, tuition) or move the
+        // session out of that month. Guard the current month, and — if the month is changing — the
+        // target month too (no moving a session into an already-finalized month).
+        assertMonthNotFinalized(tutor.getId(), session.getPayrollMonth());
+        if (request.payrollMonth() != null && !request.payrollMonth().isBlank()
+                && !request.payrollMonth().equals(session.getPayrollMonth())) {
+            assertMonthNotFinalized(tutor.getId(), request.payrollMonth());
+        }
+
         auditIfChanged(session, tutor, "tuitionAtLog", String.valueOf(session.getTuitionAtLog()), String.valueOf(request.tuitionAtLog()), request.reason());
         auditIfChanged(session, tutor, "salaryRateAtLog", String.valueOf(session.getSalaryRateAtLog()), String.valueOf(request.salaryRateAtLog()), request.reason());
         auditIfChanged(session, tutor, "payrollMonth", session.getPayrollMonth(), request.payrollMonth(), request.reason());
@@ -301,6 +316,27 @@ public class SessionService {
                 tutorClass.getDefaultSalaryRate(),
                 students
         );
+    }
+
+    private void assertMonthNotFinalized(UUID tutorId, String payrollMonth) {
+        if (payrollMonth == null || payrollMonth.isBlank()) {
+            return;
+        }
+        YearMonth ym;
+        try {
+            ym = YearMonth.parse(payrollMonth);
+        } catch (RuntimeException e) {
+            return;
+        }
+        tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutorId, ym.getYear(), ym.getMonthValue())
+                .filter(p -> p.getStatus() == PayoutStatus.LOCKED || p.getStatus() == PayoutStatus.PAID)
+                .ifPresent(p -> {
+                    throw new ApiException(
+                            "PAYOUT_FINALIZED",
+                            "Payroll month " + payrollMonth + " has already been finalized ("
+                                    + p.getStatus() + "). Session financials can no longer be changed."
+                    );
+                });
     }
 
     private void auditIfChanged(Session session, User tutor, String fieldName, String oldValue, String newValue, String reason) {

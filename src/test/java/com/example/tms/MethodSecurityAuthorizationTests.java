@@ -13,6 +13,7 @@ import com.example.tms.repository.SessionFinancialEditAuditRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorClassRepository;
+import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.SessionService;
@@ -86,6 +87,11 @@ class MethodSecurityAuthorizationTests {
         }
 
         @Bean
+        TutorPayoutRepository tutorPayoutRepository() {
+            return mock(TutorPayoutRepository.class);
+        }
+
+        @Bean
         SessionService sessionService(
                 SessionRepository sessionRepository,
                 TutorClassRepository tutorClassRepository,
@@ -93,6 +99,7 @@ class MethodSecurityAuthorizationTests {
                 SessionStudentTuitionRepository sessionStudentTuitionRepository,
                 UserRoleRepository userRoleRepository,
                 SessionFinancialEditAuditRepository auditRepository,
+                TutorPayoutRepository tutorPayoutRepository,
                 NotificationOutboxService notificationOutboxService,
                 RealtimeOutboxService realtimeOutboxService
         ) {
@@ -103,6 +110,7 @@ class MethodSecurityAuthorizationTests {
                     sessionStudentTuitionRepository,
                     userRoleRepository,
                     auditRepository,
+                    tutorPayoutRepository,
                     notificationOutboxService,
                     realtimeOutboxService
             );
