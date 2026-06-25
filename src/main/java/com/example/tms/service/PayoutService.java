@@ -87,7 +87,7 @@ public class PayoutService {
             UUID tutorId = entry.getKey();
             List<Session> tutorSessions = entry.getValue();
             User tutor = userRepository.findById(tutorId)
-                    .orElseThrow(() -> new ApiException("Tutor not found"));
+                    .orElseThrow(() -> ApiException.notFound("TUTOR_NOT_FOUND", "Tutor not found"));
             TutorPayout payout = tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutorId, month.getYear(), month.getMonthValue())
                     .orElseGet(() -> {
                         TutorPayout newPayout = new TutorPayout();
@@ -138,10 +138,10 @@ public class PayoutService {
     @PreAuthorize("hasRole('ADMIN')")
     public TutorPayoutResponse overrideNetSalary(User admin, UUID payoutId, Long netSalary) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
-                .orElseThrow(() -> new ApiException("Payout not found"));
+                .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
 
         if (payout.getStatus() != PayoutStatus.LOCKED) {
-            throw new ApiException("Payout net salary can only be overridden while LOCKED");
+            throw ApiException.conflict("PAYOUT_NOT_LOCKED", "Payout net salary can only be overridden while LOCKED");
         }
 
         payout.setNetSalary(netSalary);
@@ -170,7 +170,7 @@ public class PayoutService {
     @PreAuthorize("hasRole('ADMIN')")
     public TutorPayoutPaymentResponse generateQr(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
-                .orElseThrow(() -> new ApiException("Payout not found"));
+                .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
         String qrRef = "PAYOUT-" + payout.getYear() + "-" + String.format("%02d", payout.getMonth()) + "-" + payout.getId();
         String payload = "BANK_TRANSFER|REF=" + qrRef + "|AMOUNT=" + payout.getNetSalary();
 
@@ -186,7 +186,7 @@ public class PayoutService {
     @PreAuthorize("hasRole('ADMIN')")
     public TutorPayoutResponse confirmPaid(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
-                .orElseThrow(() -> new ApiException("Payout not found"));
+                .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
         payout.setStatus(PayoutStatus.PAID);
         payout.setPaidAt(LocalDateTime.now());
         payout.setPaidBy(admin);

@@ -18,8 +18,11 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<?> handleApi(ApiException ex) {
-        String code = ex.getErrorCode() != null ? ex.getErrorCode() : "BAD_REQUEST";
-        return ResponseEntity.badRequest().body(error(code, ex.getMessage()));
+        HttpStatus status = ex.getStatus();
+        String code = ex.getErrorCode() != null
+                ? ex.getErrorCode()
+                : (status == HttpStatus.BAD_REQUEST ? "BAD_REQUEST" : status.name());
+        return ResponseEntity.status(status).body(error(code, ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

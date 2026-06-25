@@ -213,9 +213,9 @@ public class SessionService {
     @PreAuthorize("hasRole('TUTOR')")
     public SessionListItemResponse updateFinancial(User tutor, UUID sessionId, UpdateSessionFinancialRequest request) {
         Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ApiException("Session not found"));
+                .orElseThrow(() -> ApiException.notFound("SESSION_NOT_FOUND", "Session not found"));
         if (!session.getTutorClass().getTutor().getId().equals(tutor.getId())) {
-            throw new ApiException("Tutor can only edit own class session");
+            throw ApiException.forbidden("FORBIDDEN", "Tutor can only edit own class session");
         }
 
         // Once the payroll month has been finalized (payout LOCKED or PAID), the tutor must not be
@@ -331,7 +331,7 @@ public class SessionService {
         tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutorId, ym.getYear(), ym.getMonthValue())
                 .filter(p -> p.getStatus() == PayoutStatus.LOCKED || p.getStatus() == PayoutStatus.PAID)
                 .ifPresent(p -> {
-                    throw new ApiException(
+                    throw ApiException.conflict(
                             "PAYOUT_FINALIZED",
                             "Payroll month " + payrollMonth + " has already been finalized ("
                                     + p.getStatus() + "). Session financials can no longer be changed."
