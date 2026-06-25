@@ -68,8 +68,14 @@ function AppShell({ roles, children }: AppShellProps) {
   const sidebarContent = (
     <>
       <div className="app-brand">
-        <h2 className="title">Hands for Hands</h2>
-        <p className="muted">Tutor management</p>
+        <span className="app-brand-logo" aria-hidden="true">
+          <span className="app-brand-logo-fallback">H</span>
+          <img src="/brand/logo.png" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        </span>
+        <div className="app-brand-text">
+          <h2 className="title">Hands for Hands</h2>
+          <p className="muted">Tutor management</p>
+        </div>
       </div>
       <nav className="app-nav">
         {navItems.map((item) => {

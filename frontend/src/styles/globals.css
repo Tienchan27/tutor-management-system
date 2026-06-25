@@ -879,7 +879,7 @@ a {
 }
 
 .app-sidebar {
-  border-right: none;
+  border-right: 1px solid var(--sidebar-border);
   background: var(--sidebar-bg);
   padding: var(--space-6) var(--space-3);
   display: flex;
@@ -893,7 +893,6 @@ a {
   top: 0;
   height: 100vh;
   overflow: hidden;
-  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.12);
 }
 
 .app-sidebar-drawer {
@@ -927,13 +926,50 @@ a {
 }
 
 .app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 0 10px 14px;
   border-bottom: 1px solid var(--sidebar-border);
   margin-bottom: var(--space-3);
 }
 
+.app-brand-logo {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--brand-amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(234, 88, 12, 0.25);
+}
+
+.app-brand-logo-fallback {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.app-brand-logo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-brand-text {
+  min-width: 0;
+}
+
 .app-brand .title {
   color: var(--sidebar-brand-text);
+  font-size: 16px;
 }
 
 .app-brand .muted {
@@ -955,13 +991,12 @@ a {
   gap: var(--space-2);
   text-decoration: none;
   border: 1px solid transparent;
-  border-left: 3px solid transparent;
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   color: var(--sidebar-text);
   font-weight: 500;
   font-size: 14px;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .app-nav-link svg {
@@ -983,9 +1018,18 @@ a {
 
 .app-nav-link.active {
   background: var(--sidebar-bg-active);
-  border-left-color: var(--sidebar-text-active);
   color: var(--sidebar-text-active);
   font-weight: 600;
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.28);
+}
+
+.app-nav-link.active:hover {
+  background: var(--sidebar-bg-active);
+  color: var(--sidebar-text-active);
+}
+
+.app-nav-link.active svg {
+  color: var(--sidebar-text-active);
 }
 
 .nav-badge {
