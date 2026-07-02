@@ -1,6 +1,6 @@
 package com.example.tms;
 
-import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
+import com.example.tms.api.dto.session.UpdateSessionRequest;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.TutorPayout;
@@ -63,8 +63,13 @@ class SessionFinancialLockTests {
         session.setTutorClass(tutorClass);
         session.setTuitionAtLog(100000L);
         session.setSalaryRateAtLog(new BigDecimal("0.75"));
+        session.setDurationHours(new BigDecimal("2"));
         session.setPayrollMonth(payrollMonth);
         return session;
+    }
+
+    private UpdateSessionRequest req(Long tuition, BigDecimal salary, String payrollMonth, String note, String reason) {
+        return new UpdateSessionRequest(null, null, tuition, salary, payrollMonth, note, reason);
     }
 
     @Test
@@ -79,11 +84,8 @@ class SessionFinancialLockTests {
         when(tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), 2026, 6))
                 .thenReturn(Optional.of(locked));
 
-        UpdateSessionFinancialRequest request = new UpdateSessionFinancialRequest(
-                200000L, new BigDecimal("0.90"), null, null, "raise my rate");
-
         ApiException ex = assertThrows(ApiException.class,
-                () -> service().updateFinancial(tutor, session.getId(), request));
+                () -> service().updateSession(tutor, session.getId(), req(200000L, new BigDecimal("0.90"), null, null, "raise my rate")));
         assertEquals("PAYOUT_FINALIZED", ex.getErrorCode());
         verify(sessionRepository, never()).save(any());
     }
@@ -103,11 +105,8 @@ class SessionFinancialLockTests {
         when(tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), 2026, 5))
                 .thenReturn(Optional.of(paid));
 
-        UpdateSessionFinancialRequest request = new UpdateSessionFinancialRequest(
-                null, null, "2026-05", null, "move month");
-
         ApiException ex = assertThrows(ApiException.class,
-                () -> service().updateFinancial(tutor, session.getId(), request));
+                () -> service().updateSession(tutor, session.getId(), req(null, null, "2026-05", null, "move month")));
         assertEquals("PAYOUT_FINALIZED", ex.getErrorCode());
         verify(sessionRepository, never()).save(any());
     }
@@ -122,10 +121,40 @@ class SessionFinancialLockTests {
                 .thenReturn(Optional.empty());
         lenient().when(sessionRepository.save(any(Session.class))).thenAnswer(i -> i.getArgument(0));
 
-        UpdateSessionFinancialRequest request = new UpdateSessionFinancialRequest(
-                null, new BigDecimal("0.80"), null, "ok", "correction");
-
-        service().updateFinancial(tutor, session.getId(), request);
+        service().updateSession(tutor, session.getId(), req(null, new BigDecimal("0.80"), null, "ok", "correction"));
         verify(sessionRepository).save(any(Session.class));
+    }
+
+    @Test
+    void rejectsDeleteWhenPayrollMonthIsFinalized() {
+        User tutor = new User();
+        tutor.setId(UUID.randomUUID());
+        Session session = sessionOwnedBy(tutor, "2026-06");
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        TutorPayout paid = new TutorPayout();
+        paid.setStatus(PayoutStatus.PAID);
+        when(tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), 2026, 6))
+                .thenReturn(Optional.of(paid));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> service().deleteSession(tutor, session.getId()));
+        assertEquals("PAYOUT_FINALIZED", ex.getErrorCode());
+        verify(sessionRepository, never()).delete(any());
+        verify(sessionStudentTuitionRepository, never()).deleteBySessionId(any());
+    }
+
+    @Test
+    void deleteRemovesTuitionLinesThenSession() {
+        User tutor = new User();
+        tutor.setId(UUID.randomUUID());
+        Session session = sessionOwnedBy(tutor, "2026-06");
+        when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutor.getId(), 2026, 6))
+                .thenReturn(Optional.empty());
+
+        service().deleteSession(tutor, session.getId());
+
+        verify(sessionStudentTuitionRepository).deleteBySessionId(session.getId());
+        verify(sessionRepository).delete(session);
     }
 }

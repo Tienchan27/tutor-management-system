@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import SlideOver from '../ui/SlideOver';
 import { formatVnd } from '../../utils/format';
 
-interface SessionFinancialDrawerProps {
+interface SessionEditDrawerProps {
   open: boolean;
   item: SessionListItem | null;
   loading?: boolean;
@@ -20,7 +20,7 @@ function SessionFinancialDrawer({
   showSalaryRate = false,
   onClose,
   onSave,
-}: SessionFinancialDrawerProps) {
+}: SessionEditDrawerProps) {
   const [draft, setDraft] = useState<SessionListItem | null>(item);
   const [reason, setReason] = useState('');
 
@@ -34,24 +34,45 @@ function SessionFinancialDrawer({
   }
 
   const current = draft || item;
+  const canSave = reason.trim().length > 0;
 
   return (
     <SlideOver
       open={open}
-      title="Edit financials"
-      subtitle={`Session ${current.date} — duration ${current.durationHours}h (read-only)`}
+      title="Edit session"
+      subtitle="Correct a session you logged. A reason is recorded for the audit trail."
       onClose={onClose}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" loading={loading} onClick={() => onSave(current, reason.trim())}>
-            Save
+          <Button variant="primary" loading={loading} disabled={!canSave} onClick={() => onSave(current, reason.trim())}>
+            Save changes
           </Button>
         </>
       }
     >
+      <label className="input-wrapper input-wrapper-tight">
+        <span className="input-label">Date</span>
+        <input
+          className="text-input"
+          type="date"
+          value={current.date}
+          onChange={(e) => setDraft({ ...current, date: e.target.value })}
+        />
+      </label>
+      <label className="input-wrapper input-wrapper-tight">
+        <span className="input-label">Duration (hours)</span>
+        <input
+          className="text-input"
+          type="number"
+          step="0.5"
+          min="0.5"
+          value={current.durationHours}
+          onChange={(e) => setDraft({ ...current, durationHours: Number(e.target.value) })}
+        />
+      </label>
       <label className="input-wrapper input-wrapper-tight">
         <span className="input-label">Tuition (VND)</span>
         <input
@@ -99,7 +120,9 @@ function SessionFinancialDrawer({
           placeholder="Why is this change needed?"
         />
       </label>
-      <p className="muted mb-0">Preview: {formatVnd(current.tuitionAtLog)}</p>
+      <p className="muted mb-0">
+        Tuition: {formatVnd(current.tuitionAtLog)} · changing the duration does not recalculate tuition.
+      </p>
     </SlideOver>
   );
 }

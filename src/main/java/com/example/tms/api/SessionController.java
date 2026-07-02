@@ -4,7 +4,7 @@ import com.example.tms.api.dto.common.SliceResponse;
 import com.example.tms.api.dto.session.CreateSessionRequest;
 import com.example.tms.api.dto.session.SessionListItemResponse;
 import com.example.tms.api.dto.session.TutorSessionClassOptionResponse;
-import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
+import com.example.tms.api.dto.session.UpdateSessionRequest;
 import com.example.tms.api.util.PageableGuard;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.SessionService;
@@ -12,11 +12,14 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,12 +44,18 @@ public class SessionController {
         return sessionService.create(currentUserResolver.requireUser(), request);
     }
 
-    @PatchMapping("/{sessionId}/financial")
-    public SessionListItemResponse updateFinancial(
+    @PatchMapping("/{sessionId}")
+    public SessionListItemResponse updateSession(
             @PathVariable UUID sessionId,
-            @Valid @RequestBody UpdateSessionFinancialRequest request
+            @Valid @RequestBody UpdateSessionRequest request
     ) {
-        return sessionService.updateFinancial(currentUserResolver.requireUser(), sessionId, request);
+        return sessionService.updateSession(currentUserResolver.requireUser(), sessionId, request);
+    }
+
+    @DeleteMapping("/{sessionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSession(@PathVariable UUID sessionId) {
+        sessionService.deleteSession(currentUserResolver.requireUser(), sessionId);
     }
 
     @GetMapping

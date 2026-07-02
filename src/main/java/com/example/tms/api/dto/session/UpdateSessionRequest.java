@@ -5,8 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
-public record UpdateSessionFinancialRequest(
+public record UpdateSessionRequest(
+        LocalDate date,
+        @DecimalMin("0.01") BigDecimal durationHours,
         @Min(0) Long tuitionAtLog,
         @DecimalMin("0.00") BigDecimal salaryRateAtLog,
         String payrollMonth,

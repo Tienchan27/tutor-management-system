@@ -10,6 +10,8 @@ import java.util.UUID;
 public interface SessionStudentTuitionRepository extends JpaRepository<SessionStudentTuition, UUID> {
     List<SessionStudentTuition> findBySessionId(UUID sessionId);
 
+    void deleteBySessionId(UUID sessionId);
+
     @Query("""
            select sst
            from SessionStudentTuition sst

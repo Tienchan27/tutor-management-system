@@ -3,7 +3,7 @@ import {
   CreateSessionRequest,
   SessionListItem,
   TutorSessionClassOptionResponse,
-  UpdateSessionFinancialRequest,
+  UpdateSessionRequest,
 } from '../types/sessions';
 import { SliceResponse } from '../types/pagination';
 
@@ -28,10 +28,14 @@ export async function listMySessionClasses(): Promise<TutorSessionClassOptionRes
   return response.data;
 }
 
-export async function updateSessionFinancial(
+export async function updateSession(
   sessionId: string,
-  payload: UpdateSessionFinancialRequest
+  payload: UpdateSessionRequest
 ): Promise<SessionListItem> {
-  const response = await api.patch<SessionListItem>(`/sessions/${sessionId}/financial`, payload);
+  const response = await api.patch<SessionListItem>(`/sessions/${sessionId}`, payload);
   return response.data;
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  await api.delete(`/sessions/${sessionId}`);
 }

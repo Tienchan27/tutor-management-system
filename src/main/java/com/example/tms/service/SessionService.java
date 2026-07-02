@@ -5,7 +5,7 @@ import com.example.tms.api.dto.session.SessionListItemResponse;
 import com.example.tms.api.mapper.SessionMapper;
 import com.example.tms.api.dto.session.TutorSessionClassOptionResponse;
 import com.example.tms.api.dto.session.TutorSessionStudentOptionResponse;
-import com.example.tms.api.dto.session.UpdateSessionFinancialRequest;
+import com.example.tms.api.dto.session.UpdateSessionRequest;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.SessionFinancialEditAudit;
 import com.example.tms.entity.SessionStudentTuition;
@@ -212,7 +212,7 @@ public class SessionService {
 
     @Transactional
     @PreAuthorize("hasRole('TUTOR')")
-    public SessionListItemResponse updateFinancial(User tutor, UUID sessionId, UpdateSessionFinancialRequest request) {
+    public SessionListItemResponse updateSession(User tutor, UUID sessionId, UpdateSessionRequest request) {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> ApiException.notFound("SESSION_NOT_FOUND", "Session not found"));
         if (!session.getTutorClass().getTutor().getId().equals(tutor.getId())) {
@@ -232,7 +232,17 @@ public class SessionService {
         auditIfChanged(session, tutor, "tuitionAtLog", String.valueOf(session.getTuitionAtLog()), String.valueOf(request.tuitionAtLog()), request.reason());
         auditIfChanged(session, tutor, "salaryRateAtLog", String.valueOf(session.getSalaryRateAtLog()), String.valueOf(request.salaryRateAtLog()), request.reason());
         auditIfChanged(session, tutor, "payrollMonth", session.getPayrollMonth(), request.payrollMonth(), request.reason());
+        auditIfChanged(session, tutor, "date", String.valueOf(session.getDate()),
+                request.date() == null ? null : request.date().toString(), request.reason());
+        auditIfChanged(session, tutor, "durationHours", String.valueOf(session.getDurationHours()),
+                request.durationHours() == null ? null : request.durationHours().toString(), request.reason());
 
+        if (request.date() != null) {
+            session.setDate(request.date());
+        }
+        if (request.durationHours() != null) {
+            session.setDurationHours(request.durationHours());
+        }
         if (request.tuitionAtLog() != null) {
             syncSessionTuitionLines(session, request.tuitionAtLog());
             session.setTuitionAtLog(request.tuitionAtLog());
@@ -276,6 +286,37 @@ public class SessionService {
         );
         realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "session:" + saved.getId(), adminEvent);
         return SessionMapper.toListItemResponse(saved);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('TUTOR')")
+    public void deleteSession(User tutor, UUID sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> ApiException.notFound("SESSION_NOT_FOUND", "Session not found"));
+        if (!session.getTutorClass().getTutor().getId().equals(tutor.getId())) {
+            throw ApiException.forbidden("FORBIDDEN", "Tutor can only delete own class session");
+        }
+        // Same rule as editing: a session in a finalized payroll month is locked.
+        assertMonthNotFinalized(tutor.getId(), session.getPayrollMonth());
+
+        sessionStudentTuitionRepository.deleteBySessionId(sessionId);
+        sessionRepository.delete(session);
+
+        ClientEvent tutorEvent = ClientEvent.of(
+                ClientEventType.SESSION_FINANCIAL_UPDATED,
+                "user:" + tutor.getId(),
+                "session:" + sessionId,
+                Map.of("sessionId", String.valueOf(sessionId), "deleted", "true")
+        );
+        realtimeOutboxService.enqueue("user:" + tutor.getId(), "session:" + sessionId, tutorEvent);
+
+        ClientEvent adminEvent = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "role:" + RoleName.ADMIN.name(),
+                "session:" + sessionId,
+                Map.of("sessionId", String.valueOf(sessionId), "reason", "SESSION_DELETED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "session:" + sessionId, adminEvent);
     }
 
     @PreAuthorize("hasRole('TUTOR')")

@@ -29,7 +29,9 @@ export interface CreateSessionRequest {
   note?: string;
 }
 
-export interface UpdateSessionFinancialRequest {
+export interface UpdateSessionRequest {
+  date?: string | null;
+  durationHours?: number | null;
   tuitionAtLog?: number | null;
   salaryRateAtLog?: number | null;
   payrollMonth?: string | null;

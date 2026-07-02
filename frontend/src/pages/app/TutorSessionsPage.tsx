@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listMySessionClasses, listSessionsByPayrollMonth } from '../../services/sessionService';
+import {
+  deleteSession,
+  listMySessionClasses,
+  listSessionsByPayrollMonth,
+  updateSession,
+} from '../../services/sessionService';
 import { SessionListItem, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
 import PageHeader from '../../components/ui/PageHeader';
 import PageSection from '../../components/layout/PageSection';
 import Button from '../../components/ui/Button';
 import LogSessionModal from '../../components/tutor/LogSessionModal';
+import SessionFinancialDrawer from '../../components/sessions/SessionFinancialDrawer';
+import ConfirmDialog from '../../components/feedback/ConfirmDialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { getCurrentYearMonth } from '../../utils/format';
 import TutorSessionMonthList from './sessions/TutorSessionMonthList';
@@ -22,6 +29,10 @@ function TutorSessionsPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [logModalOpen, setLogModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<SessionListItem | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SessionListItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const filteredItems = useMemo(() => {
     if (!classFilterId) {
@@ -82,6 +93,46 @@ function TutorSessionsPage() {
     }
   }, []);
 
+  async function handleEditSave(item: SessionListItem, reason: string): Promise<void> {
+    setEditLoading(true);
+    setError('');
+    try {
+      await updateSession(item.id, {
+        date: item.date,
+        durationHours: item.durationHours,
+        tuitionAtLog: item.tuitionAtLog,
+        payrollMonth: item.payrollMonth,
+        note: item.note,
+        reason,
+      });
+      setEditItem(null);
+      showToast('Session updated', 'success');
+      await loadSessions();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to update session'));
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function handleDeleteConfirmed(): Promise<void> {
+    if (!deleteTarget) {
+      return;
+    }
+    setDeleteLoading(true);
+    setError('');
+    try {
+      await deleteSession(deleteTarget.id);
+      setDeleteTarget(null);
+      showToast('Session deleted', 'success');
+      await loadSessions();
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to delete session'));
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   useEffect(() => {
     void loadClasses();
     void loadSessions();
@@ -112,6 +163,8 @@ function TutorSessionsPage() {
           onMonthChange={setMonth}
           onClassFilterChange={setClassFilterId}
           onLoadMore={() => void loadMoreSessions()}
+          onEdit={setEditItem}
+          onDelete={setDeleteTarget}
         />
       </PageSection>
 
@@ -123,6 +176,25 @@ function TutorSessionsPage() {
           showToast('Session logged successfully', 'success');
           void loadSessions();
         }}
+      />
+
+      <SessionFinancialDrawer
+        open={!!editItem}
+        item={editItem}
+        loading={editLoading}
+        onClose={() => setEditItem(null)}
+        onSave={(item, reason) => void handleEditSave(item, reason)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete session"
+        message="Delete this logged session? This cannot be undone. Sessions in a finalized payroll month cannot be deleted."
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleteLoading}
+        onConfirm={() => void handleDeleteConfirmed()}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );
