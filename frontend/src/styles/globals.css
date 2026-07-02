@@ -990,6 +990,13 @@ a {
   line-height: 1.5;
 }
 
+.notification-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;

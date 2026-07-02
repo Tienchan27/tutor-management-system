@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { listMyNotifications, markNotificationRead } from '../../services/notificationService';
+import {
+  deleteNotification,
+  listMyNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../../services/notificationService';
 import { NotificationResponse } from '../../types/notifications';
 import { extractApiErrorMessage } from '../../services/authService';
-import { realtimeEventBus } from '../../services/realtimeEventBus';
+import { emitLocalEvent, realtimeEventBus } from '../../services/realtimeEventBus';
 import PageHeader from '../../components/ui/PageHeader';
 import PageSection from '../../components/layout/PageSection';
 import Button from '../../components/ui/Button';
@@ -63,9 +68,32 @@ function NotificationsPage() {
     try {
       await markNotificationRead(id);
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-      showToast('Marked as read', 'success');
+      emitLocalEvent('NOTIFICATIONS_CHANGED');
     } catch (err: unknown) {
       setError(extractApiErrorMessage(err, 'Failed to mark notification as read'));
+    }
+  }
+
+  async function handleMarkAllRead(): Promise<void> {
+    setError('');
+    try {
+      await markAllNotificationsRead();
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+      emitLocalEvent('NOTIFICATIONS_CHANGED');
+      showToast('All notifications marked as read', 'success');
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to mark all as read'));
+    }
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    setError('');
+    try {
+      await deleteNotification(id);
+      setItems((prev) => prev.filter((n) => n.id !== id));
+      emitLocalEvent('NOTIFICATIONS_CHANGED');
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Failed to delete notification'));
     }
   }
 
@@ -97,6 +125,7 @@ function NotificationsPage() {
   }, []);
 
   const visibleItems = showUnreadOnly ? items.filter((n) => !n.read) : items;
+  const hasUnread = items.some((n) => !n.read);
 
   return (
     <div className="stack-16">
@@ -107,6 +136,9 @@ function NotificationsPage() {
           <>
             <Button variant="ghost" size="sm" onClick={() => setShowUnreadOnly((v) => !v)}>
               {showUnreadOnly ? 'Show all' : 'Unread only'}
+            </Button>
+            <Button variant="ghost" size="sm" disabled={!hasUnread} onClick={handleMarkAllRead}>
+              Mark all read
             </Button>
             <Button variant="secondary" size="sm" onClick={() => load(0)} loading={loading}>
               Refresh
@@ -132,11 +164,22 @@ function NotificationsPage() {
                   <h3 className="feed-item-title">{item.title}</h3>
                   <p className="notification-content">{item.content}</p>
                 </div>
-                {!item.read ? (
-                  <Button variant="ghost" size="sm" onClick={() => handleMarkRead(item.id)}>
-                    Mark read
-                  </Button>
-                ) : null}
+                <div className="notification-actions">
+                  {!item.read ? (
+                    <Button variant="ghost" size="sm" onClick={() => handleMarkRead(item.id)}>
+                      Mark read
+                    </Button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn-danger"
+                    title="Delete notification"
+                    aria-label="Delete notification"
+                    onClick={() => handleDelete(item.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
               </article>
             ))}
           </div>

@@ -20,7 +20,10 @@ export function useUnreadNotifications(): number {
   useEffect(() => {
     void fetchCount();
 
-    const unsubscribe = realtimeEventBus.subscribe('NOTIFICATION_CREATED', () => {
+    const unsubCreated = realtimeEventBus.subscribe('NOTIFICATION_CREATED', () => {
+      void fetchCount();
+    });
+    const unsubChanged = realtimeEventBus.subscribe('NOTIFICATIONS_CHANGED', () => {
       void fetchCount();
     });
 
@@ -29,7 +32,8 @@ export function useUnreadNotifications(): number {
     }, POLL_INTERVAL_MS);
 
     return () => {
-      unsubscribe();
+      unsubCreated();
+      unsubChanged();
       window.clearInterval(intervalId);
     };
   }, [fetchCount]);

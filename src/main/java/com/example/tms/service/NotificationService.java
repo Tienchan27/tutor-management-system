@@ -8,6 +8,7 @@ import com.example.tms.repository.NotificationRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -19,21 +20,31 @@ public class NotificationService {
         this.notificationRepository = notificationRepository;
     }
 
-    private Notification markRead(UUID userId, UUID notificationId) {
-        if (userId == null) {
-            throw new ApiException("User is required");
-        }
-        Notification n = notificationRepository.findById(notificationId).orElseThrow();
+    private Notification requireOwned(UUID userId, UUID notificationId) {
+        Notification n = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> ApiException.notFound("NOTIFICATION_NOT_FOUND", "Notification not found"));
         if (n.getUser() == null || n.getUser().getId() == null || !n.getUser().getId().equals(userId)) {
-            throw new ApiException("Not authorized to mark this notification");
+            throw ApiException.forbidden("FORBIDDEN", "Not authorized to access this notification");
         }
-        n.setRead(true);
-        return notificationRepository.save(n);
+        return n;
     }
 
+    @Transactional
     public NotificationResponse markReadResponse(UUID userId, UUID notificationId) {
-        Notification saved = markRead(userId, notificationId);
-        return NotificationMapper.toResponse(saved);
+        Notification n = requireOwned(userId, notificationId);
+        n.setRead(true);
+        return NotificationMapper.toResponse(notificationRepository.save(n));
+    }
+
+    @Transactional
+    public int markAllRead(UUID userId) {
+        return notificationRepository.markAllReadForUser(userId);
+    }
+
+    @Transactional
+    public void delete(UUID userId, UUID notificationId) {
+        Notification n = requireOwned(userId, notificationId);
+        notificationRepository.delete(n);
     }
 
     public Slice<NotificationResponse> getMyNotifications(UUID userId, Pageable pageable) {

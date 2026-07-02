@@ -6,7 +6,20 @@ export type ClientEventType =
   | 'PAYOUT_UPDATED'
   | 'SESSION_FINANCIAL_UPDATED'
   | 'DASHBOARD_INVALIDATE'
-  | 'PAYMENT_STATUS_CHANGED';
+  | 'PAYMENT_STATUS_CHANGED'
+  // Client-only signal: the user changed their own notifications (read-all / delete),
+  // so the unread badge should refresh. Never emitted by the server.
+  | 'NOTIFICATIONS_CHANGED';
+
+/** Emits a client-only event (e.g. NOTIFICATIONS_CHANGED) onto the bus. */
+export function emitLocalEvent(type: ClientEventType): void {
+  realtimeEventBus.emit({
+    eventId: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now() + Math.random()),
+    type,
+    occurredAt: new Date().toISOString(),
+    scope: 'local',
+  });
+}
 
 export interface ClientEvent {
   eventId: string;

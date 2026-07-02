@@ -21,3 +21,12 @@ export async function markNotificationRead(notificationId: string): Promise<Noti
   const response = await api.post<NotificationResponse>(`/notifications/${notificationId}/read`);
   return response.data;
 }
+
+export async function markAllNotificationsRead(): Promise<number> {
+  const response = await api.post<{ updated: number }>('/notifications/read-all');
+  return response.data.updated;
+}
+
+export async function deleteNotification(notificationId: string): Promise<void> {
+  await api.delete(`/notifications/${notificationId}`);
+}
