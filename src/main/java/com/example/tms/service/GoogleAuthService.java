@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaObjectRetrievalFailureException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +48,6 @@ public class GoogleAuthService {
     private final TutorInvitationService tutorInvitationService;
     private final OtpService otpService;
     private final TokenService tokenService;
-    private final PasswordEncoder passwordEncoder;
     private final String googleClientId;
 
     public GoogleAuthService(
@@ -60,7 +58,6 @@ public class GoogleAuthService {
             TutorInvitationService tutorInvitationService,
             OtpService otpService,
             TokenService tokenService,
-            PasswordEncoder passwordEncoder,
             @Value("${GOOGLE_CLIENT_ID}") String googleClientId
     ) {
         this.userRepository = userRepository;
@@ -70,7 +67,6 @@ public class GoogleAuthService {
         this.tutorInvitationService = tutorInvitationService;
         this.otpService = otpService;
         this.tokenService = tokenService;
-        this.passwordEncoder = passwordEncoder;
         this.googleClientId = googleClientId;
     }
 
@@ -145,37 +141,6 @@ public class GoogleAuthService {
         }
         log.info("Google provider linked after OTP challenge for user {}", user.getId());
         return buildAuthResponse(user, picture, false, httpRequest, null);
-    }
-
-    @Transactional
-    public void linkGoogleAccount(UUID userId, String idToken, String currentPassword) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException("User not found"));
-
-        if (user.getPassword() == null || user.getPassword().isBlank()) {
-            throw new ApiException("Password login is not configured for this account");
-        }
-        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-            throw new ApiException("Invalid current password");
-        }
-
-        GoogleIdToken.Payload payload = verifyGoogleToken(idToken);
-        String email = normalizeEmail(payload.getEmail());
-        String googleUserId = payload.getSubject();
-
-        if (!email.equals(normalizeEmail(user.getEmail()))) {
-            throw new ApiException("Google account email does not match current account");
-        }
-        if (userProviderRepository.existsByUserAndProvider(user, ProviderType.GOOGLE)) {
-            throw new ApiException("Google account already linked");
-        }
-
-        Optional<UserProvider> existingProvider = userProviderRepository
-                .findByProviderAndProviderId(ProviderType.GOOGLE, googleUserId);
-        if (existingProvider.isPresent() && !existingProvider.get().getUser().getId().equals(user.getId())) {
-            throw new ApiException("Google account is already linked to another user");
-        }
-        createProviderLink(user, googleUserId);
     }
 
     private GoogleAuthResponse buildAuthResponse(

@@ -11,10 +11,6 @@ let controller: AbortController | null = null;
 let running = false;
 let state: RealtimeConnectionState = 'idle';
 
-export function getRealtimeState(): RealtimeConnectionState {
-  return state;
-}
-
 function setState(next: RealtimeConnectionState): void {
   state = next;
 }

@@ -1,4 +1,4 @@
-import { AxiosError, AxiosResponse } from 'axios';
+import { AxiosError } from 'axios';
 import api from './api';
 import { clearAuthSession, saveAuthSession } from '../utils/storage';
 import { GoogleAuthResponse } from '../types/auth';
@@ -27,8 +27,4 @@ export async function googleLogin(idToken: string): Promise<GoogleAuthResponse> 
     }
     return { ...retryResponse.data, authStatus: retryResponse.data.authStatus || 'AUTHENTICATED' };
   }
-}
-
-export async function linkGoogleAccount(idToken: string, currentPassword: string): Promise<AxiosResponse<unknown>> {
-  return api.post('/auth/google/link', { idToken, currentPassword });
 }

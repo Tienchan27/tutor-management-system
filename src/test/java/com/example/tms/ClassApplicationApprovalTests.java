@@ -13,7 +13,6 @@ import com.example.tms.repository.SubjectRepository;
 import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRepository;
-import com.example.tms.security.RoleGuard;
 import com.example.tms.service.ClassAssignmentService;
 import com.example.tms.service.MailService;
 import com.example.tms.service.NotificationOutboxService;
@@ -42,7 +41,6 @@ class ClassApplicationApprovalTests {
     @Mock private TutorClassApplicationRepository classApplicationRepository;
     @Mock private UserRepository userRepository;
     @Mock private UserRoleService userRoleService;
-    @Mock private RoleGuard roleGuard;
     @Mock private MailService mailService;
     @Mock private NotificationOutboxService notificationOutboxService;
     @Mock private RealtimeOutboxService realtimeOutboxService;
@@ -51,7 +49,7 @@ class ClassApplicationApprovalTests {
         return new ClassAssignmentService(
                 subjectRepository, tutorClassRepository, enrollmentRepository,
                 classApplicationRepository, userRepository, userRoleService,
-                roleGuard, mailService, notificationOutboxService, realtimeOutboxService);
+                mailService, notificationOutboxService, realtimeOutboxService);
     }
 
     private TutorClassApplication application(TutorClassApplicationStatus status, TutorClass tutorClass) {

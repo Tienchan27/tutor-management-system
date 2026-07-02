@@ -56,7 +56,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/google/verify-link-otp").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/google/link").authenticated()
                         // Protected user endpoints - all authenticated users
                         .requestMatchers("/users/me/**").authenticated()
                         .requestMatchers("/bank-accounts/**").hasAnyRole("TUTOR", "ADMIN")

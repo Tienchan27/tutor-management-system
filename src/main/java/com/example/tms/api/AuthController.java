@@ -4,7 +4,6 @@ import com.example.tms.api.dto.auth.AuthResponse;
 import com.example.tms.api.dto.auth.ForgotPasswordRequest;
 import com.example.tms.api.dto.auth.GoogleAuthRequest;
 import com.example.tms.api.dto.auth.GoogleAuthResponse;
-import com.example.tms.api.dto.auth.LinkGoogleRequest;
 import com.example.tms.api.dto.auth.LoginRequest;
 import com.example.tms.api.dto.auth.RegisterRequest;
 import com.example.tms.api.dto.auth.ResetPasswordRequest;
@@ -150,16 +149,6 @@ public class AuthController {
             CookieUtils.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
         }
         return googleAuth;
-    }
-
-    @PostMapping("/google/link")
-    public Map<String, String> linkGoogle(@Valid @RequestBody LinkGoogleRequest request) {
-        googleAuthService.linkGoogleAccount(
-                currentUserResolver.requireUserId(),
-                request.idToken(),
-                request.currentPassword()
-        );
-        return Map.of("message", "Google account linked successfully");
     }
 
     private AuthResponse toAuthResponse(GoogleAuthResponse g) {

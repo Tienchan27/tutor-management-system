@@ -7,7 +7,6 @@ import com.example.tms.api.dto.classes.PublishedClassResponse;
 import com.example.tms.api.dto.classes.StudentLookupResponse;
 import com.example.tms.api.dto.classes.SubjectOptionResponse;
 import com.example.tms.api.dto.classes.TutorClassApplicationResponse;
-import com.example.tms.api.dto.classes.UpdateClassDisplayNameRequest;
 import com.example.tms.api.dto.classes.UpdateClassRequest;
 import com.example.tms.api.dto.common.SliceResponse;
 import com.example.tms.api.util.PageableGuard;
@@ -20,7 +19,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -78,24 +76,6 @@ public class AdminClassController {
         );
     }
 
-    @GetMapping("/{classId}/applications")
-    public SliceResponse<TutorClassApplicationResponse> applications(@PathVariable UUID classId, Pageable pageable) {
-        Pageable guarded = PageableGuard.guard(
-                pageable,
-                50,
-                Sort.by(Sort.Direction.ASC, "appliedAt"),
-                Set.of("appliedAt")
-        );
-        Slice<TutorClassApplicationResponse> slice = classAssignmentService.listClassApplications(currentUserResolver.requireUser(), classId, guarded);
-        return new SliceResponse<>(
-                slice.getContent(),
-                slice.hasNext(),
-                guarded.getPageNumber(),
-                guarded.getPageSize(),
-                PageableGuard.sortToString(guarded.getSort())
-        );
-    }
-
     @PostMapping("/applications/{applicationId}/approve")
     public PublishedClassResponse approve(@PathVariable UUID applicationId) {
         return classAssignmentService.approveApplication(currentUserResolver.requireUser(), applicationId);
@@ -125,14 +105,6 @@ public class AdminClassController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteClass(@PathVariable UUID classId) {
         classAssignmentService.deleteClass(currentUserResolver.requireUser(), classId);
-    }
-
-    @PatchMapping("/{classId}/display-name")
-    public PublishedClassResponse updateDisplayName(
-            @PathVariable UUID classId,
-            @Valid @RequestBody UpdateClassDisplayNameRequest request
-    ) {
-        return classAssignmentService.updateClassDisplayName(currentUserResolver.requireUser(), classId, request.displayName());
     }
 
     @PostMapping("/{classId}/students")

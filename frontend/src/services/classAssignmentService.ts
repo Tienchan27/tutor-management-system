@@ -35,13 +35,6 @@ export async function listPublishedClasses(): Promise<SliceResponse<PublishedCla
   return response.data;
 }
 
-export async function listClassApplications(classId: string): Promise<SliceResponse<TutorClassApplicationResponse>> {
-  const response = await api.get<SliceResponse<TutorClassApplicationResponse>>(`/admin/classes/${classId}/applications`, {
-    params: { page: 0, size: 20, sort: 'appliedAt,asc' },
-  });
-  return response.data;
-}
-
 export async function approveClassApplication(applicationId: string): Promise<PublishedClassResponse> {
   const response = await api.post<PublishedClassResponse>(`/admin/classes/applications/${applicationId}/approve`);
   return response.data;
@@ -73,11 +66,6 @@ export async function addClassStudent(
 
 export async function removeClassStudent(classId: string, studentId: string): Promise<PublishedClassResponse> {
   const response = await api.delete<PublishedClassResponse>(`/admin/classes/${classId}/students/${studentId}`);
-  return response.data;
-}
-
-export async function updateClassDisplayName(classId: string, displayName: string): Promise<PublishedClassResponse> {
-  const response = await api.patch<PublishedClassResponse>(`/classes/${classId}/display-name`, { displayName });
   return response.data;
 }
 

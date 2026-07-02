@@ -670,18 +670,6 @@ a {
   gap: 8px;
 }
 
-.badge {
-  display: inline-block;
-  width: fit-content;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--bg-subtle);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  font-weight: 600;
-  font-size: 13px;
-}
-
 .otp-hint {
   margin-top: 0;
   color: var(--text-muted);
@@ -1699,36 +1687,6 @@ select {
   animation: spin 0.8s linear infinite;
 }
 
-.tabs-list {
-  display: flex;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-
-.tabs-trigger {
-  border: none;
-  background: transparent;
-  border-radius: 0;
-  padding: 8px 2px;
-  margin-bottom: -1px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-}
-
-.tabs-trigger:hover:not(.active) {
-  color: var(--text-primary);
-}
-
-.tabs-trigger.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--brand-amber);
-}
-
 .toast-stack {
   position: fixed;
   right: 16px;
@@ -2281,58 +2239,6 @@ select {
   .form-actions .btn {
     width: 100%;
   }
-}
-
-/* Stepper */
-.stepper {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
-  flex-wrap: wrap;
-}
-
-.stepper-step {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.stepper-step.active {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.stepper-step.done {
-  color: var(--text-secondary);
-}
-
-.stepper-index {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--bg-surface);
-}
-
-.stepper-step.active .stepper-index {
-  border-color: var(--brand-amber);
-  background: var(--brand-amber-light);
-  color: var(--brand-amber-dark);
-}
-
-.stepper-step.done .stepper-index {
-  background: var(--bg-subtle);
-}
-
-.stepper-separator {
-  color: var(--text-tertiary);
 }
 
 /* Chips */

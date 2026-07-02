@@ -30,7 +30,6 @@ import com.example.tms.repository.SubjectRepository;
 import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRepository;
-import com.example.tms.security.RoleGuard;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -54,7 +53,6 @@ public class ClassAssignmentService {
     private final TutorClassApplicationRepository classApplicationRepository;
     private final UserRepository userRepository;
     private final UserRoleService userRoleService;
-    private final RoleGuard roleGuard;
     private final MailService mailService;
     private final NotificationOutboxService notificationOutboxService;
     private final RealtimeOutboxService realtimeOutboxService;
@@ -66,7 +64,6 @@ public class ClassAssignmentService {
             TutorClassApplicationRepository classApplicationRepository,
             UserRepository userRepository,
             UserRoleService userRoleService,
-            RoleGuard roleGuard,
             MailService mailService,
             NotificationOutboxService notificationOutboxService,
             RealtimeOutboxService realtimeOutboxService
@@ -77,7 +74,6 @@ public class ClassAssignmentService {
         this.classApplicationRepository = classApplicationRepository;
         this.userRepository = userRepository;
         this.userRoleService = userRoleService;
-        this.roleGuard = roleGuard;
         this.mailService = mailService;
         this.notificationOutboxService = notificationOutboxService;
         this.realtimeOutboxService = realtimeOutboxService;
@@ -181,12 +177,6 @@ public class ClassAssignmentService {
         ));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    public Slice<TutorClassApplicationResponse> listClassApplications(User admin, UUID classId, Pageable pageable) {
-        tutorClassRepository.findById(classId).orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
-        return classApplicationRepository.findByClassId(classId, pageable)
-                .map(this::toApplicationResponse);
-    }
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
@@ -479,34 +469,6 @@ public class ClassAssignmentService {
                 Map.of("classId", String.valueOf(classId), "status", "DELETED")
         );
         realtimeOutboxService.enqueue("role:" + RoleName.TUTOR.name(), "class:" + classId, event);
-    }
-
-    @Transactional
-    @PreAuthorize("hasAnyRole('ADMIN','TUTOR')")
-    public PublishedClassResponse updateClassDisplayName(User actor, UUID classId, String displayName) {
-        TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
-                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
-
-        boolean isAdmin = hasRole(actor, RoleName.ADMIN);
-        boolean isAssignedTutor = tutorClass.getTutor() != null
-                && tutorClass.getTutor().getId().equals(actor.getId())
-                && hasRole(actor, RoleName.TUTOR);
-        if (!isAdmin && !isAssignedTutor) {
-            throw ApiException.forbidden("FORBIDDEN", "Not authorized to rename this class");
-        }
-
-        tutorClass.setDisplayName(displayName.trim());
-        tutorClass = tutorClassRepository.save(tutorClass);
-        return toPublishedClassResponse(tutorClass);
-    }
-
-    private boolean hasRole(User user, RoleName roleName) {
-        try {
-            roleGuard.requireRole(user, roleName);
-            return true;
-        } catch (ApiException ex) {
-            return false;
-        }
     }
 
     private User resolveStudent(String studentEmail, String studentName, User admin) {

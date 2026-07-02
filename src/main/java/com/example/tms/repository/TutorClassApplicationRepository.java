@@ -2,8 +2,6 @@ package com.example.tms.repository;
 
 import com.example.tms.entity.TutorClassApplication;
 import com.example.tms.entity.enums.TutorClassApplicationStatus;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -42,15 +40,6 @@ public interface TutorClassApplicationRepository extends JpaRepository<TutorClas
              and tca.status = :status
            """)
     Set<UUID> findClassIdsByTutorIdAndStatus(UUID tutorId, Collection<UUID> classIds, TutorClassApplicationStatus status);
-
-    @Query("""
-           select tca from TutorClassApplication tca
-           join fetch tca.tutor t
-           join fetch tca.tutorClass tc
-           join fetch tc.subject s
-           where tca.tutorClass.id = :classId
-           """)
-    Slice<TutorClassApplication> findByClassId(UUID classId, Pageable pageable);
 
     @Query("""
            select tca from TutorClassApplication tca

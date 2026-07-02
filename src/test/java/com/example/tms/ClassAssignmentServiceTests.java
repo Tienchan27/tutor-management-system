@@ -17,7 +17,6 @@ import com.example.tms.repository.SubjectRepository;
 import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.UserRepository;
-import com.example.tms.security.RoleGuard;
 import com.example.tms.service.ClassAssignmentService;
 import com.example.tms.service.MailService;
 import com.example.tms.service.NotificationOutboxService;
@@ -55,8 +54,6 @@ class ClassAssignmentServiceTests {
     @Mock
     private UserRoleService userRoleService;
     @Mock
-    private RoleGuard roleGuard;
-    @Mock
     private MailService mailService;
     @Mock
     private NotificationOutboxService notificationOutboxService;
@@ -74,7 +71,6 @@ class ClassAssignmentServiceTests {
                 classApplicationRepository,
                 userRepository,
                 userRoleService,
-                roleGuard,
                 mailService,
                 notificationOutboxService,
                 realtimeOutboxService
