@@ -10,7 +10,7 @@ public record PublishedClassResponse(
         Long pricePerHour,
         String status,
         String note,
-        List<String> studentNames,
+        List<ClassStudentResponse> students,
         List<TutorClassApplicationResponse> applications
 ) {
 }

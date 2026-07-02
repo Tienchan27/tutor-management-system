@@ -13,6 +13,7 @@ import { useToast } from '../../components/feedback/ToastProvider';
 import { formatDate, formatVnd } from '../../utils/format';
 import { realtimeEventBus } from '../../services/realtimeEventBus';
 import {
+  addClassStudent,
   approveClassApplication,
   deleteClass,
   listPublishedClasses,
@@ -20,6 +21,7 @@ import {
   lookupStudentByEmail,
   publishClass,
   rejectClassApplication,
+  removeClassStudent,
   updateClass,
 } from '../../services/classAssignmentService';
 import { PublishClassStudentInput, PublishedClassResponse, SubjectOptionResponse } from '../../types/classAssignment';
@@ -119,6 +121,7 @@ function AdminClassAssignmentPage() {
 
   const [deleteTargetId, setDeleteTargetId] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [rosterLoading, setRosterLoading] = useState(false);
 
   const [applicationLoadingId, setApplicationLoadingId] = useState('');
   const [confirmApproveId, setConfirmApproveId] = useState('');
@@ -236,6 +239,36 @@ function AdminClassAssignmentPage() {
     setForm((prev) => ({ ...prev, students: prev.students.filter((s) => normalizeEmail(s.email) !== normalizeEmail(email)) }));
   }
 
+  async function handleAddStudentToClass(): Promise<void> {
+    setFormError('');
+    const email = normalizeEmail(form.studentDraft.email);
+    const name = form.studentDraft.name.trim() || defaultNameFromEmail(email);
+    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email before adding.'); return; }
+    setRosterLoading(true);
+    try {
+      await addClassStudent(editingClassId, { email, name });
+      setForm((prev) => ({ ...prev, studentDraft: { email: '', name: '' }, studentLookupHint: '' }));
+      await loadData();
+    } catch (err: unknown) {
+      setFormError(extractApiErrorMessage(err, 'Failed to add student'));
+    } finally {
+      setRosterLoading(false);
+    }
+  }
+
+  async function handleRemoveStudentFromClass(studentId: string): Promise<void> {
+    setFormError('');
+    setRosterLoading(true);
+    try {
+      await removeClassStudent(editingClassId, studentId);
+      await loadData();
+    } catch (err: unknown) {
+      setFormError(extractApiErrorMessage(err, 'Failed to remove student'));
+    } finally {
+      setRosterLoading(false);
+    }
+  }
+
   function handleSubjectChange(subjectId: string): void {
     const subject = subjects.find((s) => s.id === subjectId);
     setForm((prev) => ({
@@ -338,6 +371,9 @@ function AdminClassAssignmentPage() {
 
   const isEditMode = modalMode === 'edit';
   const modalTitle = isEditMode ? 'Edit class' : 'New class';
+  const editingClass = isEditMode
+    ? publishedClasses.find((c) => c.classId === editingClassId) ?? null
+    : null;
 
   const activeClasses = publishedClasses.filter((c) => c.status === 'ACTIVE');
   const inactiveClasses = publishedClasses.filter((c) => c.status !== 'ACTIVE');
@@ -405,10 +441,10 @@ function AdminClassAssignmentPage() {
                         <div className="class-row-info">
                           <div className="class-row-name">{cls.displayName}</div>
                           <div className="class-row-subject">{cls.subjectName}</div>
-                          {cls.studentNames.length > 0 ? (
+                          {cls.students.length > 0 ? (
                             <div className="ac-card-students mt-6">
-                              {cls.studentNames.map((name) => (
-                                <span key={name} className="student-chip-label">{name}</span>
+                              {cls.students.map((s) => (
+                                <span key={s.studentId} className="student-chip-label">{s.name}</span>
                               ))}
                             </div>
                           ) : null}
@@ -467,10 +503,10 @@ function AdminClassAssignmentPage() {
                             <div className="class-row-info">
                               <div className="class-row-name">{cls.displayName}</div>
                               <div className="class-row-subject">{cls.subjectName}</div>
-                              {cls.studentNames.length > 0 ? (
+                              {cls.students.length > 0 ? (
                                 <div className="ac-card-students mt-6">
-                                  {cls.studentNames.map((name) => (
-                                    <span key={name} className="student-chip-label">{name}</span>
+                                  {cls.students.map((s) => (
+                                    <span key={s.studentId} className="student-chip-label">{s.name}</span>
                                   ))}
                                 </div>
                               ) : null}
@@ -597,6 +633,55 @@ function AdminClassAssignmentPage() {
               </div>
               {form.studentLookupHint ? <p className="muted mb-0">{form.studentLookupHint}</p> : null}
               <StudentChipList students={form.students} onRemove={handleRemoveStudent} />
+            </SectionBlock>
+          ) : null}
+
+          {isEditMode ? (
+            <SectionBlock title="Students">
+              {editingClass && editingClass.students.length > 0 ? (
+                <div className="chip-list mb-8">
+                  {editingClass.students.map((s) => (
+                    <span key={s.studentId} className="chip">
+                      <span className="chip-label">
+                        <span className="chip-name">{s.name}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="chip-remove"
+                        aria-label={`Remove ${s.name}`}
+                        disabled={rosterLoading}
+                        onClick={() => void handleRemoveStudentFromClass(s.studentId)}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted mb-8">No students in this class yet.</p>
+              )}
+              <div className="grid-form grid-form-no-margin">
+                <input
+                  type="email"
+                  className="text-input"
+                  placeholder="Add student by email — press Enter"
+                  value={form.studentDraft.email}
+                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, email: e.target.value } }))}
+                  onBlur={() => void handleStudentLookup()}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
+                />
+                <input
+                  className="text-input"
+                  placeholder="Student name"
+                  value={form.studentDraft.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, name: e.target.value } }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
+                />
+                <Button type="button" variant="secondary" className="compact-btn" loading={rosterLoading} onClick={() => void handleAddStudentToClass()}>
+                  Add
+                </Button>
+              </div>
+              {form.studentLookupHint ? <p className="muted mb-0">{form.studentLookupHint}</p> : null}
             </SectionBlock>
           ) : null}
 

@@ -2,6 +2,7 @@ package com.example.tms.service;
 
 import com.example.tms.api.dto.classes.ApplyClassResponse;
 import com.example.tms.api.dto.classes.AvailableClassResponse;
+import com.example.tms.api.dto.classes.ClassStudentResponse;
 import com.example.tms.api.dto.classes.PublishClassRequest;
 import com.example.tms.api.dto.classes.PublishClassStudentRequest;
 import com.example.tms.api.dto.classes.PublishedClassResponse;
@@ -409,6 +410,60 @@ public class ClassAssignmentService {
 
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
+    public PublishedClassResponse addStudentToClass(User admin, UUID classId, String email, String name) {
+        TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
+        if (tutorClass.getStatus() == ClassStatus.INACTIVE) {
+            throw ApiException.conflict("CLASS_INACTIVE", "Cannot change students of an inactive class");
+        }
+
+        User student = resolveStudent(email, name, admin);
+        boolean alreadyEnrolled = enrollmentRepository
+                .findByTutorClassIdAndStudentIdAndStatus(classId, student.getId(), EnrollmentStatus.ACTIVE)
+                .isPresent();
+        if (alreadyEnrolled) {
+            throw ApiException.conflict("STUDENT_ALREADY_ENROLLED", "This student is already in the class");
+        }
+
+        Enrollment enrollment = new Enrollment();
+        enrollment.setTutorClass(tutorClass);
+        enrollment.setStudent(student);
+        enrollment.setStatus(EnrollmentStatus.ACTIVE);
+        enrollment.setJoinedAt(LocalDateTime.now());
+        enrollmentRepository.save(enrollment);
+
+        enqueueAdminClassInvalidate(classId);
+        return toPublishedClassResponse(tutorClass);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public PublishedClassResponse removeStudentFromClass(User admin, UUID classId, UUID studentId) {
+        TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
+        Enrollment enrollment = enrollmentRepository
+                .findByTutorClassIdAndStudentIdAndStatus(classId, studentId, EnrollmentStatus.ACTIVE)
+                .orElseThrow(() -> ApiException.notFound("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class"));
+
+        enrollment.setStatus(EnrollmentStatus.LEFT);
+        enrollmentRepository.save(enrollment);
+
+        enqueueAdminClassInvalidate(classId);
+        return toPublishedClassResponse(tutorClass);
+    }
+
+    private void enqueueAdminClassInvalidate(UUID classId) {
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.DASHBOARD_INVALIDATE,
+                "role:" + RoleName.ADMIN.name(),
+                "class:" + classId,
+                Map.of("classId", String.valueOf(classId), "reason", "ROSTER_CHANGED")
+        );
+        realtimeOutboxService.enqueue("role:" + RoleName.ADMIN.name(), "class:" + classId, event);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteClass(User admin, UUID classId) {
         TutorClass tutorClass = tutorClassRepository.findDetailedById(classId)
                 .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
@@ -498,13 +553,17 @@ public class ClassAssignmentService {
             List<Enrollment> enrollments,
             List<TutorClassApplication> applications
     ) {
-        List<String> studentNames = enrollments.stream()
-                .map(enrollment -> enrollment.getStudent().getName())
+        List<ClassStudentResponse> students = enrollments.stream()
+                .map(enrollment -> new ClassStudentResponse(
+                        enrollment.getStudent().getId(),
+                        enrollment.getStudent().getName()))
                 .toList();
 
         String effectiveDisplayName = tutorClass.getDisplayName();
         if (effectiveDisplayName == null || effectiveDisplayName.isBlank()) {
-            effectiveDisplayName = defaultClassName(tutorClass.getSubject().getName(), studentNames);
+            effectiveDisplayName = defaultClassName(
+                    tutorClass.getSubject().getName(),
+                    students.stream().map(ClassStudentResponse::name).toList());
         }
 
         return new PublishedClassResponse(
@@ -514,7 +573,7 @@ public class ClassAssignmentService {
                 tutorClass.getPricePerHour(),
                 tutorClass.getStatus().name(),
                 tutorClass.getNote(),
-                studentNames,
+                students,
                 applications.stream().map(this::toApplicationResponse).toList()
         );
     }

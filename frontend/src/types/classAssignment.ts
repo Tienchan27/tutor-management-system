@@ -34,6 +34,11 @@ export interface TutorClassApplicationResponse {
   rejectionReason: string | null;
 }
 
+export interface ClassStudentResponse {
+  studentId: string;
+  name: string;
+}
+
 export interface PublishedClassResponse {
   classId: string;
   displayName: string;
@@ -41,7 +46,7 @@ export interface PublishedClassResponse {
   pricePerHour: number;
   status: string;
   note: string | null;
-  studentNames: string[];
+  students: ClassStudentResponse[];
   applications: TutorClassApplicationResponse[];
 }
 

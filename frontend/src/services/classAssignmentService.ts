@@ -63,6 +63,19 @@ export async function deleteClass(classId: string): Promise<void> {
   await api.delete(`/admin/classes/${classId}`);
 }
 
+export async function addClassStudent(
+  classId: string,
+  payload: { email: string; name?: string | null }
+): Promise<PublishedClassResponse> {
+  const response = await api.post<PublishedClassResponse>(`/admin/classes/${classId}/students`, payload);
+  return response.data;
+}
+
+export async function removeClassStudent(classId: string, studentId: string): Promise<PublishedClassResponse> {
+  const response = await api.delete<PublishedClassResponse>(`/admin/classes/${classId}/students/${studentId}`);
+  return response.data;
+}
+
 export async function updateClassDisplayName(classId: string, displayName: string): Promise<PublishedClassResponse> {
   const response = await api.patch<PublishedClassResponse>(`/classes/${classId}/display-name`, { displayName });
   return response.data;

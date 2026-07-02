@@ -7,9 +7,11 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
+    Optional<Enrollment> findByTutorClassIdAndStudentIdAndStatus(UUID classId, UUID studentId, EnrollmentStatus status);
     @Query("""
            select e from Enrollment e
            join fetch e.student s

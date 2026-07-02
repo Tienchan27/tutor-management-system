@@ -1,5 +1,6 @@
 package com.example.tms.api;
 
+import com.example.tms.api.dto.classes.AddClassStudentRequest;
 import com.example.tms.api.dto.classes.ClassReviewRequest;
 import com.example.tms.api.dto.classes.PublishClassRequest;
 import com.example.tms.api.dto.classes.PublishedClassResponse;
@@ -132,5 +133,22 @@ public class AdminClassController {
             @Valid @RequestBody UpdateClassDisplayNameRequest request
     ) {
         return classAssignmentService.updateClassDisplayName(currentUserResolver.requireUser(), classId, request.displayName());
+    }
+
+    @PostMapping("/{classId}/students")
+    public PublishedClassResponse addStudent(
+            @PathVariable UUID classId,
+            @Valid @RequestBody AddClassStudentRequest request
+    ) {
+        return classAssignmentService.addStudentToClass(
+                currentUserResolver.requireUser(), classId, request.email(), request.name());
+    }
+
+    @DeleteMapping("/{classId}/students/{studentId}")
+    public PublishedClassResponse removeStudent(
+            @PathVariable UUID classId,
+            @PathVariable UUID studentId
+    ) {
+        return classAssignmentService.removeStudentFromClass(currentUserResolver.requireUser(), classId, studentId);
     }
 }
