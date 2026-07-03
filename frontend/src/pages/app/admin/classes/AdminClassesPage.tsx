@@ -1,17 +1,17 @@
-import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { extractApiErrorMessage } from '../../services/authService';
-import PageHeader from '../../components/ui/PageHeader';
-import PageSection from '../../components/layout/PageSection';
-import SectionBlock from '../../components/ui/SectionBlock';
-import Button from '../../components/ui/Button';
-import StudentChipList from '../../components/admin/StudentChipList';
-import StatusPill from '../../components/ui/StatusPill';
-import EmptyState from '../../components/ui/EmptyState';
-import ConfirmDialog from '../../components/feedback/ConfirmDialog';
-import Modal from '../../components/ui/Modal';
-import { useToast } from '../../components/feedback/ToastProvider';
-import { formatDate, formatVnd } from '../../utils/format';
-import { realtimeEventBus } from '../../services/realtimeEventBus';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { extractApiErrorMessage } from '../../../../services/authService';
+import PageLayout from '../../../../components/layout/PageLayout';
+import PageSection from '../../../../components/layout/PageSection';
+import SectionBlock from '../../../../components/ui/SectionBlock';
+import Button from '../../../../components/ui/Button';
+import StudentChipList from '../../../../components/admin/StudentChipList';
+import StatusPill from '../../../../components/ui/StatusPill';
+import EmptyState from '../../../../components/ui/EmptyState';
+import ConfirmDialog from '../../../../components/feedback/ConfirmDialog';
+import Modal from '../../../../components/ui/Modal';
+import { useToast } from '../../../../components/feedback/ToastProvider';
+import { formatDate, formatVnd } from '../../../../utils/format';
 import {
   addClassStudent,
   approveClassApplication,
@@ -23,93 +23,48 @@ import {
   rejectClassApplication,
   removeClassStudent,
   updateClass,
-} from '../../services/classAssignmentService';
-import { PublishClassStudentInput, PublishedClassResponse, SubjectOptionResponse } from '../../types/classAssignment';
-
-interface StudentDraft {
-  email: string;
-  name: string;
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function isLikelyEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
-
-function defaultNameFromEmail(email: string): string {
-  const local = normalizeEmail(email).split('@')[0] || 'student';
-  return local ? `${local[0].toUpperCase()}${local.slice(1)}` : 'Student';
-}
-
-function buildSuggestedClassName(subjectName: string, studentNames: string[]): string {
-  if (!subjectName) return '';
-  if (!studentNames.length) return `[${subjectName}] Class`;
-  return `[${subjectName}] ${studentNames.join(' - ')}`;
-}
-
-function classStatusTone(status: string): 'success' | 'warning' | 'neutral' {
-  if (status === 'ACTIVE') return 'success';
-  if (status === 'AVAILABLE') return 'warning';
-  return 'neutral';
-}
-
-function classStatusLabel(status: string): string {
-  if (status === 'ACTIVE') return 'Active';
-  if (status === 'AVAILABLE') return 'Awaiting tutor';
-  return status;
-}
-
-function applicationStatusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'APPROVED') return 'success';
-  if (status === 'REJECTED') return 'danger';
-  if (status === 'PENDING') return 'warning';
-  return 'neutral';
-}
-
-function assignedTutor(cls: PublishedClassResponse): string | null {
-  return cls.applications.find((a) => a.status === 'APPROVED')?.tutorName ?? null;
-}
-
-interface ClassFormState {
-  students: PublishClassStudentInput[];
-  studentDraft: StudentDraft;
-  studentLookupHint: string;
-  studentLookupLoading: boolean;
-  subjectId: string;
-  pricePerHour: string;
-  isPriceManuallyEdited: boolean;
-  displayName: string;
-  isDisplayNameManuallyEdited: boolean;
-  lastAutoDisplayName: string;
-  note: string;
-}
+} from '../../../../services/classAssignmentService';
+import { PublishedClassResponse, SubjectOptionResponse } from '../../../../types/classAssignment';
+import {
+  assignedTutor,
+  buildSuggestedClassName,
+  classStatusLabel,
+  classStatusTone,
+  ClassFormState,
+  defaultNameFromEmail,
+  isLikelyEmail,
+  normalizeEmail,
+} from './classAssignmentUtils';
 
 function emptyForm(subjects: SubjectOptionResponse[]): ClassFormState {
   const firstSubject = subjects[0];
   return {
     students: [],
-    studentDraft: { email: '', name: '' },
-    studentLookupHint: '',
-    studentLookupLoading: false,
+    studentEmail: '',
+    studentAdding: false,
     subjectId: firstSubject?.id ?? '',
     pricePerHour: firstSubject ? String(firstSubject.defaultPricePerHour) : '',
     isPriceManuallyEdited: false,
     displayName: '',
     isDisplayNameManuallyEdited: false,
-    lastAutoDisplayName: '',
     note: '',
   };
 }
 
-function AdminClassAssignmentPage() {
+function AdminClassesPage() {
   const { showToast } = useToast();
-  const [subjects, setSubjects] = useState<SubjectOptionResponse[]>([]);
-  const [publishedClasses, setPublishedClasses] = useState<PublishedClassResponse[]>([]);
-  const [loadError, setLoadError] = useState('');
+  const queryClient = useQueryClient();
   const [formError, setFormError] = useState('');
+
+  const { data: subjects = [] } = useQuery({ queryKey: ['subjects'], queryFn: listSubjects });
+  const { data: publishedResponse, error: loadErrorObj } = useQuery({
+    queryKey: ['publishedClasses'],
+    queryFn: () => listPublishedClasses(),
+  });
+  const publishedClasses = publishedResponse?.items ?? [];
+  const loadError = loadErrorObj ? extractApiErrorMessage(loadErrorObj, 'Failed to load class data') : '';
+
+  const refreshClasses = (): Promise<void> => queryClient.invalidateQueries({ queryKey: ['publishedClasses'] });
 
   const [activeTab, setActiveTab] = useState<'classes' | 'applications'>('classes');
   const [inactiveExpanded, setInactiveExpanded] = useState(false);
@@ -128,6 +83,8 @@ function AdminClassAssignmentPage() {
   const [confirmRejectId, setConfirmRejectId] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
+  const isEditMode = modalMode === 'edit';
+
   const selectedSubject = useMemo(
     () => subjects.find((s) => s.id === form.subjectId) ?? null,
     [subjects, form.subjectId]
@@ -140,28 +97,8 @@ function AdminClassAssignmentPage() {
 
   useEffect(() => {
     if (!suggestedDisplayName || form.isDisplayNameManuallyEdited) return;
-    setForm((prev) => ({ ...prev, displayName: suggestedDisplayName, lastAutoDisplayName: suggestedDisplayName }));
+    setForm((prev) => ({ ...prev, displayName: suggestedDisplayName }));
   }, [suggestedDisplayName, form.isDisplayNameManuallyEdited]);
-
-  const loadData = useCallback(async (): Promise<void> => {
-    try {
-      const [subjectList, publishedResponse] = await Promise.all([listSubjects(), listPublishedClasses()]);
-      setSubjects(subjectList);
-      setPublishedClasses(publishedResponse.items);
-    } catch (err: unknown) {
-      setLoadError(extractApiErrorMessage(err, 'Failed to load class data'));
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    const unsub = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', (event) => {
-      if (event.scope?.startsWith('role:ADMIN')) {
-        window.setTimeout(() => loadData(), 250);
-      }
-    });
-    return () => unsub();
-  }, [loadData]);
 
   function openNewModal(): void {
     setFormError('');
@@ -175,15 +112,13 @@ function AdminClassAssignmentPage() {
     const subject = subjects.find((s) => s.name === cls.subjectName);
     setForm({
       students: [],
-      studentDraft: { email: '', name: '' },
-      studentLookupHint: '',
-      studentLookupLoading: false,
+      studentEmail: '',
+      studentAdding: false,
       subjectId: subject?.id ?? subjects[0]?.id ?? '',
       pricePerHour: String(cls.pricePerHour),
       isPriceManuallyEdited: true,
       displayName: cls.displayName,
       isDisplayNameManuallyEdited: true,
-      lastAutoDisplayName: '',
       note: cls.note ?? '',
     });
     setEditingClassId(cls.classId);
@@ -196,43 +131,29 @@ function AdminClassAssignmentPage() {
     setFormError('');
   }
 
-  async function handleStudentLookup(): Promise<void> {
-    setForm((prev) => ({ ...prev, studentLookupHint: '' }));
-    const normalized = normalizeEmail(form.studentDraft.email);
-    if (!isLikelyEmail(normalized)) return;
-    setForm((prev) => ({ ...prev, studentLookupLoading: true }));
-    try {
-      const result = await lookupStudentByEmail(normalized);
-      setForm((prev) => {
-        if (normalizeEmail(prev.studentDraft.email) !== normalized) return prev;
-        return {
-          ...prev,
-          studentDraft: { email: result.email, name: result.name || prev.studentDraft.name || defaultNameFromEmail(result.email) },
-          studentLookupHint: result.exists ? 'Student found — name filled in automatically.' : 'New student — enter a display name below.',
-          studentLookupLoading: false,
-        };
-      });
-    } catch {
-      setForm((prev) => ({ ...prev, studentLookupLoading: false }));
-    }
-  }
-
-  function handleAddStudent(): void {
+  async function handleAddStudent(): Promise<void> {
     setFormError('');
-    const email = normalizeEmail(form.studentDraft.email);
-    const name = form.studentDraft.name.trim() || defaultNameFromEmail(email);
-    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email before adding.'); return; }
+    const email = normalizeEmail(form.studentEmail);
+    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email.'); return; }
     if (form.students.some((s) => normalizeEmail(s.email) === email)) { setFormError('This student is already in the list.'); return; }
+    setForm((prev) => ({ ...prev, studentAdding: true }));
+    let name = defaultNameFromEmail(email);
+    let isNew = true;
+    try {
+      const result = await lookupStudentByEmail(email);
+      if (result.exists) {
+        name = result.name || name;
+        isNew = false;
+      }
+    } catch {
+      // Keep the derived name; treat as a new student on lookup failure.
+    }
     setForm((prev) => ({
       ...prev,
-      students: [...prev.students, { email, name }],
-      studentDraft: { email: '', name: '' },
-      studentLookupHint: '',
+      students: [...prev.students, { email, name, isNew }],
+      studentEmail: '',
+      studentAdding: false,
     }));
-  }
-
-  function handleEmailKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); }
   }
 
   function handleRemoveStudent(email: string): void {
@@ -241,14 +162,15 @@ function AdminClassAssignmentPage() {
 
   async function handleAddStudentToClass(): Promise<void> {
     setFormError('');
-    const email = normalizeEmail(form.studentDraft.email);
-    const name = form.studentDraft.name.trim() || defaultNameFromEmail(email);
-    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email before adding.'); return; }
+    const email = normalizeEmail(form.studentEmail);
+    if (!isLikelyEmail(email)) { setFormError('Please enter a valid student email.'); return; }
     setRosterLoading(true);
     try {
+      const result = await lookupStudentByEmail(email).catch(() => null);
+      const name = result?.name || defaultNameFromEmail(email);
       await addClassStudent(editingClassId, { email, name });
-      setForm((prev) => ({ ...prev, studentDraft: { email: '', name: '' }, studentLookupHint: '' }));
-      await loadData();
+      setForm((prev) => ({ ...prev, studentEmail: '' }));
+      await refreshClasses();
     } catch (err: unknown) {
       setFormError(extractApiErrorMessage(err, 'Failed to add student'));
     } finally {
@@ -261,7 +183,7 @@ function AdminClassAssignmentPage() {
     setRosterLoading(true);
     try {
       await removeClassStudent(editingClassId, studentId);
-      await loadData();
+      await refreshClasses();
     } catch (err: unknown) {
       setFormError(extractApiErrorMessage(err, 'Failed to remove student'));
     } finally {
@@ -289,7 +211,7 @@ function AdminClassAssignmentPage() {
       setSubmitting(true);
       try {
         await publishClass({
-          students: form.students,
+          students: form.students.map(({ email, name }) => ({ email, name })),
           subjectId: form.subjectId,
           pricePerHour: Math.round(price),
           displayName: form.displayName.trim() || null,
@@ -297,7 +219,7 @@ function AdminClassAssignmentPage() {
         });
         closeModal();
         showToast('Class published successfully.', 'success');
-        await loadData();
+        await refreshClasses();
       } catch (err: unknown) {
         setFormError(extractApiErrorMessage(err, 'Failed to publish class'));
       } finally {
@@ -313,7 +235,7 @@ function AdminClassAssignmentPage() {
         });
         closeModal();
         showToast('Class updated.', 'success');
-        await loadData();
+        await refreshClasses();
       } catch (err: unknown) {
         setFormError(extractApiErrorMessage(err, 'Failed to update class'));
       } finally {
@@ -329,7 +251,7 @@ function AdminClassAssignmentPage() {
     try {
       await deleteClass(id);
       showToast('Class deleted.', 'success');
-      await loadData();
+      await refreshClasses();
     } catch (err: unknown) {
       showToast(extractApiErrorMessage(err, 'Failed to delete class'), 'error');
     } finally {
@@ -344,7 +266,7 @@ function AdminClassAssignmentPage() {
     try {
       await approveClassApplication(id);
       showToast('Tutor assigned. Other pending applications were rejected.', 'success');
-      await loadData();
+      await refreshClasses();
     } catch (err: unknown) {
       showToast(extractApiErrorMessage(err, 'Failed to approve application'), 'error');
     } finally {
@@ -361,7 +283,7 @@ function AdminClassAssignmentPage() {
     try {
       await rejectClassApplication(id, reason);
       showToast('Application rejected.', 'success');
-      await loadData();
+      await refreshClasses();
     } catch (err: unknown) {
       showToast(extractApiErrorMessage(err, 'Failed to reject application'), 'error');
     } finally {
@@ -369,7 +291,6 @@ function AdminClassAssignmentPage() {
     }
   }
 
-  const isEditMode = modalMode === 'edit';
   const modalTitle = isEditMode ? 'Edit class' : 'New class';
   const editingClass = isEditMode
     ? publishedClasses.find((c) => c.classId === editingClassId) ?? null
@@ -385,17 +306,31 @@ function AdminClassAssignmentPage() {
     0
   );
 
+  // Live preview data.
+  const priceNum = Number(form.pricePerHour);
+  const previewName = form.displayName.trim() || suggestedDisplayName || (isEditMode ? editingClass?.displayName ?? 'Class' : 'New class');
+  const previewSubject = selectedSubject?.name ?? editingClass?.subjectName ?? '';
+  const previewStudents: { key: string; label: string; isNew?: boolean }[] = isEditMode
+    ? (editingClass?.students ?? []).map((s) => ({ key: s.studentId, label: s.name }))
+    : form.students.map((s) => ({ key: s.email, label: s.name || s.email, isNew: s.isNew }));
+
+  const canSubmit =
+    !!form.subjectId &&
+    !!form.pricePerHour &&
+    !isNaN(priceNum) &&
+    priceNum >= 1 &&
+    (isEditMode || form.students.length > 0);
+
   return (
-    <div className="stack-16">
-      <PageHeader
-        title="Class management"
-        subtitle="Manage classes and review tutor applications."
-        actions={
-          <Button variant="primary" onClick={openNewModal}>
-            + New class
-          </Button>
-        }
-      />
+    <PageLayout
+      title="Classes"
+      subtitle="Manage classes and review tutor applications."
+      headerActions={
+        <Button variant="primary" onClick={openNewModal}>
+          + New class
+        </Button>
+      }
+    >
 
       <PageSection>
         {loadError ? <p className="error-text">{loadError}</p> : null}
@@ -579,7 +514,7 @@ function AdminClassAssignmentPage() {
                       </div>
                       <div className="table-actions">
                         <Button
-                          variant="success"
+                          variant="primary"
                           size="sm"
                           onClick={() => setConfirmApproveId(app.applicationId)}
                           loading={applicationLoadingId === app.applicationId}
@@ -604,89 +539,25 @@ function AdminClassAssignmentPage() {
         ) : null}
       </PageSection>
 
-      <Modal open={modalMode !== null} title={modalTitle} onClose={closeModal}>
-        <div className="stack-16">
-          {formError ? <p className="error-text">{formError}</p> : null}
+      <Modal
+        open={modalMode !== null}
+        title={modalTitle}
+        size="xl"
+        onClose={closeModal}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="primary" onClick={() => void handleSubmit()} loading={submitting} disabled={!canSubmit}>
+              {isEditMode ? 'Save changes' : 'Publish class'}
+            </Button>
+          </>
+        }
+      >
+        <div className="publish-setup-grid">
+          <div className="stack-16">
+            {formError ? <p className="error-text">{formError}</p> : null}
 
-          {!isEditMode ? (
-            <SectionBlock title="Students">
-              <div className="grid-form grid-form-no-margin">
-                <input
-                  type="email"
-                  className="text-input"
-                  placeholder="Student email — press Enter to add"
-                  value={form.studentDraft.email}
-                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, email: e.target.value } }))}
-                  onBlur={() => void handleStudentLookup()}
-                  onKeyDown={handleEmailKeyDown}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Student name"
-                  value={form.studentDraft.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, name: e.target.value } }))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddStudent(); } }}
-                />
-                <Button type="button" variant="secondary" className="compact-btn" onClick={handleAddStudent} disabled={form.studentLookupLoading}>
-                  {form.studentLookupLoading ? 'Checking...' : 'Add'}
-                </Button>
-              </div>
-              {form.studentLookupHint ? <p className="muted mb-0">{form.studentLookupHint}</p> : null}
-              <StudentChipList students={form.students} onRemove={handleRemoveStudent} />
-            </SectionBlock>
-          ) : null}
-
-          {isEditMode ? (
-            <SectionBlock title="Students">
-              {editingClass && editingClass.students.length > 0 ? (
-                <div className="chip-list mb-8">
-                  {editingClass.students.map((s) => (
-                    <span key={s.studentId} className="chip">
-                      <span className="chip-label">
-                        <span className="chip-name">{s.name}</span>
-                      </span>
-                      <button
-                        type="button"
-                        className="chip-remove"
-                        aria-label={`Remove ${s.name}`}
-                        disabled={rosterLoading}
-                        onClick={() => void handleRemoveStudentFromClass(s.studentId)}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted mb-8">No students in this class yet.</p>
-              )}
-              <div className="grid-form grid-form-no-margin">
-                <input
-                  type="email"
-                  className="text-input"
-                  placeholder="Add student by email — press Enter"
-                  value={form.studentDraft.email}
-                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, email: e.target.value } }))}
-                  onBlur={() => void handleStudentLookup()}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
-                />
-                <input
-                  className="text-input"
-                  placeholder="Student name"
-                  value={form.studentDraft.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, studentDraft: { ...prev.studentDraft, name: e.target.value } }))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
-                />
-                <Button type="button" variant="secondary" className="compact-btn" loading={rosterLoading} onClick={() => void handleAddStudentToClass()}>
-                  Add
-                </Button>
-              </div>
-              {form.studentLookupHint ? <p className="muted mb-0">{form.studentLookupHint}</p> : null}
-            </SectionBlock>
-          ) : null}
-
-          <SectionBlock title="Subject and pricing">
-            <div className="grid-form grid-form-no-margin">
+            <SectionBlock title="Subject">
               <select
                 className="text-input"
                 value={form.subjectId}
@@ -697,52 +568,127 @@ function AdminClassAssignmentPage() {
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-              <input
-                className="text-input money-number"
-                type="number"
-                step="1"
-                min="1"
-                placeholder="Tuition fee (₫/hr)"
-                value={form.pricePerHour}
-                onChange={(e) => setForm((prev) => ({ ...prev, pricePerHour: e.target.value, isPriceManuallyEdited: true }))}
-              />
-              {!isEditMode && selectedSubject ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="compact-btn"
-                  onClick={() => setForm((prev) => ({ ...prev, pricePerHour: String(selectedSubject.defaultPricePerHour), isPriceManuallyEdited: false }))}
-                >
-                  Use default
-                </Button>
-              ) : null}
-            </div>
-          </SectionBlock>
+            </SectionBlock>
 
-          <SectionBlock title="Class details">
-            <input
-              className="text-input"
-              placeholder="Class display name"
-              value={form.displayName}
-              onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value, isDisplayNameManuallyEdited: true }))}
-            />
-            {suggestedDisplayName && form.isDisplayNameManuallyEdited && !isEditMode ? (
-              <p className="muted mb-4">Suggested: {suggestedDisplayName}</p>
-            ) : null}
-            <textarea
-              className="text-input text-area-notes"
-              placeholder="Note for tutors (optional)"
-              value={form.note}
-              onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-            />
-          </SectionBlock>
+            <SectionBlock title="Fee / hour">
+              <div className="fee-row">
+                <input
+                  className="text-input money-number"
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={form.pricePerHour}
+                  onChange={(e) => setForm((prev) => ({ ...prev, pricePerHour: e.target.value, isPriceManuallyEdited: true }))}
+                />
+                {!isEditMode && selectedSubject ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="compact-btn"
+                    onClick={() => setForm((prev) => ({ ...prev, pricePerHour: String(selectedSubject.defaultPricePerHour), isPriceManuallyEdited: false }))}
+                  >
+                    Use default
+                  </Button>
+                ) : null}
+              </div>
+            </SectionBlock>
 
-          <div className="form-actions">
-            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
-            <Button variant="primary" onClick={() => void handleSubmit()} loading={submitting}>
-              {isEditMode ? 'Save changes' : 'Publish class'}
-            </Button>
+            <SectionBlock title="Students">
+              {isEditMode ? (
+                <>
+                  {editingClass && editingClass.students.length > 0 ? (
+                    <div className="chip-list mb-8">
+                      {editingClass.students.map((s) => (
+                        <span key={s.studentId} className="chip">
+                          <span className="chip-label">
+                            <span className="chip-name">{s.name}</span>
+                          </span>
+                          <button
+                            type="button"
+                            className="chip-remove"
+                            aria-label={`Remove ${s.name}`}
+                            disabled={rosterLoading}
+                            onClick={() => void handleRemoveStudentFromClass(s.studentId)}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="muted mb-8">No students in this class yet.</p>
+                  )}
+                  <input
+                    type="email"
+                    className="text-input"
+                    placeholder="Add student by email"
+                    value={form.studentEmail}
+                    disabled={rosterLoading}
+                    onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
+                  />
+                </>
+              ) : (
+                <>
+                  <input
+                    type="email"
+                    className="text-input mb-8"
+                    placeholder="Add student by email"
+                    value={form.studentEmail}
+                    disabled={form.studentAdding}
+                    onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudent(); } }}
+                  />
+                  <StudentChipList students={form.students} onRemove={handleRemoveStudent} />
+                </>
+              )}
+            </SectionBlock>
+
+            <details className="adv-details">
+              <summary className="adv-summary">
+                <span className="adv-chevron" aria-hidden="true">›</span>
+                Class name &amp; note
+                <span className="adv-hint">optional</span>
+              </summary>
+              <div className="stack-12 adv-body">
+                <input
+                  className="text-input"
+                  placeholder="Class name"
+                  value={form.displayName}
+                  onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value, isDisplayNameManuallyEdited: true }))}
+                />
+                <textarea
+                  className="text-input text-area-notes"
+                  placeholder="Note for tutors"
+                  value={form.note}
+                  onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                />
+              </div>
+            </details>
           </div>
+
+          <aside className="publish-preview-card">
+            <p className="pv-cap">Preview</p>
+            <p className="pv-name">{previewName}</p>
+            {previewSubject ? <p className="pv-sub">{previewSubject}</p> : null}
+            <div className="pv-pills">
+              {priceNum >= 1 ? <span className="pv-pill">{formatVnd(priceNum)}/hr</span> : null}
+              <span className="pv-pill pv-pill-mint">
+                {previewStudents.length} student{previewStudents.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            {previewStudents.length > 0 ? (
+              <div className="pv-chips">
+                {previewStudents.map((s) => (
+                  <span key={s.key} className="student-chip-label">
+                    {s.label}
+                    {s.isNew ? <span className="chip-new">new</span> : null}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {form.note.trim() ? <p className="pv-note">{form.note.trim()}</p> : null}
+          </aside>
         </div>
       </Modal>
 
@@ -788,8 +734,8 @@ function AdminClassAssignmentPage() {
         onConfirm={() => void handleRejectConfirmed()}
         onCancel={() => { setConfirmRejectId(''); setRejectReason(''); }}
       />
-    </div>
+    </PageLayout>
   );
 }
 
-export default AdminClassAssignmentPage;
+export default AdminClassesPage;

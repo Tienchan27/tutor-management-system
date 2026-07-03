@@ -1,14 +1,16 @@
 # Tutor Management System
 
-Tutor Management System is a Spring Boot API + React web app.
+Tutor Management System is a Spring Boot (Java 21) API + a React 19 web app built with **Vite** and **Tailwind CSS v4**.
+
+Notifications and real-time updates (SSE) run **in-process** via a transactional DB outbox drained by scheduled dispatchers — there is **no message broker** (Kafka/Zookeeper were removed). This keeps the stack small and single-instance.
 
 ## Deployment model (single-entry Nginx)
 
-Production-style deployment uses one public entrypoint:
+Production-style deployment uses one public entrypoint. The stack is 5 containers: `nginx`, `app`, `postgres-db`, `redis`, `mailpit` (plus `pgadmin` under an opt-in profile).
 
-- `nginx` serves the React static app.
+- `nginx` serves the React static build (`frontend/dist`).
 - `nginx` reverse proxies API requests from `/api/*` to Spring Boot.
-- `app` and `postgres-db` stay on internal Docker network.
+- `app`, `postgres-db`, and `redis` stay on the internal Docker network.
 
 This avoids routing conflicts between SPA routes (for example `/dashboard`) and API endpoints by using a clear API prefix (`/api`).
 
@@ -45,7 +47,7 @@ Key variables:
 
 ```env
 GOOGLE_CLIENT_ID=...
-REACT_APP_GOOGLE_CLIENT_ID=...
+VITE_GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 JWT_SECRET=...
 DEFAULT_ADMIN_EMAIL=admin@example.com
@@ -63,8 +65,8 @@ Notes:
 
 - In Docker deployment, app uses `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/tms_db`.
 - In Docker deployment, app SMTP is pinned by compose to `MAIL_HOST=mailpit` and `MAIL_PORT=1025`.
-- Frontend production build uses `REACT_APP_API_URL=/api` for same-origin API calls.
-- `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` in root `.env` must match.
+- Frontend production build uses `VITE_API_URL=/api` for same-origin API calls (passed as a Docker build arg by compose).
+- `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in root `.env` must match.
 - `JWT_SECRET` should be a strong secret (at least 32 bytes for HS256).
 - Docker dev stack includes Mailpit for OTP delivery.
 - Database schema is managed by **Flyway only** (`V1__init_schema.sql`); Hibernate uses `ddl-auto=validate` (no silent schema drift).
@@ -89,7 +91,7 @@ MAIL_PORT=1025
 - Verify OTP from email: `POST /auth/verify-otp`.
 - Login is only available after OTP verification activates the account.
 - Google login: `POST /auth/google`.
-- If backend returns `EMAIL_CONFLICT`, use password login first, then link Google from an authenticated flow (`POST /auth/google/link`).
+- If a Google sign-in needs to be linked to an existing account, the backend uses an OTP link challenge (`POST /auth/google/verify-link-otp`).
 
 ## Security baseline in this deployment
 
@@ -103,12 +105,12 @@ MAIL_PORT=1025
   - `server.error.include-message=never` (unless overridden)
   - SQL logging off by default
 
-## Troubleshooting
+## Frontend build
 
-- Docker build fails at frontend `npm ci` with `ERESOLVE`:
-  - This project currently uses `react-scripts@5`, which is compatible with `typescript@4.x`.
-  - Keep `typescript` pinned to `4.9.5` in `frontend/package.json`.
-  - If lockfile drift occurs, run `npm install` inside `frontend/` and rebuild with `docker compose up --build -d`.
+The frontend is built with **Vite** (not CRA). Scripts in `frontend/package.json`: `npm run dev` (dev server), `npm run build` (`tsc && vite build` → `frontend/dist`), `npm run preview`. TypeScript is `5.x`.
+
+- If a lockfile drift occurs, run `npm install` inside `frontend/` and rebuild with `docker compose up --build -d`.
+- The nginx image builds the frontend and serves `frontend/dist`; env is injected at build time via `VITE_*` build args.
 
 ## OAuth setup (Google)
 
@@ -123,4 +125,4 @@ Use your frontend public origin in Google Cloud Console:
   - production domain callback URI
 
 Google requires exact URI matching and HTTPS in real production environments.
-Also ensure Google Web Client ID in Google Cloud Console is the same one configured in both backend (`GOOGLE_CLIENT_ID`) and frontend (`REACT_APP_GOOGLE_CLIENT_ID`).
+Also ensure Google Web Client ID in Google Cloud Console is the same one configured in both backend (`GOOGLE_CLIENT_ID`) and frontend (`VITE_GOOGLE_CLIENT_ID`).

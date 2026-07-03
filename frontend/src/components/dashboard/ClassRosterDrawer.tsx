@@ -39,10 +39,6 @@ function ClassRosterDrawer({
       {loading ? <Spinner label="Loading roster..." /> : null}
       {!loading && roster ? (
         <div className="stack-8">
-          <p className="muted mb-0">
-            Tuition amounts reflect per-student allocation from the latest recorded session. Until a session exists,
-            amounts show as 0 VND.
-          </p>
           {!roster.students.length ? (
             <p className="muted">No active students.</p>
           ) : (

@@ -3,9 +3,7 @@ import { AdminTutorDetailResponse } from '../../types/dashboard';
 import Modal from '../ui/Modal';
 import SectionBlock from '../ui/SectionBlock';
 import Button from '../ui/Button';
-import StatusPill from '../ui/StatusPill';
 import { formatVnd } from '../../utils/format';
-import { payoutTone } from '../../utils/statusTone';
 
 interface AdminTutorDetailDrawerProps {
   open: boolean;
@@ -54,30 +52,14 @@ function AdminTutorDetailDrawer({
           </p>
         </SectionBlock>
 
-        <SectionBlock title="Payout snapshot">
+        <SectionBlock title="Payroll">
           {detail.payout ? (
-            <>
-              <div className="stat-row">
-                <span>
-                  Month{' '}
-                  <strong>
-                    {detail.payout.year}-{`${detail.payout.month}`.padStart(2, '0')}
-                  </strong>
-                </span>
-                <span>
-                  Gross <strong>{formatVnd(detail.payout.grossRevenue)}</strong>
-                </span>
-                <span>
-                  Net <strong>{formatVnd(detail.payout.netSalary)}</strong>
-                </span>
-                <StatusPill label={detail.payout.status} tone={payoutTone(detail.payout.status)} />
-              </div>
-              <p className="muted mb-0">
-                Manage QR and payment confirmation on the <Link to="/app/admin/payouts">Payouts</Link> page.
-              </p>
-            </>
+            <p className="muted mb-0">
+              Current month payout status: <strong>{detail.payout.status}</strong>. View details on{' '}
+              <Link to="/app/admin/payouts">Tutor payouts</Link>.
+            </p>
           ) : (
-            <p className="muted mb-0">No payout for the selected month.</p>
+            <p className="muted mb-0">No payout for the current month.</p>
           )}
         </SectionBlock>
 

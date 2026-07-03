@@ -1,31 +1,79 @@
-import { NavItemConfig } from '../types/app';
+import { AppRole, NavItemConfig } from '../types/app';
 import {
   Users,
   BookOpen,
   DollarSign,
   Receipt,
-  LayoutDashboard,
   Search,
   CalendarDays,
   Wallet,
   GraduationCap,
   FileText,
   CreditCard,
-  Bell,
+  Home,
 } from 'lucide-react';
 
 export const navigationItems: NavItemConfig[] = [
-  { label: 'Tutor Management', path: '/app/admin/tutors', roles: ['ADMIN'], icon: Users },
-  { label: 'Class management', path: '/app/admin/class-assignment', roles: ['ADMIN'], icon: BookOpen },
-  { label: 'Payouts', path: '/app/admin/payouts', roles: ['ADMIN'], icon: DollarSign },
-  { label: 'Student tuition', path: '/app/admin/student-invoices', roles: ['ADMIN'], icon: Receipt },
-  { label: 'Overview', path: '/app/tutor/dashboard', roles: ['TUTOR'], icon: LayoutDashboard },
-  { label: 'My classes', path: '/app/tutor/classes', roles: ['TUTOR'], icon: BookOpen },
+  { label: 'Home', path: '/app/admin/dashboard', roles: ['ADMIN'], icon: Home },
+  { label: 'Classes', path: '/app/admin/classes', roles: ['ADMIN'], icon: BookOpen },
+  { label: 'Tutors', path: '/app/admin/tutors', roles: ['ADMIN'], icon: Users },
+  {
+    label: 'Tutor payouts',
+    path: '/app/admin/payouts',
+    roles: ['ADMIN'],
+    icon: DollarSign,
+    group: 'Monthly close',
+  },
+  {
+    label: 'Student billing',
+    path: '/app/admin/student-billing',
+    roles: ['ADMIN'],
+    icon: Receipt,
+    group: 'Monthly close',
+  },
+
+  { label: 'Home', path: '/app/tutor/home', roles: ['TUTOR'], icon: Home },
+  { label: 'Classes', path: '/app/tutor/classes', roles: ['TUTOR'], icon: BookOpen },
   { label: 'Sessions', path: '/app/tutor/sessions', roles: ['TUTOR'], icon: CalendarDays },
-  { label: 'Find classes', path: '/app/tutor/available-classes', roles: ['TUTOR'], icon: Search },
-  { label: 'Earnings', path: '/app/tutor/earnings', roles: ['TUTOR'], icon: Wallet },
+  { label: 'Marketplace', path: '/app/tutor/marketplace', roles: ['TUTOR'], icon: Search },
+  { label: 'Earnings', path: '/app/tutor/earnings', roles: ['TUTOR'], icon: Wallet, group: 'Pay' },
+
+  { label: 'Home', path: '/app/student/home', roles: ['STUDENT'], icon: Home },
   { label: 'Classes', path: '/app/student/classes', roles: ['STUDENT'], icon: GraduationCap },
-  { label: 'Invoices', path: '/app/student/invoices', roles: ['STUDENT'], icon: FileText },
-  { label: 'Payments', path: '/app/student/payments', roles: ['STUDENT'], disabled: true, icon: CreditCard },
-  { label: 'Notifications', path: '/app/notifications', roles: ['ADMIN', 'TUTOR', 'STUDENT'], icon: Bell },
+  { label: 'Billing', path: '/app/student/billing', roles: ['STUDENT'], icon: FileText },
+  {
+    label: 'Payments',
+    path: '/app/student/payments',
+    roles: ['STUDENT'],
+    disabled: true,
+    icon: CreditCard,
+  },
 ];
+
+export interface NavGroup {
+  group: string | null;
+  items: NavItemConfig[];
+}
+
+export function getNavigationGroups(role: AppRole): NavGroup[] {
+  const items = navigationItems.filter((item) => item.roles.includes(role) && !item.disabled);
+  const groups: NavGroup[] = [];
+  let currentGroup: string | null | undefined = undefined;
+
+  for (const item of items) {
+    const group = item.group ?? null;
+    if (group !== currentGroup) {
+      groups.push({ group, items: [item] });
+      currentGroup = group;
+    } else {
+      groups[groups.length - 1].items.push(item);
+    }
+  }
+
+  const disabledItems = navigationItems.filter((item) => item.roles.includes(role) && item.disabled);
+  if (disabledItems.length) {
+    groups.push({ group: null, items: disabledItems });
+  }
+
+  return groups;
+}

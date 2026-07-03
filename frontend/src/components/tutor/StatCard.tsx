@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 
-type StatCardAccent = 'amber' | 'blue' | 'green' | 'red';
+type StatCardAccent = 'brand';
 type TrendDirection = 'up' | 'down' | 'neutral';
 
 interface StatCardTrend {
@@ -24,7 +24,7 @@ const TREND_ARROWS: Record<TrendDirection, string> = {
 
 function StatCard({ label, value, hint, accent, trend }: StatCardProps) {
   return (
-    <div className={`stat-card${accent ? ` stat-card-accent-${accent}` : ''}`}>
+    <div className={`stat-card${accent ? ' stat-card-accent-brand' : ''}`}>
       <p className="stat-card-label">{label}</p>
       <p className="stat-card-value">{value}</p>
       {trend ? (

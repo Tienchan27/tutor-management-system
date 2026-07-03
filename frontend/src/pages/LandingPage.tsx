@@ -148,7 +148,7 @@ function LandingPage() {
         <div className="auth-card-wrap">
         <Card featured className="auth-card">
           <div className="auth-head">
-            <h1 className="title title-xl title-accent">Welcome back 👋</h1>
+            <h1 className="title title-xl title-accent">Welcome back</h1>
             <p className="subtitle">Sign in to your Hands for Hands account.</p>
             {passwordResetBanner ? (
               <p className="success-text" style={{ marginTop: 8 }}>

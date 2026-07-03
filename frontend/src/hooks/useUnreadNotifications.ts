@@ -1,42 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { listMyNotifications } from '../services/notificationService';
-import { realtimeEventBus } from '../services/realtimeEventBus';
 
 const POLL_INTERVAL_MS = 60_000;
 
 export function useUnreadNotifications(): number {
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Realtime NOTIFICATION_CREATED / NOTIFICATIONS_CHANGED events invalidate this
+  // query via the global RealtimeQueryBridge; the interval is a slow safety net.
+  const { data } = useQuery({
+    queryKey: ['unreadNotifications'],
+    queryFn: () => listMyNotifications({ page: 0, size: 20 }),
+    refetchInterval: POLL_INTERVAL_MS,
+    select: (response) => response.items.filter((n) => !n.read).length,
+  });
 
-  const fetchCount = useCallback(async (): Promise<void> => {
-    try {
-      const response = await listMyNotifications({ page: 0, size: 20 });
-      const count = response.items.filter((n) => !n.read).length;
-      setUnreadCount(count);
-    } catch {
-      // Silent failure — badge absence is acceptable if the request fails.
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchCount();
-
-    const unsubCreated = realtimeEventBus.subscribe('NOTIFICATION_CREATED', () => {
-      void fetchCount();
-    });
-    const unsubChanged = realtimeEventBus.subscribe('NOTIFICATIONS_CHANGED', () => {
-      void fetchCount();
-    });
-
-    const intervalId = window.setInterval(() => {
-      void fetchCount();
-    }, POLL_INTERVAL_MS);
-
-    return () => {
-      unsubCreated();
-      unsubChanged();
-      window.clearInterval(intervalId);
-    };
-  }, [fetchCount]);
-
-  return unreadCount;
+  return data ?? 0;
 }

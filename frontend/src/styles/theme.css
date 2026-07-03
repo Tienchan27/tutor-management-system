@@ -1,11 +1,8 @@
 /*
- * Tailwind v4 — token layer for the "Hands for Hands" warm rebrand.
+ * Tailwind v4 — token layer aligned with globals.css brand rail system.
  *
- * Preflight (Tailwind's CSS reset) is intentionally NOT imported yet: the app
- * is mid-migration and still relies on globals.css for base styling. We pull in
- * only the theme tokens and utility classes so new screens can use bg-action,
- * text-ink, etc. without resetting the existing look. Preflight gets enabled in
- * the cleanup phase once every screen is converted.
+ * Preflight is intentionally NOT imported yet: the app still relies on
+ * globals.css for base styling during migration.
  */
 @layer theme, base, components, utilities;
 
@@ -14,38 +11,35 @@
 
 @theme {
   /* Neutrals — bright */
-  --color-canvas: #fffdfb;
+  --color-canvas: #ffffff;
   --color-surface: #ffffff;
-  --color-sunken: #f8f5f1;
-  --color-border: #f1ece4;
-  --color-border-strong: #e7dfd5;
+  --color-sunken: #fafaf9;
+  --color-border: #e7e5e4;
+  --color-border-strong: #d6d3d1;
   --color-ink: #1c1917;
-  --color-ink-muted: #6b6560;
-  --color-ink-faint: #a39b92;
+  --color-ink-muted: #57534e;
+  --color-ink-faint: #a8a29e;
 
-  /* Peach rail (light) */
-  --color-sidebar: #fff4ec;
-  --color-sidebar-hover: #ffe9d8;
-  --color-sidebar-text: #b08968;
-  --color-sidebar-active: #f97316;
+  /* Brand rail sidebar */
+  --color-sidebar: #ea580c;
+  --color-sidebar-hover: #f97316;
+  --color-sidebar-text: #fff7ed;
+  --color-sidebar-active: rgba(255, 255, 255, 0.16);
 
   /* Brand */
   --color-brand: #ea580c;
   --color-brand-dark: #c2410c;
-  --color-action: #f97316;
-  --color-action-hover: #ea580c;
-  --color-gold: #fbbf24;
+  --color-action: #ea580c;
+  --color-action-hover: #f97316;
 
   /* Accent tints */
-  --color-peach: #fff1e6;
-  --color-mint: #e6f7f1;
-  --color-violet: #f1ecfe;
+  --color-peach: #fff7ed;
 
   /* Semantic */
   --color-success: #16a34a;
-  --color-success-bg: #e7f6ec;
+  --color-success-bg: #f0fdf4;
   --color-warning: #d97706;
-  --color-warning-bg: #fef3c7;
-  --color-danger: #ef4444;
-  --color-danger-bg: #fee7e5;
+  --color-warning-bg: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
 }

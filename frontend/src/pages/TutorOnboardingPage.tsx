@@ -1,8 +1,9 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createBankAccount, listMyBankAccounts } from '../services/bankAccountService';
 import { extractApiErrorMessage } from '../services/authService';
-import { BankAccountResponse, CreateBankAccountRequest } from '../types/bankAccounts';
+import { CreateBankAccountRequest } from '../types/bankAccounts';
 import { setNeedsTutorOnboarding } from '../utils/storage';
 
 const initialForm: CreateBankAccountRequest = {
@@ -13,46 +14,38 @@ const initialForm: CreateBankAccountRequest = {
 
 function TutorOnboardingPage() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<BankAccountResponse[]>([]);
   const [form, setForm] = useState<CreateBankAccountRequest>(initialForm);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [submitError, setSubmitError] = useState<string>('');
 
-  const loadAccounts = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await listMyBankAccounts();
-      setItems(response);
-      if (response.length > 0) {
-        setNeedsTutorOnboarding(false);
-        navigate('/app', { replace: true });
-      }
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to load bank accounts'));
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
+  const { data: items = [], isLoading: loading, error: loadErrorObj } = useQuery({
+    queryKey: ['tutorBankAccounts'],
+    queryFn: listMyBankAccounts,
+  });
 
+  // If the tutor already has an account, skip onboarding.
   useEffect(() => {
-    void loadAccounts();
-  }, [loadAccounts]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setSubmitting(true);
-    setError('');
-    try {
-      await createBankAccount(form);
+    if (items.length > 0) {
       setNeedsTutorOnboarding(false);
       navigate('/app', { replace: true });
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to create bank account'));
-    } finally {
-      setSubmitting(false);
     }
+  }, [items.length, navigate]);
+
+  const createMutation = useMutation({
+    mutationFn: () => createBankAccount(form),
+    onSuccess: () => {
+      setNeedsTutorOnboarding(false);
+      navigate('/app', { replace: true });
+    },
+    onError: (err) => setSubmitError(extractApiErrorMessage(err, 'Failed to create bank account')),
+  });
+
+  const submitting = createMutation.isPending;
+  const error = submitError || (loadErrorObj ? extractApiErrorMessage(loadErrorObj, 'Failed to load bank accounts') : '');
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    setSubmitError('');
+    createMutation.mutate();
   }
 
   return (

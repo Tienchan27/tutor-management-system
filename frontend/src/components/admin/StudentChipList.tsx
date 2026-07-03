@@ -1,6 +1,7 @@
 interface StudentChipItem {
   email: string;
   name?: string | null;
+  isNew?: boolean;
 }
 
 interface StudentChipListProps {
@@ -18,7 +19,10 @@ function StudentChipList({ students, onRemove }: StudentChipListProps) {
       {students.map((student) => (
         <div key={student.email} className="chip" role="listitem">
           <div className="chip-label">
-            <span className="chip-name">{student.name || student.email}</span>
+            <span className="chip-name">
+              {student.name || student.email}
+              {student.isNew ? <span className="chip-new">new</span> : null}
+            </span>
             <span className="chip-email">{student.email}</span>
           </div>
           <button

@@ -7,7 +7,7 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
 }
 
 function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }: ModalProps) {
@@ -35,7 +35,7 @@ function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }
     <div className="dialog-overlay" role="presentation" onClick={onClose}>
       <div
         ref={panelRef}
-        className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}`}
+        className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}${size === 'xl' ? ' modal-panel-xl' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

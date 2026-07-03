@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { AppRole } from '../../types/app';
 import { ROLE_ORDER, roleLabel } from '../../utils/roleNavigation';
 
@@ -59,6 +59,7 @@ function AppUserMenu({
         className="app-user-menu-trigger"
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Account menu for ${name}`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="app-user-avatar" aria-hidden="true">
@@ -79,14 +80,17 @@ function AppUserMenu({
                   type="button"
                   role="menuitemradio"
                   aria-checked={activeRole === role}
-                  className={`app-user-menu-item ${activeRole === role ? 'active' : ''}`}
+                  className={`app-user-menu-item app-user-menu-item-with-icon ${activeRole === role ? 'active' : ''}`}
                   disabled={switching}
                   onClick={() => {
                     onRoleSelect(role);
                     setOpen(false);
                   }}
                 >
-                  {roleLabel(role)}
+                  <span>{roleLabel(role)}</span>
+                  {activeRole === role ? (
+                    <Check size={14} className="app-user-menu-item-check" aria-hidden="true" />
+                  ) : null}
                 </button>
               ))}
               <hr className="app-user-menu-divider" />

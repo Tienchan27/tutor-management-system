@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMyProfile, updateMyProfile } from '../../services/profileService';
-import { ProfileResponse, UpdateProfileRequest } from '../../types/profile';
+import { UpdateProfileRequest } from '../../types/profile';
 import { extractApiErrorMessage } from '../../services/authService';
 import { setAuthUserName } from '../../utils/storage';
 import PageHeader from '../../components/ui/PageHeader';
@@ -12,56 +13,50 @@ import { useToast } from '../../components/feedback/ToastProvider';
 
 function AccountPage() {
   const { showToast } = useToast();
-  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<UpdateProfileRequest>({});
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
-  async function load(): Promise<void> {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await getMyProfile();
-      setProfile(response);
-      setForm({
-        name: response.name || '',
-        phoneNumber: response.phoneNumber || '',
-        facebookUrl: response.facebookUrl || '',
-        parentPhone: response.parentPhone || '',
-        address: response.address || '',
-      });
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to load account profile'));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { data: profile = null, isLoading: loading, error: loadErrorObj } = useQuery({
+    queryKey: ['myProfile'],
+    queryFn: getMyProfile,
+  });
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!profile) return;
+    setForm({
+      name: profile.name || '',
+      phoneNumber: profile.phoneNumber || '',
+      facebookUrl: profile.facebookUrl || '',
+      parentPhone: profile.parentPhone || '',
+      address: profile.address || '',
+    });
+  }, [profile]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setError('');
-    setSaving(true);
-    try {
-      const response = await updateMyProfile({
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateMyProfile({
         name: form.name || null,
         phoneNumber: form.phoneNumber || null,
         facebookUrl: form.facebookUrl || null,
         parentPhone: form.parentPhone || null,
         address: form.address || null,
-      });
-      setProfile(response);
+      }),
+    onSuccess: (response) => {
+      queryClient.setQueryData(['myProfile'], response);
       setAuthUserName(response.name);
       showToast('Profile updated successfully', 'success');
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to update profile'));
-    } finally {
-      setSaving(false);
-    }
+    },
+    onError: (err) => setSaveError(extractApiErrorMessage(err, 'Failed to update profile')),
+  });
+
+  const saving = updateMutation.isPending;
+  const error = saveError || (loadErrorObj ? extractApiErrorMessage(loadErrorObj, 'Failed to load account profile') : '');
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    setSaveError('');
+    updateMutation.mutate();
   }
 
   return (
@@ -151,12 +146,6 @@ function AccountPage() {
                   />
                 </div>
               </label>
-            </SectionBlock>
-
-            <SectionBlock title="Security">
-              <p className="muted mb-0">
-                Security settings will appear here (password, Google link, sessions). For now, you can update your profile details above.
-              </p>
             </SectionBlock>
 
             <div className="form-actions">

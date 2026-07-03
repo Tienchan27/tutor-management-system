@@ -120,9 +120,7 @@ function SessionFinancialDrawer({
           placeholder="Why is this change needed?"
         />
       </label>
-      <p className="muted mb-0">
-        Tuition: {formatVnd(current.tuitionAtLog)} · changing the duration does not recalculate tuition.
-      </p>
+      <p className="muted mb-0">Tuition: {formatVnd(current.tuitionAtLog)}</p>
     </SlideOver>
   );
 }

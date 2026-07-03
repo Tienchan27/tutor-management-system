@@ -76,13 +76,6 @@ export interface VerifyGoogleLinkOtpPayload {
   otp: string;
 }
 
-export interface UserProfile {
-  name?: string;
-  email?: string;
-  phoneNumber?: string | null;
-  facebookUrl?: string | null;
-}
-
 export interface ApiErrorResponse {
   code?: string;
   message?: string;

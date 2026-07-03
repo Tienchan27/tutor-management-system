@@ -1,16 +1,16 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ReactNode, Suspense, useState } from 'react';
 import { Menu } from 'lucide-react';
-import { navigationItems } from '../../config/navigation';
+import { getNavigationGroups } from '../../config/navigation';
 import { AppRole } from '../../types/app';
 import { clearAuthSession, getAuthUser } from '../../utils/storage';
 import { logout, switchRole } from '../../services/authService';
 import { clearRoleCache } from '../../services/accessService';
 import { getRoleHomePath, roleLabel } from '../../utils/roleNavigation';
 import { useToast } from '../feedback/ToastProvider';
-import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import AppUserMenu from './AppUserMenu';
 import AppLoadingSkeleton from './AppLoadingSkeleton';
+import NotificationBell from '../notifications/NotificationBell';
 
 interface AppShellProps {
   roles: AppRole[];
@@ -24,15 +24,7 @@ function AppShell({ roles, children }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const activeRole = user?.activeRole || roles[0];
-  const navItems = navigationItems.filter((item) => {
-    if (!activeRole || !item.roles.includes(activeRole)) {
-      return false;
-    }
-    if (item.disabled) {
-      return false;
-    }
-    return true;
-  });
+  const navGroups = activeRole ? getNavigationGroups(activeRole) : [];
 
   async function handleLogout(): Promise<void> {
     try {
@@ -63,7 +55,6 @@ function AppShell({ roles, children }: AppShellProps) {
   }
 
   const displayName = user?.name || user?.email || 'User';
-  const unreadCount = useUnreadNotifications();
 
   const sidebarContent = (
     <>
@@ -73,34 +64,39 @@ function AppShell({ roles, children }: AppShellProps) {
           <img src="/brand/logo.png" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         </span>
         <div className="app-brand-text">
-          <h2 className="title">Hands for Hands</h2>
-          <p className="muted">Tutor management</p>
+          <h2 className="app-brand-title">Hands for Hands</h2>
+          <p className="app-brand-tagline">Tutor platform</p>
         </div>
       </div>
       <nav className="app-nav">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const badge = item.path === '/app/notifications' ? unreadCount : 0;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}
-              onClick={() => setDrawerOpen(false)}
-            >
-              {Icon ? <Icon size={16} aria-hidden="true" /> : null}
-              <span className="app-nav-link-label">{item.label}</span>
-              {badge > 0 ? (
-                <span
-                  className="nav-badge"
-                  aria-label={`${badge} unread notification${badge === 1 ? '' : 's'}`}
+        {navGroups.map((group, groupIndex) => (
+          <div key={`${group.group ?? 'main'}-${groupIndex}`} className="app-nav-group">
+            {group.group ? <p className="app-nav-group-label">{group.group}</p> : null}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              if (item.disabled) {
+                return (
+                  <span key={item.path} className="app-nav-link app-nav-link-disabled" aria-disabled="true">
+                    {Icon ? <Icon size={16} aria-hidden="true" /> : null}
+                    <span className="app-nav-link-label">{item.label}</span>
+                    <span className="nav-soon-badge">Soon</span>
+                  </span>
+                );
+              }
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}
+                  onClick={() => setDrawerOpen(false)}
                 >
-                  {badge > 20 ? '20+' : badge}
-                </span>
-              ) : null}
-            </NavLink>
-          );
-        })}
+                  {Icon ? <Icon size={16} aria-hidden="true" /> : null}
+                  <span className="app-nav-link-label">{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <div className="app-sidebar-footer">
         <AppUserMenu
@@ -140,16 +136,19 @@ function AppShell({ roles, children }: AppShellProps) {
             <Menu size={20} aria-hidden="true" />
           </button>
           <div className="app-header-spacer" />
-          <div className="app-header-actions app-header-mobile-only">
-            <AppUserMenu
-              name={displayName}
-              email={user?.email}
-              roles={roles}
-              activeRole={activeRole}
-              switching={switching}
-              onRoleSelect={handleRoleSwitch}
-              onSignOut={handleLogout}
-            />
+          <div className="app-header-actions">
+            <NotificationBell />
+            <div className="app-header-mobile-only">
+              <AppUserMenu
+                name={displayName}
+                email={user?.email}
+                roles={roles}
+                activeRole={activeRole}
+                switching={switching}
+                onRoleSelect={handleRoleSwitch}
+                onSignOut={handleLogout}
+              />
+            </div>
           </div>
         </header>
         <section className="app-content">

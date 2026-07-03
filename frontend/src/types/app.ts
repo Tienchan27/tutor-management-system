@@ -8,4 +8,5 @@ export interface NavItemConfig {
   roles: AppRole[];
   disabled?: boolean;
   icon?: LucideIcon;
+  group?: string;
 }

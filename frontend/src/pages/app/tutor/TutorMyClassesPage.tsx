@@ -1,35 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getTutorClassOverview, getTutorClassRoster } from '../../services/dashboardService';
-import { listMySessionClasses } from '../../services/sessionService';
-import { TutorClassOverviewResponse, TutorClassRosterResponse } from '../../types/dashboard';
-import { TutorSessionClassOptionResponse } from '../../types/sessions';
-import { extractApiErrorMessage } from '../../services/authService';
-import { realtimeEventBus } from '../../services/realtimeEventBus';
-import PageHeader from '../../components/ui/PageHeader';
-import PageSection from '../../components/layout/PageSection';
-import Spinner from '../../components/ui/Spinner';
-import EmptyState from '../../components/ui/EmptyState';
-import ClassCard from '../../components/tutor/ClassCard';
-import ClassRosterDrawer from '../../components/dashboard/ClassRosterDrawer';
-import LogSessionModal from '../../components/tutor/LogSessionModal';
-import { useToast } from '../../components/feedback/ToastProvider';
+import { getTutorClassOverview, getTutorClassRoster } from '../../../services/dashboardService';
+import { listMySessionClasses } from '../../../services/sessionService';
+import { TutorClassOverviewResponse } from '../../../types/dashboard';
+import { extractApiErrorMessage } from '../../../services/authService';
+import PageLayout from '../../../components/layout/PageLayout';
+import PageSection from '../../../components/layout/PageSection';
+import Spinner from '../../../components/ui/Spinner';
+import EmptyState from '../../../components/ui/EmptyState';
+import ClassCard from '../../../components/tutor/ClassCard';
+import ClassRosterDrawer from '../../../components/dashboard/ClassRosterDrawer';
+import LogSessionModal from '../../../components/tutor/LogSessionModal';
+import { useToast } from '../../../components/feedback/ToastProvider';
 
 function TutorMyClassesPage() {
   const { showToast } = useToast();
-  const [classes, setClasses] = useState<TutorClassOverviewResponse[]>([]);
-  const [mySessionClasses, setMySessionClasses] = useState<TutorSessionClassOptionResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const queryClient = useQueryClient();
   const [inactiveExpanded, setInactiveExpanded] = useState(false);
-
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [logClassId, setLogClassId] = useState('');
-
-  const [rosterLoading, setRosterLoading] = useState(false);
-  const [rosterError, setRosterError] = useState('');
-  const [roster, setRoster] = useState<TutorClassRosterResponse | null>(null);
   const [rosterClassId, setRosterClassId] = useState('');
+
+  const { data, isLoading: loading, error: loadError } = useQuery({
+    queryKey: ['tutorMyClasses'],
+    queryFn: async () => {
+      const [classResponse, sessionClassesResponse] = await Promise.all([
+        getTutorClassOverview(),
+        listMySessionClasses(),
+      ]);
+      return { classes: classResponse, mySessionClasses: sessionClassesResponse };
+    },
+  });
+  const classes = data?.classes ?? [];
+  const mySessionClasses = data?.mySessionClasses ?? [];
+  const error = loadError ? extractApiErrorMessage(loadError, 'Failed to load classes') : '';
+
+  const { data: roster = null, isLoading: rosterLoading, error: rosterErrorObj } = useQuery({
+    queryKey: ['tutorClassRoster', rosterClassId],
+    queryFn: () => getTutorClassRoster(rosterClassId),
+    enabled: !!rosterClassId,
+  });
+  const rosterError = rosterErrorObj ? extractApiErrorMessage(rosterErrorObj, 'Failed to load class roster') : '';
 
   const classNameByIdFromSessionApi = useMemo(() => {
     const map = new Map<string, string>();
@@ -41,86 +53,24 @@ function TutorMyClassesPage() {
 
   function displayClassLabel(item: TutorClassOverviewResponse): string {
     const fromOverview = item.classDisplayName?.trim();
-    if (fromOverview) {
-      return fromOverview;
-    }
+    if (fromOverview) return fromOverview;
     return classNameByIdFromSessionApi.get(item.classId) || item.subjectName;
   }
 
-  async function load(): Promise<void> {
-    setLoading(true);
-    setError('');
-    try {
-      const [classResponse, sessionClassesResponse] = await Promise.all([
-        getTutorClassOverview(),
-        listMySessionClasses(),
-      ]);
-      setClasses(classResponse);
-      setMySessionClasses(sessionClassesResponse);
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to load classes'));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    const unsub1 = realtimeEventBus.subscribe('DASHBOARD_INVALIDATE', () => window.setTimeout(load, 250));
-    const unsub2 = realtimeEventBus.subscribe('SESSION_FINANCIAL_UPDATED', () => window.setTimeout(load, 250));
-    return () => {
-      unsub1();
-      unsub2();
-    };
-  }, []);
-
-  async function handleViewRoster(classId: string): Promise<void> {
-    setRosterClassId(classId);
-    setRosterLoading(true);
-    setRosterError('');
-    setRoster(null);
-    try {
-      setRoster(await getTutorClassRoster(classId));
-    } catch (err: unknown) {
-      setRosterError(extractApiErrorMessage(err, 'Failed to load class roster'));
-    } finally {
-      setRosterLoading(false);
-    }
-  }
-
-  function handleCloseRoster(): void {
-    setRoster(null);
-    setRosterError('');
-    setRosterClassId('');
-  }
-
-  function handleOpenLogSession(classId: string): void {
-    setLogClassId(classId);
-    setLogModalOpen(true);
-  }
-
-  function handleLogSuccess(): void {
-    showToast('Session logged successfully', 'success');
-    void load();
-  }
-
   const rosterClass = rosterClassId ? classes.find((c) => c.classId === rosterClassId) || null : null;
-
   const activeClasses = classes.filter((c) => c.classStatus === 'ACTIVE');
   const inactiveClasses = classes.filter((c) => c.classStatus !== 'ACTIVE');
 
   return (
-    <div className="stack-16">
-      <PageHeader title="My classes" subtitle="Your assigned classes and quick actions." />
-
+    <PageLayout title="Classes" subtitle="Your primary workspace — roster and log sessions by class.">
       <PageSection>
         {loading ? <Spinner label="Loading classes..." /> : null}
         {error ? <p className="error-text">{error}</p> : null}
         {!loading && !classes.length ? (
           <>
-            <EmptyState title="No assigned classes" description="Apply on Find classes or wait for admin approval." />
-            <Link to="/app/tutor/available-classes" className="btn btn-secondary btn-sm">
-              Find classes
+            <EmptyState title="No assigned classes" description="Apply on Marketplace or wait for admin approval." />
+            <Link to="/app/tutor/marketplace" className="btn btn-secondary btn-sm">
+              Marketplace
             </Link>
           </>
         ) : null}
@@ -141,8 +91,11 @@ function TutorMyClassesPage() {
                     pricePerHour={item.pricePerHour}
                     sessionCount={item.sessionCount}
                     latestSessionDate={item.latestSessionDate}
-                    onLogSession={() => handleOpenLogSession(item.classId)}
-                    onViewRoster={() => void handleViewRoster(item.classId)}
+                    onLogSession={() => {
+                      setLogClassId(item.classId);
+                      setLogModalOpen(true);
+                    }}
+                    onViewRoster={() => setRosterClassId(item.classId)}
                   />
                 ))}
               </>
@@ -168,8 +121,11 @@ function TutorMyClassesPage() {
                         pricePerHour={item.pricePerHour}
                         sessionCount={item.sessionCount}
                         latestSessionDate={item.latestSessionDate}
-                        onLogSession={() => handleOpenLogSession(item.classId)}
-                        onViewRoster={() => void handleViewRoster(item.classId)}
+                        onLogSession={() => {
+                          setLogClassId(item.classId);
+                          setLogModalOpen(true);
+                        }}
+                        onViewRoster={() => setRosterClassId(item.classId)}
                       />
                     ))
                   : null}
@@ -186,7 +142,7 @@ function TutorMyClassesPage() {
         roster={roster}
         loading={rosterLoading}
         error={rosterError}
-        onClose={handleCloseRoster}
+        onClose={() => setRosterClassId('')}
       />
 
       <LogSessionModal
@@ -198,9 +154,12 @@ function TutorMyClassesPage() {
           setLogModalOpen(false);
           setLogClassId('');
         }}
-        onSuccess={handleLogSuccess}
+        onSuccess={() => {
+          showToast('Session logged successfully', 'success');
+          void queryClient.invalidateQueries({ queryKey: ['tutorMyClasses'] });
+        }}
       />
-    </div>
+    </PageLayout>
   );
 }
 

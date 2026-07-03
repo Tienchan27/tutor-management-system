@@ -5,15 +5,8 @@ import { refreshSessionFromStorage } from './sessionRefresh';
 import { ClientEvent, realtimeEventBus } from './realtimeEventBus';
 import { navigateTo } from '../utils/navigation';
 
-export type RealtimeConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
-
 let controller: AbortController | null = null;
 let running = false;
-let state: RealtimeConnectionState = 'idle';
-
-function setState(next: RealtimeConnectionState): void {
-  state = next;
-}
 
 function jitter(ms: number): number {
   const spread = Math.round(ms * 0.2);
@@ -56,7 +49,6 @@ export async function startRealtime(): Promise<void> {
     return;
   }
   running = true;
-  setState('connecting');
 
   let attempt = 0;
   while (running) {
@@ -82,12 +74,10 @@ export async function startRealtime(): Promise<void> {
           if (response.status === 404 || response.status === 501) {
             // Backend realtime disabled or not deployed; stop reconnect loop.
             running = false;
-            setState('closed');
             return;
           }
           if (response.ok) {
             attempt = 0;
-            setState('connected');
             return;
           }
           throw new Error(`Unexpected SSE response: ${response.status}`);
@@ -111,12 +101,10 @@ export async function startRealtime(): Promise<void> {
       });
     } catch (err: any) {
       if (!running) {
-        setState('closed');
         return;
       }
       // Abort is normal when user logs out or page unmounts.
       if (controller?.signal.aborted) {
-        setState('closed');
         return;
       }
       if (err?.message === 'RetryWithNewToken') {
@@ -124,12 +112,10 @@ export async function startRealtime(): Promise<void> {
       }
       if (err?.message === 'Unauthorized') {
         running = false;
-        setState('closed');
         return;
       }
 
       attempt += 1;
-      setState('reconnecting');
       const baseDelay = Math.min(30_000, 500 * 2 ** Math.min(attempt, 6));
       await sleep(jitter(baseDelay));
       continue;
@@ -139,7 +125,6 @@ export async function startRealtime(): Promise<void> {
 
 export function stopRealtime(): void {
   running = false;
-  setState('closed');
   if (controller) {
     controller.abort();
     controller = null;

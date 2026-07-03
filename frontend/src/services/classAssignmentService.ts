@@ -28,9 +28,9 @@ export async function lookupStudentByEmail(email: string): Promise<StudentLookup
   return response.data;
 }
 
-export async function listPublishedClasses(): Promise<SliceResponse<PublishedClassResponse>> {
+export async function listPublishedClasses(page = 0, size = 20): Promise<SliceResponse<PublishedClassResponse>> {
   const response = await api.get<SliceResponse<PublishedClassResponse>>('/admin/classes/published', {
-    params: { page: 0, size: 20, sort: 'createdAt,desc' },
+    params: { page, size, sort: 'createdAt,desc' },
   });
   return response.data;
 }

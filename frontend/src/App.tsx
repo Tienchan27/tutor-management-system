@@ -18,19 +18,23 @@ import { getAuthUser, isAuthenticated } from './utils/storage';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import { startRealtime, stopRealtime } from './services/realtimeClient';
 
-const AdminTutorManagementPage = lazy(() => import('./pages/app/AdminTutorManagementPage'));
-const AdminClassAssignmentPage = lazy(() => import('./pages/app/AdminClassAssignmentPage'));
-const AdminPayoutsPage = lazy(() => import('./pages/app/AdminPayoutsPage'));
-const AdminStudentInvoicesPage = lazy(() => import('./pages/app/AdminStudentInvoicesPage'));
-const TutorDashboardPage = lazy(() => import('./pages/app/TutorDashboardPage'));
-const TutorMyClassesPage = lazy(() => import('./pages/app/TutorMyClassesPage'));
-const TutorSessionsPage = lazy(() => import('./pages/app/TutorSessionsPage'));
-const TutorEarningsPage = lazy(() => import('./pages/app/TutorEarningsPage'));
-const TutorClassMarketplacePage = lazy(() => import('./pages/app/TutorClassMarketplacePage'));
+const AdminDashboardPage = lazy(() => import('./pages/app/admin/AdminDashboardPage'));
+const AdminClassesPage = lazy(() => import('./pages/app/admin/classes/AdminClassesPage'));
+const AdminTutorsPage = lazy(() => import('./pages/app/admin/AdminTutorsPage'));
+const AdminPayoutsPage = lazy(() => import('./pages/app/admin/AdminPayoutsPage'));
+const AdminStudentBillingPage = lazy(() => import('./pages/app/admin/AdminStudentBillingPage'));
+const TutorHomePage = lazy(() => import('./pages/app/tutor/TutorHomePage'));
+const TutorMyClassesPage = lazy(() => import('./pages/app/tutor/TutorMyClassesPage'));
+const TutorSessionsPage = lazy(() => import('./pages/app/tutor/TutorSessionsPage'));
+const TutorMarketplacePage = lazy(() => import('./pages/app/tutor/TutorMarketplacePage'));
+const TutorEarningsLayout = lazy(() => import('./pages/app/tutor/earnings/TutorEarningsLayout'));
+const TutorPayoutsPage = lazy(() => import('./pages/app/tutor/earnings/TutorPayoutsPage'));
+const TutorBankAccountsPage = lazy(() => import('./pages/app/tutor/earnings/TutorBankAccountsPage'));
+const StudentHomePage = lazy(() => import('./pages/app/student/StudentHomePage'));
+const StudentClassesPage = lazy(() => import('./pages/app/student/StudentClassesPage'));
+const StudentBillingPage = lazy(() => import('./pages/app/student/StudentBillingPage'));
 const NotificationsPage = lazy(() => import('./pages/app/NotificationsPage'));
 const AccountPage = lazy(() => import('./pages/app/AccountPage'));
-const StudentClassesPage = lazy(() => import('./pages/app/StudentClassesPage'));
-const StudentInvoicesPage = lazy(() => import('./pages/app/StudentInvoicesPage'));
 
 interface RouteGuardProps {
   children: ReactElement;
@@ -156,27 +160,30 @@ function App() {
       >
         <Route index element={<AppHomeRedirect />} />
         <Route path="unauthorized" element={<UnauthorizedPage />} />
+
+        {/* Admin */}
         <Route
           path="admin/dashboard"
           element={
             <RoleGate allowed={['ADMIN']}>
-              <Navigate to="/app/admin/tutors" replace />
+              <AdminDashboardPage />
             </RoleGate>
           }
         />
+        <Route
+          path="admin/classes"
+          element={
+            <RoleGate allowed={['ADMIN']}>
+              <AdminClassesPage />
+            </RoleGate>
+          }
+        />
+        <Route path="admin/class-assignment" element={<Navigate to="/app/admin/classes" replace />} />
         <Route
           path="admin/tutors"
           element={
             <RoleGate allowed={['ADMIN']}>
-              <AdminTutorManagementPage />
-            </RoleGate>
-          }
-        />
-        <Route
-          path="admin/class-assignment"
-          element={
-            <RoleGate allowed={['ADMIN']}>
-              <AdminClassAssignmentPage />
+              <AdminTutorsPage />
             </RoleGate>
           }
         />
@@ -189,21 +196,25 @@ function App() {
           }
         />
         <Route
-          path="admin/student-invoices"
+          path="admin/student-billing"
           element={
             <RoleGate allowed={['ADMIN']}>
-              <AdminStudentInvoicesPage />
+              <AdminStudentBillingPage />
             </RoleGate>
           }
         />
+        <Route path="admin/student-invoices" element={<Navigate to="/app/admin/student-billing" replace />} />
+
+        {/* Tutor */}
         <Route
-          path="tutor/dashboard"
+          path="tutor/home"
           element={
             <RoleGate allowed={['TUTOR']}>
-              <TutorDashboardPage />
+              <TutorHomePage />
             </RoleGate>
           }
         />
+        <Route path="tutor/dashboard" element={<Navigate to="/app/tutor/home" replace />} />
         <Route
           path="tutor/classes"
           element={
@@ -221,19 +232,34 @@ function App() {
           }
         />
         <Route
-          path="tutor/earnings"
+          path="tutor/marketplace"
           element={
             <RoleGate allowed={['TUTOR']}>
-              <TutorEarningsPage />
+              <TutorMarketplacePage />
             </RoleGate>
           }
         />
-        <Route path="tutor/bank-accounts" element={<Navigate to="/app/tutor/earnings" replace />} />
+        <Route path="tutor/available-classes" element={<Navigate to="/app/tutor/marketplace" replace />} />
         <Route
-          path="tutor/available-classes"
+          path="tutor/earnings"
           element={
             <RoleGate allowed={['TUTOR']}>
-              <TutorClassMarketplacePage />
+              <TutorEarningsLayout />
+            </RoleGate>
+          }
+        >
+          <Route index element={<Navigate to="payouts" replace />} />
+          <Route path="payouts" element={<TutorPayoutsPage />} />
+          <Route path="bank" element={<TutorBankAccountsPage />} />
+        </Route>
+        <Route path="tutor/bank-accounts" element={<Navigate to="/app/tutor/earnings/bank" replace />} />
+
+        {/* Student */}
+        <Route
+          path="student/home"
+          element={
+            <RoleGate allowed={['STUDENT']}>
+              <StudentHomePage />
             </RoleGate>
           }
         />
@@ -246,13 +272,14 @@ function App() {
           }
         />
         <Route
-          path="student/invoices"
+          path="student/billing"
           element={
             <RoleGate allowed={['STUDENT']}>
-              <StudentInvoicesPage />
+              <StudentBillingPage />
             </RoleGate>
           }
         />
+        <Route path="student/invoices" element={<Navigate to="/app/student/billing" replace />} />
         <Route
           path="student/payments"
           element={
@@ -264,6 +291,7 @@ function App() {
             </RoleGate>
           }
         />
+
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="account" element={<AccountPage />} />
         <Route path="*" element={<NotFoundPage />} />

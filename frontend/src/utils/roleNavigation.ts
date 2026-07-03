@@ -2,12 +2,12 @@ import { AppRole } from '../types/app';
 
 export function getRoleHomePath(role: AppRole): string {
   if (role === 'ADMIN') {
-    return '/app/admin/tutors';
+    return '/app/admin/dashboard';
   }
   if (role === 'TUTOR') {
-    return '/app/tutor/dashboard';
+    return '/app/tutor/home';
   }
-  return '/app/student/classes';
+  return '/app/student/home';
 }
 
 export function roleLabel(role: AppRole): string {
