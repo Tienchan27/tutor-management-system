@@ -23,6 +23,7 @@ const AdminClassesPage = lazy(() => import('./pages/app/admin/classes/AdminClass
 const AdminTutorsPage = lazy(() => import('./pages/app/admin/AdminTutorsPage'));
 const AdminPayoutsPage = lazy(() => import('./pages/app/admin/AdminPayoutsPage'));
 const AdminStudentBillingPage = lazy(() => import('./pages/app/admin/AdminStudentBillingPage'));
+const AdminCenterAccountPage = lazy(() => import('./pages/app/admin/AdminCenterAccountPage'));
 const TutorHomePage = lazy(() => import('./pages/app/tutor/TutorHomePage'));
 const TutorMyClassesPage = lazy(() => import('./pages/app/tutor/TutorMyClassesPage'));
 const TutorSessionsPage = lazy(() => import('./pages/app/tutor/TutorSessionsPage'));
@@ -200,6 +201,14 @@ function App() {
           element={
             <RoleGate allowed={['ADMIN']}>
               <AdminStudentBillingPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/center-account"
+          element={
+            <RoleGate allowed={['ADMIN']}>
+              <AdminCenterAccountPage />
             </RoleGate>
           }
         />

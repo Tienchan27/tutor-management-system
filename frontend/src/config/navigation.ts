@@ -9,8 +9,8 @@ import {
   Wallet,
   GraduationCap,
   FileText,
-  CreditCard,
   Home,
+  Landmark,
 } from 'lucide-react';
 
 export const navigationItems: NavItemConfig[] = [
@@ -31,6 +31,13 @@ export const navigationItems: NavItemConfig[] = [
     icon: Receipt,
     group: 'Monthly close',
   },
+  {
+    label: 'Center account',
+    path: '/app/admin/center-account',
+    roles: ['ADMIN'],
+    icon: Landmark,
+    group: 'Settings',
+  },
 
   { label: 'Home', path: '/app/tutor/home', roles: ['TUTOR'], icon: Home },
   { label: 'Classes', path: '/app/tutor/classes', roles: ['TUTOR'], icon: BookOpen },
@@ -41,13 +48,6 @@ export const navigationItems: NavItemConfig[] = [
   { label: 'Home', path: '/app/student/home', roles: ['STUDENT'], icon: Home },
   { label: 'Classes', path: '/app/student/classes', roles: ['STUDENT'], icon: GraduationCap },
   { label: 'Billing', path: '/app/student/billing', roles: ['STUDENT'], icon: FileText },
-  {
-    label: 'Payments',
-    path: '/app/student/payments',
-    roles: ['STUDENT'],
-    disabled: true,
-    icon: CreditCard,
-  },
 ];
 
 export interface NavGroup {
