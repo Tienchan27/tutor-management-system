@@ -4,6 +4,7 @@ import com.example.tms.api.dto.payout.TutorPayoutPaymentResponse;
 import com.example.tms.api.dto.payout.TutorPayoutResponse;
 import com.example.tms.api.mapper.PayoutMapper;
 import com.example.tms.entity.Session;
+import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.TutorPayout;
 import com.example.tms.entity.TutorPayoutPayment;
 import com.example.tms.entity.User;
@@ -11,13 +12,16 @@ import com.example.tms.entity.enums.NotificationType;
 import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.entity.enums.PaymentStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.payment.VietQrGenerator;
 import com.example.tms.realtime.core.ClientEvent;
 import com.example.tms.realtime.core.ClientEventType;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.SessionRepository;
+import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorPayoutPaymentRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,23 +44,32 @@ public class PayoutService {
     private final TutorPayoutRepository tutorPayoutRepository;
     private final TutorPayoutPaymentRepository payoutPaymentRepository;
     private final UserRepository userRepository;
+    private final TutorBankAccountRepository tutorBankAccountRepository;
     private final NotificationOutboxService notificationOutboxService;
     private final RealtimeOutboxService realtimeOutboxService;
+    private final VietQrGenerator vietQrGenerator;
+    private final String payoutRefPrefix;
 
     public PayoutService(
             SessionRepository sessionRepository,
             TutorPayoutRepository tutorPayoutRepository,
             TutorPayoutPaymentRepository payoutPaymentRepository,
             UserRepository userRepository,
+            TutorBankAccountRepository tutorBankAccountRepository,
             NotificationOutboxService notificationOutboxService,
-            RealtimeOutboxService realtimeOutboxService
+            RealtimeOutboxService realtimeOutboxService,
+            VietQrGenerator vietQrGenerator,
+            @Value("${app.payments.payout-ref-prefix:LUONG}") String payoutRefPrefix
     ) {
         this.sessionRepository = sessionRepository;
         this.tutorPayoutRepository = tutorPayoutRepository;
         this.payoutPaymentRepository = payoutPaymentRepository;
         this.userRepository = userRepository;
+        this.tutorBankAccountRepository = tutorBankAccountRepository;
         this.notificationOutboxService = notificationOutboxService;
         this.realtimeOutboxService = realtimeOutboxService;
+        this.vietQrGenerator = vietQrGenerator;
+        this.payoutRefPrefix = payoutRefPrefix;
     }
 
     @Transactional(readOnly = true)
@@ -171,8 +184,18 @@ public class PayoutService {
     public TutorPayoutPaymentResponse generateQr(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
-        String qrRef = "PAYOUT-" + payout.getYear() + "-" + String.format("%02d", payout.getMonth()) + "-" + payout.getId();
-        String payload = "BANK_TRANSFER|REF=" + qrRef + "|AMOUNT=" + payout.getNetSalary();
+
+        TutorBankAccount account = tutorBankAccountRepository.findByUserIdAndIsPrimaryTrue(payout.getTutor().getId())
+                .orElseThrow(() -> ApiException.conflict("TUTOR_BANK_ACCOUNT_MISSING",
+                        "Tutor has no primary bank account"));
+        if (account.getBankBin() == null || account.getBankBin().isBlank()) {
+            throw ApiException.conflict("TUTOR_BANK_MISSING_BIN",
+                    "Tutor's bank account has no bank (BIN); ask the tutor to update it before generating a QR");
+        }
+
+        String qrRef = payoutRefPrefix + shortId(payout.getId());
+        String payload = vietQrGenerator.build(
+                account.getBankBin(), account.getAccountNumber(), payout.getNetSalary(), qrRef);
 
         TutorPayoutPayment payment = new TutorPayoutPayment();
         payment.setTutorPayout(payout);
@@ -214,6 +237,11 @@ public class PayoutService {
         );
         realtimeOutboxService.enqueue("user:" + payout.getTutor().getId(), "payout:" + payout.getId(), event);
         return PayoutMapper.toResponse(saved);
+    }
+
+    private String shortId(UUID id) {
+        String compact = Long.toUnsignedString(id.getMostSignificantBits(), 36).toUpperCase();
+        return compact.substring(0, Math.min(12, compact.length()));
     }
 
     private BigDecimal resolveRate(Session session) {
