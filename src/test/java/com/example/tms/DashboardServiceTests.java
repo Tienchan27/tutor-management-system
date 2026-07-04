@@ -1,6 +1,7 @@
 package com.example.tms;
 
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
+import com.example.tms.api.dto.dashboard.TutorMonthSnapshotResponse;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.Subject;
 import com.example.tms.entity.TutorClass;
@@ -13,9 +14,11 @@ import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.exception.ApiException;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.DashboardService;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -23,11 +26,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -97,5 +102,32 @@ class DashboardServiceTests {
         assertEquals("ACTIVE", response.getFirst().classStatus());
         assertEquals(5L, response.getFirst().sessionCount());
         assertEquals(LocalDate.of(2026, 3, 20), response.getFirst().latestSessionDate());
+    }
+
+    @Test
+    void tutorMonthSnapshotAggregatesSessions() {
+        User tutor = new User();
+        tutor.setId(UUID.randomUUID());
+        YearMonth month = YearMonth.of(2026, 3);
+
+        when(sessionRepository.countAndSumTuitionByTutorAndPayrollMonth(tutor.getId(), month.toString()))
+                .thenReturn(new Object[]{12L, 3_500_000L});
+
+        TutorMonthSnapshotResponse snapshot = dashboardService.tutorMonthSnapshot(tutor, month);
+
+        assertEquals(12L, snapshot.sessionCount());
+        assertEquals(3_500_000L, snapshot.totalTuition());
+    }
+
+    @Test
+    void adminTutorDetailReturnsNotFoundForMissingTutor() {
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        UUID tutorId = UUID.randomUUID();
+        when(userRepository.findById(tutorId)).thenReturn(Optional.empty());
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> dashboardService.adminTutorDetail(admin, tutorId, YearMonth.of(2026, 3)));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
     }
 }

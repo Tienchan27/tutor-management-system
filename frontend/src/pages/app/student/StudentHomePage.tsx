@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { listStudentClasses } from '../../../services/studentClassService';
 import { listMyInvoices } from '../../../services/studentInvoiceService';
@@ -32,31 +31,17 @@ function StudentHomePage() {
       {isLoading ? <Spinner label="Loading..." /> : null}
       {error ? <p className="error-text">{extractApiErrorMessage(error, 'Failed to load home')}</p> : null}
       {data ? (
-        <>
-          <PageSection>
-            <div className="stat-card-grid">
-              <StatCard label="Active classes" value={data.classCount} accent="brand" />
-              <StatCard label="Unpaid invoices" value={data.unpaidCount} />
-              <StatCard
-                label="Next due date"
-                value={data.nextDue ? formatDate(data.nextDue) : '—'}
-                hint={data.unpaidCount ? `${data.unpaidCount} open` : 'All paid'}
-              />
-            </div>
-          </PageSection>
-          <PageSection title="Quick links">
-            <div className="quick-action-grid">
-              <Link to="/app/student/classes" className="quick-action-card">
-                <strong>Classes</strong>
-                <span className="muted">View your enrollments</span>
-              </Link>
-              <Link to="/app/student/billing" className="quick-action-card">
-                <strong>Billing</strong>
-                <span className="muted">Monthly tuition statements</span>
-              </Link>
-            </div>
-          </PageSection>
-        </>
+        <PageSection>
+          <div className="stat-card-grid">
+            <StatCard label="Active classes" value={data.classCount} accent="brand" />
+            <StatCard label="Unpaid invoices" value={data.unpaidCount} />
+            <StatCard
+              label="Next due date"
+              value={data.nextDue ? formatDate(data.nextDue) : '—'}
+              hint={data.unpaidCount ? `${data.unpaidCount} open` : 'All paid'}
+            />
+          </div>
+        </PageSection>
       ) : null}
     </PageLayout>
   );

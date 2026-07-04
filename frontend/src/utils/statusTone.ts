@@ -15,6 +15,9 @@ export function invoiceTone(status: string): StatusTone {
   if (normalized === 'PAID') {
     return 'success';
   }
+  if (normalized === 'PARTIALLY_PAID') {
+    return 'warning';
+  }
   if (normalized === 'OVERDUE') {
     return 'danger';
   }

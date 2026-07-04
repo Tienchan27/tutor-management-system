@@ -14,7 +14,6 @@ import java.util.UUID;
 
 public interface SessionRepository extends JpaRepository<Session, UUID> {
     List<Session> findByPayrollMonth(String payrollMonth);
-    List<Session> findByTutorClassTutorIdAndPayrollMonth(UUID tutorId, String payrollMonth);
     Slice<Session> findByTutorClassTutorIdAndPayrollMonth(UUID tutorId, String payrollMonth, Pageable pageable);
     long countByTutorClassId(UUID tutorClassId);
     Optional<Session> findTopByTutorClassIdOrderByDateDesc(UUID tutorClassId);
@@ -29,5 +28,16 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
     List<Object[]> countDistinctClassesByTutorForPayrollMonth(
             @Param("payrollMonth") String payrollMonth,
             @Param("tutorIds") Collection<UUID> tutorIds
+    );
+
+    @Query("""
+            select count(s), coalesce(sum(s.tuitionAtLog), 0)
+            from Session s
+            where s.tutorClass.tutor.id = :tutorId
+            and s.payrollMonth = :payrollMonth
+            """)
+    Object[] countAndSumTuitionByTutorAndPayrollMonth(
+            @Param("tutorId") UUID tutorId,
+            @Param("payrollMonth") String payrollMonth
     );
 }

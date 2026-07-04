@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getTutorClassOverview } from '../../../services/dashboardService';
-import { listMySessionClasses, listSessionsByPayrollMonth } from '../../../services/sessionService';
+import { getTutorClassOverview, getTutorMonthSnapshot } from '../../../services/dashboardService';
+import { listMySessionClasses } from '../../../services/sessionService';
 import { extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
@@ -27,14 +26,14 @@ function TutorHomePage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['tutorHome', currentMonth],
     queryFn: async () => {
-      const [classResponse, sessionsResponse] = await Promise.all([
+      const [classes, snapshot] = await Promise.all([
         getTutorClassOverview(),
-        listSessionsByPayrollMonth(currentMonth, 0),
+        getTutorMonthSnapshot(currentMonth),
       ]);
       return {
-        classes: classResponse,
-        sessionCount: sessionsResponse.items.length,
-        estimatedTuition: sessionsResponse.items.reduce((sum, item) => sum + item.tuitionAtLog, 0),
+        classes,
+        sessionCount: snapshot.sessionCount,
+        estimatedTuition: snapshot.totalTuition,
       };
     },
   });
@@ -62,27 +61,6 @@ function TutorHomePage() {
           <StatCard label="Sessions this month" value={sessionCount} hint={`Payroll month ${currentMonth}`} accent="brand" />
           <StatCard label="Active classes" value={activeClassCount} />
           <StatCard label="Estimated tuition" value={formatVnd(estimatedTuition)} hint="From logged sessions this month" />
-        </div>
-      </PageSection>
-
-      <PageSection title="Quick links">
-        <div className="quick-action-grid">
-          <Link to="/app/tutor/classes" className="quick-action-card">
-            <strong>Classes</strong>
-            <span className="muted">Roster and log sessions by class</span>
-          </Link>
-          <Link to="/app/tutor/sessions" className="quick-action-card">
-            <strong>Sessions</strong>
-            <span className="muted">Session history and edits</span>
-          </Link>
-          <Link to="/app/tutor/marketplace" className="quick-action-card">
-            <strong>Marketplace</strong>
-            <span className="muted">Find and apply for classes</span>
-          </Link>
-          <Link to="/app/tutor/earnings/payouts" className="quick-action-card">
-            <strong>Earnings</strong>
-            <span className="muted">Payout history and bank accounts</span>
-          </Link>
         </div>
       </PageSection>
 

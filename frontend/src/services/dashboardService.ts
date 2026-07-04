@@ -6,6 +6,7 @@ import {
   TutorClassOverviewResponse,
   TutorClassRosterResponse,
   TutorDashboardResponse,
+  TutorMonthSnapshotResponse,
   TutorSummaryResponse,
 } from '../types/dashboard';
 import { SliceResponse } from '../types/pagination';
@@ -40,6 +41,13 @@ export async function getTutorClassOverview(): Promise<TutorClassOverviewRespons
 
 export async function getTutorClassRoster(classId: string): Promise<TutorClassRosterResponse> {
   const response = await api.get<TutorClassRosterResponse>(`/dashboard/tutor/classes/${classId}/roster`);
+  return response.data;
+}
+
+export async function getTutorMonthSnapshot(month: string): Promise<TutorMonthSnapshotResponse> {
+  const response = await api.get<TutorMonthSnapshotResponse>('/dashboard/tutor/month-snapshot', {
+    params: { month },
+  });
   return response.data;
 }
 

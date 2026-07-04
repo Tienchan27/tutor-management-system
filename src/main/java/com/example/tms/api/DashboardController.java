@@ -5,6 +5,7 @@ import com.example.tms.api.dto.dashboard.AdminTutorDetailResponse;
 import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
 import com.example.tms.api.dto.dashboard.TutorClassRosterResponse;
+import com.example.tms.api.dto.dashboard.TutorMonthSnapshotResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
 import com.example.tms.api.util.PageableGuard;
 import com.example.tms.security.CurrentUserResolver;
@@ -74,5 +75,10 @@ public class DashboardController {
     @GetMapping("/tutor/classes/{classId}/roster")
     public TutorClassRosterResponse tutorClassRoster(@PathVariable UUID classId) {
         return dashboardService.tutorClassRoster(currentUserResolver.requireUser(), classId);
+    }
+
+    @GetMapping("/tutor/month-snapshot")
+    public TutorMonthSnapshotResponse tutorMonthSnapshot(@RequestParam String month) {
+        return dashboardService.tutorMonthSnapshot(currentUserResolver.requireUser(), YearMonth.parse(month));
     }
 }

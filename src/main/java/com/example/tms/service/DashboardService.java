@@ -7,6 +7,7 @@ import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
 import com.example.tms.api.dto.dashboard.TutorClassRosterResponse;
 import com.example.tms.api.dto.dashboard.TutorClassRosterStudentResponse;
+import com.example.tms.api.dto.dashboard.TutorMonthSnapshotResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.TutorBankAccount;
@@ -20,6 +21,7 @@ import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.EnrollmentStatus;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.util.ClassDisplayNames;
 import com.example.tms.repository.EnrollmentRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
@@ -28,7 +30,6 @@ import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -74,6 +75,7 @@ public class DashboardService {
         this.userRoleRepository = userRoleRepository;
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     public Slice<TutorSummaryResponse> adminTutorSummary(User admin, YearMonth month, Pageable pageable) {
         Slice<UserRole> userRolesSlice = userRoleRepository.findByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE, pageable);
@@ -118,10 +120,9 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
-    @Cacheable(cacheNames = "dashboard:admin:detail", key = "'adminDetail:' + #admin.id + ':' + #tutorId + ':' + #month")
     public AdminTutorDetailResponse adminTutorDetail(User admin, UUID tutorId, YearMonth month) {
         User tutor = userRepository.findById(tutorId)
-                .orElseThrow(() -> new ApiException("Tutor not found"));
+                .orElseThrow(() -> ApiException.notFound("TUTOR_NOT_FOUND", "Tutor not found"));
 
         TutorPayout payout = tutorPayoutRepository.findByTutorIdAndYearAndMonth(tutorId, month.getYear(), month.getMonthValue())
                 .orElse(null);
@@ -155,7 +156,6 @@ public class DashboardService {
     }
 
     @PreAuthorize("hasRole('TUTOR')")
-    @Cacheable(cacheNames = "dashboard:tutor:me", key = "'tutorMe:' + #tutor.id")
     public List<TutorDashboardResponse> tutorSelf(User tutor) {
         return tutorPayoutRepository.findByTutorIdOrderByYearDescMonthDesc(tutor.getId())
                 .stream()
@@ -165,7 +165,6 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('TUTOR')")
-    @Cacheable(cacheNames = "dashboard:tutor:classes", key = "'tutorClasses:' + #tutor.id")
     public List<TutorClassOverviewResponse> tutorClassOverview(User tutor) {
         return tutorClassRepository.findByTutorId(tutor.getId())
                 .stream()
@@ -175,12 +174,11 @@ public class DashboardService {
 
     @PreAuthorize("hasRole('TUTOR')")
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "dashboard:tutor:roster", key = "'tutorRoster:' + #tutor.id + ':' + #classId")
     public TutorClassRosterResponse tutorClassRoster(User tutor, UUID classId) {
         TutorClass tutorClass = tutorClassRepository.findById(classId)
-                .orElseThrow(() -> new ApiException("Class not found"));
+                .orElseThrow(() -> ApiException.notFound("CLASS_NOT_FOUND", "Class not found"));
         if (tutorClass.getTutor() == null || !tutorClass.getTutor().getId().equals(tutor.getId())) {
-            throw new ApiException("Not authorized to view roster for this class");
+            throw ApiException.forbidden("ROSTER_FORBIDDEN", "Not authorized to view roster for this class");
         }
 
         List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(classId, EnrollmentStatus.ACTIVE);
@@ -213,6 +211,15 @@ public class DashboardService {
         );
     }
 
+    @PreAuthorize("hasRole('TUTOR')")
+    @Transactional(readOnly = true)
+    public TutorMonthSnapshotResponse tutorMonthSnapshot(User tutor, YearMonth month) {
+        Object[] row = sessionRepository.countAndSumTuitionByTutorAndPayrollMonth(tutor.getId(), month.toString());
+        long sessionCount = row[0] == null ? 0L : ((Number) row[0]).longValue();
+        long totalTuition = row[1] == null ? 0L : ((Number) row[1]).longValue();
+        return new TutorMonthSnapshotResponse(sessionCount, totalTuition);
+    }
+
     private TutorDashboardResponse toDashboard(TutorPayout payout) {
         return new TutorDashboardResponse(
                 payout.getYear(),
@@ -239,18 +246,12 @@ public class DashboardService {
     }
 
     private String resolveClassDisplayName(TutorClass tutorClass) {
-        List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE);
-        List<String> studentNames = activeEnrollments.stream()
+        List<String> studentNames = enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE)
+                .stream()
                 .map(Enrollment::getStudent)
                 .map(User::getName)
                 .toList();
-        String className = tutorClass.getDisplayName();
-        if (className == null || className.isBlank()) {
-            className = studentNames.isEmpty()
-                    ? "[" + tutorClass.getSubject().getName() + "] Class"
-                    : "[" + tutorClass.getSubject().getName() + "] " + String.join(" - ", studentNames);
-        }
-        return className;
+        return ClassDisplayNames.resolve(tutorClass.getDisplayName(), tutorClass.getSubject().getName(), studentNames);
     }
 
     private AdminTutorBankAccountResponse toBankAccountResponse(TutorBankAccount bankAccount) {

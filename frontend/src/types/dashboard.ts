@@ -27,6 +27,11 @@ export interface TutorClassOverviewResponse {
   latestSessionDate: string | null;
 }
 
+export interface TutorMonthSnapshotResponse {
+  sessionCount: number;
+  totalTuition: number;
+}
+
 export interface TutorClassRosterStudentResponse {
   studentId: string;
   studentName: string;
