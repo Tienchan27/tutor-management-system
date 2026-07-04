@@ -1,0 +1,70 @@
+/* VietQR payment view (shared by tuition + payout) */
+.vietqr {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.vietqr-code {
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-soft);
+  line-height: 0;
+}
+
+.vietqr-details {
+  margin: 0;
+  flex: 1 1 240px;
+  min-width: 220px;
+  display: grid;
+  gap: 10px;
+}
+
+.vietqr-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.vietqr-row dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.vietqr-row dd {
+  margin: 0;
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.vietqr-mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.vietqr-copy {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vietqr-copy:hover {
+  background: var(--brand-amber-light);
+  color: var(--sidebar-text-hover);
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { closeStudentTuition, listAdminInvoices } from '../../../services/adminInvoiceService';
+import { closeStudentTuition, confirmInvoicePaid, listAdminInvoices } from '../../../services/adminInvoiceService';
 import { extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
@@ -19,6 +19,7 @@ function AdminStudentBillingPage() {
   const [searchParams] = useSearchParams();
   const [month, setMonth] = useState(searchParams.get('month') || getCurrentYearMonth());
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState('');
   const [actionError, setActionError] = useState('');
 
@@ -43,12 +44,25 @@ function AdminStudentBillingPage() {
     onError: (err) => setActionError(extractApiErrorMessage(err, 'Failed to close student billing')),
   });
 
+  const confirmPaidMutation = useMutation({
+    mutationFn: (invoiceId: string) => confirmInvoicePaid(invoiceId),
+    onSuccess: () => {
+      setConfirmPaidId(null);
+      showToast('Payment confirmed', 'success');
+      void queryClient.invalidateQueries({ queryKey: ['adminInvoices', month] });
+    },
+    onError: (err) => {
+      setConfirmPaidId(null);
+      showToast(extractApiErrorMessage(err, 'Failed to confirm payment'), 'error');
+    },
+  });
+
   const error = actionError || (loadErrorObj ? extractApiErrorMessage(loadErrorObj, 'Failed to load invoices') : '');
 
   return (
     <PageLayout
       title="Student billing"
-      subtitle="Close monthly tuition from logged sessions."
+      subtitle="Close monthly tuition and confirm payments."
       toolbar={
         <>
           <input type="month" className="input-month" value={month} onChange={(e) => setMonth(e.target.value)} />
@@ -75,6 +89,7 @@ function AdminStudentBillingPage() {
                   <th scope="col">Amount</th>
                   <th scope="col">Due</th>
                   <th scope="col">Status</th>
+                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -87,6 +102,18 @@ function AdminStudentBillingPage() {
                     <td>
                       <StatusPill label={item.status} tone={item.status === 'PAID' ? 'success' : 'warning'} />
                     </td>
+                    <td>
+                      {item.status !== 'PAID' ? (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => setConfirmPaidId(item.id)}
+                          loading={confirmPaidMutation.isPending && confirmPaidMutation.variables === item.id}
+                        >
+                          Confirm received
+                        </Button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -94,6 +121,7 @@ function AdminStudentBillingPage() {
           </div>
         ) : null}
       </PageSection>
+
       <ConfirmDialog
         open={confirmClose}
         title="Close student billing?"
@@ -107,6 +135,17 @@ function AdminStudentBillingPage() {
         loading={closeMutation.isPending}
         onConfirm={() => closeMutation.mutate()}
         onCancel={() => setConfirmClose(false)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmPaidId}
+        title="Confirm payment received?"
+        message="Mark this invoice as paid. This records a payment and notifies the student."
+        confirmLabel="Confirm received"
+        confirmVariant="success"
+        loading={confirmPaidMutation.isPending}
+        onConfirm={() => confirmPaidId && confirmPaidMutation.mutate(confirmPaidId)}
+        onCancel={() => setConfirmPaidId(null)}
       />
     </PageLayout>
   );

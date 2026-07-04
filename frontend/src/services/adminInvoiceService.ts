@@ -14,3 +14,8 @@ export async function closeStudentTuition(month: string, recalculate = false): P
   );
   return response.data;
 }
+
+export async function confirmInvoicePaid(invoiceId: string): Promise<StudentInvoice> {
+  const response = await api.post<StudentInvoice>(`/admin/invoices/${invoiceId}/confirm-paid`);
+  return response.data;
+}

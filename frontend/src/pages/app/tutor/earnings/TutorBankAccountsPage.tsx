@@ -6,6 +6,7 @@ import {
   listMyBankAccounts,
   setPrimaryBankAccount,
 } from '../../../../services/bankAccountService';
+import { listBankCatalog } from '../../../../services/bankCatalogService';
 import { CreateBankAccountRequest } from '../../../../types/bankAccounts';
 import { extractApiErrorMessage } from '../../../../services/authService';
 import PageSection from '../../../../components/layout/PageSection';
@@ -14,6 +15,7 @@ import Button from '../../../../components/ui/Button';
 import Spinner from '../../../../components/ui/Spinner';
 import EmptyState from '../../../../components/ui/EmptyState';
 import StatusPill from '../../../../components/ui/StatusPill';
+import BankSelect from '../../../../components/payments/BankSelect';
 import { useToast } from '../../../../components/feedback/ToastProvider';
 
 const initialForm: CreateBankAccountRequest = {
@@ -31,6 +33,11 @@ function TutorBankAccountsPage() {
   const { data: items = [], isLoading: bankLoading } = useQuery({
     queryKey: ['tutorBankAccounts'],
     queryFn: listMyBankAccounts,
+  });
+
+  const { data: banks = [] } = useQuery({
+    queryKey: ['bankCatalog'],
+    queryFn: listBankCatalog,
   });
 
   const invalidateBanks = () => queryClient.invalidateQueries({ queryKey: ['tutorBankAccounts'] });
@@ -75,12 +82,12 @@ function TutorBankAccountsPage() {
       <SectionBlock title="Add account">
         <form onSubmit={handleCreate} className="stack-16">
           <div className="grid-form">
-            <input
-              className="text-input"
-              placeholder="Bank name"
-              value={form.bankName}
-              onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
-              required
+            <BankSelect
+              banks={banks}
+              valueBin={form.bankBin ?? ''}
+              onSelect={(bank) =>
+                setForm((prev) => ({ ...prev, bankName: bank.shortName, bankBin: bank.bin, bankCode: bank.code }))
+              }
             />
             <input
               className="text-input"

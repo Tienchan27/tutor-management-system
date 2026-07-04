@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   confirmPayoutPaid,
   generateMonthlyPayouts,
@@ -18,6 +17,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import Spinner from '../../../components/ui/Spinner';
 import StatusPill from '../../../components/ui/StatusPill';
 import ConfirmDialog from '../../../components/feedback/ConfirmDialog';
+import VietQrView from '../../../components/payments/VietQrView';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { formatVnd, formatYearMonth, getCurrentYearMonth } from '../../../utils/format';
 import { payoutTone } from '../../../utils/statusTone';
@@ -191,31 +191,8 @@ function AdminPayoutsPage() {
       </PageSection>
 
       {selectedPayment ? (
-        <PageSection title="QR payment details">
-          <p>
-            <strong>Reference:</strong> {selectedPayment.qrRef}
-          </p>
-          <p>
-            <strong>Status:</strong> {selectedPayment.status}
-          </p>
-          <div className="section-actions">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() =>
-                navigator.clipboard.writeText(selectedPayment.qrRef).then(
-                  () => showToast('Reference copied', 'success'),
-                  () => showToast('Copy failed', 'error')
-                )
-              }
-            >
-              Copy reference
-            </Button>
-          </div>
-          <div className="qr-panel">
-            <QRCodeSVG value={selectedPayment.qrPayload} size={200} level="M" />
-          </div>
-          <pre className="pre-wrap muted">{selectedPayment.qrPayload}</pre>
+        <PageSection title="Payout QR" subtitle="Scan to transfer to the tutor's account.">
+          <VietQrView qrPayload={selectedPayment.qrPayload} qrRef={selectedPayment.qrRef} />
         </PageSection>
       ) : null}
 

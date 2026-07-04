@@ -2,6 +2,8 @@ export interface CreateBankAccountRequest {
   bankName: string;
   accountNumber: string;
   accountHolderName: string;
+  bankBin?: string;
+  bankCode?: string;
 }
 
 export interface BankAccountResponse {

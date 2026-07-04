@@ -1,18 +1,30 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listMyInvoices } from '../../../services/studentInvoiceService';
+import { getInvoiceQr, listMyInvoices } from '../../../services/studentInvoiceService';
 import { extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
 import Spinner from '../../../components/ui/Spinner';
 import EmptyState from '../../../components/ui/EmptyState';
 import StatusPill from '../../../components/ui/StatusPill';
+import Button from '../../../components/ui/Button';
+import Modal from '../../../components/ui/Modal';
+import VietQrView from '../../../components/payments/VietQrView';
 import { formatDate, formatVnd, formatYearMonth } from '../../../utils/format';
 import { invoiceTone } from '../../../utils/statusTone';
 
 function StudentBillingPage() {
+  const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
+
   const { data: items = [], isLoading, error } = useQuery({
     queryKey: ['studentInvoices'],
     queryFn: listMyInvoices,
+  });
+
+  const qrQuery = useQuery({
+    queryKey: ['invoiceQr', payInvoiceId],
+    queryFn: () => getInvoiceQr(payInvoiceId as string),
+    enabled: !!payInvoiceId,
   });
 
   return (
@@ -31,6 +43,7 @@ function StudentBillingPage() {
                   <th scope="col">Amount</th>
                   <th scope="col">Due</th>
                   <th scope="col">Status</th>
+                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody>
@@ -43,6 +56,13 @@ function StudentBillingPage() {
                     <td>
                       <StatusPill label={item.status} tone={invoiceTone(item.status)} />
                     </td>
+                    <td>
+                      {item.status !== 'PAID' ? (
+                        <Button variant="primary" size="sm" onClick={() => setPayInvoiceId(item.id)}>
+                          Pay
+                        </Button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -50,6 +70,33 @@ function StudentBillingPage() {
           </div>
         ) : null}
       </PageSection>
+
+      <Modal
+        open={!!payInvoiceId}
+        title="Pay tuition"
+        subtitle="Scan with your banking app to transfer."
+        onClose={() => setPayInvoiceId(null)}
+        footer={
+          <Button variant="secondary" onClick={() => setPayInvoiceId(null)}>
+            Close
+          </Button>
+        }
+      >
+        {qrQuery.isLoading ? <Spinner label="Preparing QR..." /> : null}
+        {qrQuery.error ? (
+          <p className="error-text">{extractApiErrorMessage(qrQuery.error, 'Failed to prepare payment')}</p>
+        ) : null}
+        {qrQuery.data ? (
+          <VietQrView
+            qrPayload={qrQuery.data.qrPayload}
+            qrRef={qrQuery.data.qrRef}
+            bankName={qrQuery.data.bankName}
+            accountNumber={qrQuery.data.accountNumber}
+            accountHolderName={qrQuery.data.accountHolderName}
+            amount={qrQuery.data.amount}
+          />
+        ) : null}
+      </Modal>
     </PageLayout>
   );
 }
