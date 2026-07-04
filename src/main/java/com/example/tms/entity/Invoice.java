@@ -66,6 +66,10 @@ public class Invoice {
     @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
+    // Reconciliation key embedded in the VietQR description (unique when set).
+    @Column(name = "qr_ref", length = 40, unique = true)
+    private String qrRef;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

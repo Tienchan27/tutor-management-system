@@ -6,9 +6,13 @@ import com.example.tms.entity.Session;
 import com.example.tms.entity.SessionStudentTuition;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.InvoiceStatus;
+import com.example.tms.payment.VietQrGenerator;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.InvoiceRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.service.CenterBankAccountService;
+import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.StudentInvoiceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,9 +39,14 @@ class InvoiceRecalculationTests {
     @Mock private SessionStudentTuitionRepository sessionStudentTuitionRepository;
     @Mock private InvoiceRepository invoiceRepository;
     @Mock private UserRepository userRepository;
+    @Mock private NotificationOutboxService notificationOutboxService;
+    @Mock private RealtimeOutboxService realtimeOutboxService;
+    @Mock private VietQrGenerator vietQrGenerator;
+    @Mock private CenterBankAccountService centerBankAccountService;
 
     private StudentInvoiceService service() {
-        return new StudentInvoiceService(sessionStudentTuitionRepository, invoiceRepository, userRepository, 15);
+        return new StudentInvoiceService(sessionStudentTuitionRepository, invoiceRepository, userRepository,
+                notificationOutboxService, realtimeOutboxService, vietQrGenerator, centerBankAccountService, 15, "HP");
     }
 
     private User student() {

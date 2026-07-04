@@ -6,6 +6,7 @@ import com.example.tms.api.dto.invoice.StudentInvoiceResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.StudentInvoiceService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.YearMonth;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/invoices")
@@ -42,5 +44,10 @@ public class AdminInvoiceController {
                 YearMonth.parse(month),
                 recalculate
         );
+    }
+
+    @PostMapping("/{invoiceId}/confirm-paid")
+    public StudentInvoiceResponse confirmPaid(@PathVariable UUID invoiceId) {
+        return studentInvoiceService.confirmPaidByAdmin(currentUserResolver.requireUser(), invoiceId);
     }
 }

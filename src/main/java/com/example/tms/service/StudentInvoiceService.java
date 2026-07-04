@@ -2,13 +2,23 @@ package com.example.tms.service;
 
 import com.example.tms.api.dto.invoice.InvoiceGenerationResultResponse;
 import com.example.tms.api.dto.invoice.StudentInvoiceResponse;
+import com.example.tms.api.dto.payment.PaymentQrResponse;
 import com.example.tms.api.mapper.InvoiceMapper;
+import com.example.tms.entity.CenterBankAccount;
 import com.example.tms.entity.Invoice;
+import com.example.tms.entity.Payment;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.SessionStudentTuition;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.InvoiceStatus;
+import com.example.tms.entity.enums.NotificationType;
+import com.example.tms.entity.enums.PaymentMethod;
+import com.example.tms.entity.enums.PaymentStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.payment.VietQrGenerator;
+import com.example.tms.realtime.core.ClientEvent;
+import com.example.tms.realtime.core.ClientEventType;
+import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.InvoiceRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.UserRepository;
@@ -19,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,18 +44,33 @@ public class StudentInvoiceService {
     private final SessionStudentTuitionRepository sessionStudentTuitionRepository;
     private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
+    private final NotificationOutboxService notificationOutboxService;
+    private final RealtimeOutboxService realtimeOutboxService;
+    private final VietQrGenerator vietQrGenerator;
+    private final CenterBankAccountService centerBankAccountService;
     private final int dueDays;
+    private final String tuitionRefPrefix;
 
     public StudentInvoiceService(
             SessionStudentTuitionRepository sessionStudentTuitionRepository,
             InvoiceRepository invoiceRepository,
             UserRepository userRepository,
-            @Value("${app.invoice.due-days:15}") int dueDays
+            NotificationOutboxService notificationOutboxService,
+            RealtimeOutboxService realtimeOutboxService,
+            VietQrGenerator vietQrGenerator,
+            CenterBankAccountService centerBankAccountService,
+            @Value("${app.invoice.due-days:15}") int dueDays,
+            @Value("${app.payments.tuition-ref-prefix:HP}") String tuitionRefPrefix
     ) {
         this.sessionStudentTuitionRepository = sessionStudentTuitionRepository;
         this.invoiceRepository = invoiceRepository;
         this.userRepository = userRepository;
+        this.notificationOutboxService = notificationOutboxService;
+        this.realtimeOutboxService = realtimeOutboxService;
+        this.vietQrGenerator = vietQrGenerator;
+        this.centerBankAccountService = centerBankAccountService;
         this.dueDays = dueDays;
+        this.tuitionRefPrefix = tuitionRefPrefix;
     }
 
     @Transactional(readOnly = true)
@@ -124,12 +150,104 @@ public class StudentInvoiceService {
             invoice.setTotalAmount(agg.totalTuition);
             invoice.setStatus(InvoiceStatus.UNPAID);
             invoice.setDueDate(dueDate);
+            if (invoice.getQrRef() == null) {
+                invoice.setQrRef(newTuitionRef());
+            }
             Invoice saved = invoiceRepository.save(invoice);
             created++;
             results.add(InvoiceMapper.toResponse(saved));
         }
 
         return new InvoiceGenerationResultResponse(month, created, skipped, results);
+    }
+
+    /** Student fetches a scannable VietQR to pay their own invoice into the center account. */
+    @Transactional
+    @PreAuthorize("hasRole('STUDENT')")
+    public PaymentQrResponse getInvoiceQr(User student, UUID invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
+        if (!invoice.getStudent().getId().equals(student.getId())) {
+            throw ApiException.forbidden("INVOICE_FORBIDDEN", "This invoice does not belong to you");
+        }
+        if (invoice.getQrRef() == null) {
+            invoice.setQrRef(newTuitionRef());
+            invoiceRepository.save(invoice);
+        }
+
+        CenterBankAccount center = centerBankAccountService.getRequired();
+        String payload = vietQrGenerator.build(
+                center.getBankBin(), center.getAccountNumber(), invoice.getTotalAmount(), invoice.getQrRef());
+        return new PaymentQrResponse(
+                payload,
+                invoice.getQrRef(),
+                center.getBankName(),
+                center.getAccountNumber(),
+                center.getAccountHolderName(),
+                invoice.getTotalAmount(),
+                invoice.getQrRef()
+        );
+    }
+
+    /** Admin confirms a tuition transfer was received (the always-free manual path). */
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public StudentInvoiceResponse confirmPaidByAdmin(User admin, UUID invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
+        return InvoiceMapper.toResponse(applyExternalPayment(invoice, "MANUAL:" + admin.getId(), invoice.getTotalAmount()));
+    }
+
+    /**
+     * Single source of truth for marking an invoice paid — reused by the admin manual
+     * confirm and (Phase 2) the webhook adapter via {@code PaymentConfirmationPort}.
+     * Idempotent: a settled invoice is a conflict rather than a double payment.
+     */
+    @Transactional
+    public Invoice applyExternalPayment(UUID invoiceId, String externalReference, long amountVnd) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
+        return applyExternalPayment(invoice, externalReference, amountVnd);
+    }
+
+    private Invoice applyExternalPayment(Invoice invoice, String externalReference, long amountVnd) {
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            throw ApiException.conflict("INVOICE_ALREADY_PAID", "This invoice is already paid");
+        }
+
+        Payment payment = new Payment();
+        payment.setInvoice(invoice);
+        payment.setAmount(amountVnd);
+        payment.setMethod(PaymentMethod.QR);
+        payment.setStatus(PaymentStatus.SUCCESS);
+        payment.setPaidAt(LocalDateTime.now());
+        invoice.getPayments().add(payment);
+        invoice.setStatus(InvoiceStatus.PAID);
+        Invoice saved = invoiceRepository.save(invoice);
+
+        User student = invoice.getStudent();
+        notificationOutboxService.enqueue(
+                student,
+                NotificationType.INVOICE_PAID,
+                "Tuition payment received",
+                "Your tuition for " + invoice.getYear() + "-" + String.format("%02d", invoice.getMonth())
+                        + " has been marked paid.",
+                "invoice:" + saved.getId()
+        );
+        ClientEvent event = ClientEvent.of(
+                ClientEventType.PAYMENT_STATUS_CHANGED,
+                "user:" + student.getId(),
+                "invoice:" + saved.getId(),
+                Map.of("invoiceId", String.valueOf(saved.getId()), "status", saved.getStatus().name(), "ref",
+                        externalReference)
+        );
+        realtimeOutboxService.enqueue("user:" + student.getId(), "invoice:" + saved.getId(), event);
+        return saved;
+    }
+
+    private String newTuitionRef() {
+        String compact = Long.toUnsignedString(UUID.randomUUID().getMostSignificantBits(), 36).toUpperCase();
+        return tuitionRefPrefix + compact.substring(0, Math.min(12, compact.length()));
     }
 
     private static final class StudentAggregate {

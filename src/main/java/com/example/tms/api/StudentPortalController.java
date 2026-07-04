@@ -2,14 +2,17 @@ package com.example.tms.api;
 
 import com.example.tms.api.dto.invoice.StudentClassResponse;
 import com.example.tms.api.dto.invoice.StudentInvoiceResponse;
+import com.example.tms.api.dto.payment.PaymentQrResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.StudentClassService;
 import com.example.tms.service.StudentInvoiceService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/student")
@@ -36,5 +39,10 @@ public class StudentPortalController {
     @GetMapping("/invoices")
     public List<StudentInvoiceResponse> invoices() {
         return studentInvoiceService.listForStudent(currentUserResolver.requireUser());
+    }
+
+    @GetMapping("/invoices/{invoiceId}/qr")
+    public PaymentQrResponse invoiceQr(@PathVariable UUID invoiceId) {
+        return studentInvoiceService.getInvoiceQr(currentUserResolver.requireUser(), invoiceId);
     }
 }
