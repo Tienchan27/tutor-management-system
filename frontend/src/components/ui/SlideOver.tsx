@@ -1,4 +1,9 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useRef } from 'react';
+import { useOverlayDialog } from '../../hooks/useOverlayDialog';
+import { useDismissGuard } from '../../hooks/useDismissGuard';
+import ConfirmDialog from '../feedback/ConfirmDialog';
+
+type SlideOverFooter = ReactNode | ((requestClose: () => void) => ReactNode);
 
 interface SlideOverProps {
   open: boolean;
@@ -6,36 +11,44 @@ interface SlideOverProps {
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
-  footer?: ReactNode;
+  footer?: SlideOverFooter;
+  size?: 'md' | 'lg';
+  isDirty?: boolean;
+  closeOnBackdrop?: boolean;
 }
 
-function SlideOver({ open, title, subtitle, onClose, children, footer }: SlideOverProps) {
+function SlideOver({
+  open,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  isDirty = false,
+  closeOnBackdrop = true,
+}: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { requestClose, discardDialog } = useDismissGuard(open, isDirty, onClose);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handleKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-    document.addEventListener('keydown', handleKey);
-    panelRef.current?.focus();
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
+  useOverlayDialog(open, requestClose, panelRef);
 
   if (!open) {
     return null;
   }
 
+  const resolvedFooter = typeof footer === 'function' ? footer(requestClose) : footer;
+
   return (
     <>
-      <button type="button" className="slide-over-overlay" aria-label="Close panel" onClick={onClose} />
+      {closeOnBackdrop ? (
+        <button type="button" className="slide-over-overlay" aria-label="Close panel" onClick={requestClose} />
+      ) : (
+        <div className="slide-over-overlay" aria-hidden="true" />
+      )}
       <div
         ref={panelRef}
-        className="slide-over-panel"
+        className={`slide-over-panel${size === 'lg' ? ' slide-over-panel-lg' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="slide-over-title"
@@ -48,13 +61,23 @@ function SlideOver({ open, title, subtitle, onClose, children, footer }: SlideOv
             </h2>
             {subtitle ? <p className="muted mb-0">{subtitle}</p> : null}
           </div>
-          <button type="button" className="slide-over-close" aria-label="Close" onClick={onClose}>
+          <button type="button" className="slide-over-close" aria-label="Close" onClick={requestClose}>
             ×
           </button>
         </div>
         <div className="slide-over-body">{children}</div>
-        {footer ? <div className="slide-over-actions">{footer}</div> : null}
+        {resolvedFooter ? <div className="slide-over-actions">{resolvedFooter}</div> : null}
       </div>
+      <ConfirmDialog
+        open={discardDialog.open}
+        title="Discard changes?"
+        message="You have unsaved changes. Discard them and close?"
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        danger
+        onConfirm={discardDialog.onConfirm}
+        onCancel={discardDialog.onCancel}
+      />
     </>
   );
 }

@@ -12,7 +12,7 @@ import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
 import Button from '../../../components/ui/Button';
 import LogSessionModal from '../../../components/tutor/LogSessionModal';
-import SessionFinancialDrawer from '../../../components/sessions/SessionFinancialDrawer';
+import SessionFinancialSlideOver from '../../../components/sessions/SessionFinancialSlideOver';
 import ConfirmDialog from '../../../components/feedback/ConfirmDialog';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { getCurrentYearMonth } from '../../../utils/format';
@@ -139,7 +139,7 @@ function TutorSessionsPage() {
         }}
       />
 
-      <SessionFinancialDrawer
+      <SessionFinancialSlideOver
         open={!!editItem}
         item={editItem}
         loading={editMutation.isPending}

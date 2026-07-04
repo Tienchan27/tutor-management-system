@@ -30,8 +30,10 @@ import {
   buildSuggestedClassName,
   classStatusLabel,
   classStatusTone,
+  ClassEditSnapshot,
   ClassFormState,
   defaultNameFromEmail,
+  isClassFormDirty,
   isLikelyEmail,
   normalizeEmail,
 } from './classAssignmentUtils';
@@ -71,6 +73,7 @@ function AdminClassesPage() {
 
   const [modalMode, setModalMode] = useState<'new' | 'edit' | null>(null);
   const [editingClassId, setEditingClassId] = useState<string>('');
+  const [editSnapshot, setEditSnapshot] = useState<ClassEditSnapshot | null>(null);
   const [form, setForm] = useState<ClassFormState>(emptyForm([]));
   const [submitting, setSubmitting] = useState(false);
 
@@ -102,6 +105,7 @@ function AdminClassesPage() {
 
   function openNewModal(): void {
     setFormError('');
+    setEditSnapshot(null);
     setForm(emptyForm(subjects));
     setEditingClassId('');
     setModalMode('new');
@@ -110,16 +114,20 @@ function AdminClassesPage() {
   function openEditModal(cls: PublishedClassResponse): void {
     setFormError('');
     const subject = subjects.find((s) => s.name === cls.subjectName);
+    const displayName = cls.displayName;
+    const pricePerHour = String(cls.pricePerHour);
+    const note = cls.note ?? '';
+    setEditSnapshot({ displayName, pricePerHour, note });
     setForm({
       students: [],
       studentEmail: '',
       studentAdding: false,
       subjectId: subject?.id ?? subjects[0]?.id ?? '',
-      pricePerHour: String(cls.pricePerHour),
+      pricePerHour,
       isPriceManuallyEdited: true,
-      displayName: cls.displayName,
+      displayName,
       isDisplayNameManuallyEdited: true,
-      note: cls.note ?? '',
+      note,
     });
     setEditingClassId(cls.classId);
     setModalMode('edit');
@@ -128,6 +136,7 @@ function AdminClassesPage() {
   function closeModal(): void {
     setModalMode(null);
     setEditingClassId('');
+    setEditSnapshot(null);
     setFormError('');
   }
 
@@ -320,6 +329,11 @@ function AdminClassesPage() {
     !isNaN(priceNum) &&
     priceNum >= 1 &&
     (isEditMode || form.students.length > 0);
+
+  const classFormDirty = useMemo(
+    () => isClassFormDirty(form, modalMode, editSnapshot, emptyForm(subjects), suggestedDisplayName),
+    [form, modalMode, subjects, editSnapshot, suggestedDisplayName]
+  );
 
   return (
     <PageLayout
@@ -543,15 +557,16 @@ function AdminClassesPage() {
         open={modalMode !== null}
         title={modalTitle}
         size="xl"
+        isDirty={classFormDirty}
         onClose={closeModal}
-        footer={
+        footer={(requestClose) => (
           <>
-            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="secondary" onClick={requestClose}>Cancel</Button>
             <Button variant="primary" onClick={() => void handleSubmit()} loading={submitting} disabled={!canSubmit}>
               {isEditMode ? 'Save changes' : 'Publish class'}
             </Button>
           </>
-        }
+        )}
       >
         <div className="publish-setup-grid">
           <div className="stack-16">
@@ -618,27 +633,49 @@ function AdminClassesPage() {
                   ) : (
                     <p className="muted mb-8">No students in this class yet.</p>
                   )}
-                  <input
-                    type="email"
-                    className="text-input"
-                    placeholder="Add student by email"
-                    value={form.studentEmail}
-                    disabled={rosterLoading}
-                    onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
-                  />
+                  <div className="invite-inline-form mb-8">
+                    <input
+                      type="email"
+                      className="text-input"
+                      placeholder="Add student by email"
+                      value={form.studentEmail}
+                      disabled={rosterLoading}
+                      onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudentToClass(); } }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="compact-btn"
+                      disabled={!isLikelyEmail(form.studentEmail) || rosterLoading}
+                      onClick={() => void handleAddStudentToClass()}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <>
-                  <input
-                    type="email"
-                    className="text-input mb-8"
-                    placeholder="Add student by email"
-                    value={form.studentEmail}
-                    disabled={form.studentAdding}
-                    onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudent(); } }}
-                  />
+                  <div className="invite-inline-form mb-8">
+                    <input
+                      type="email"
+                      className="text-input"
+                      placeholder="Add student by email"
+                      value={form.studentEmail}
+                      disabled={form.studentAdding}
+                      onChange={(e) => setForm((prev) => ({ ...prev, studentEmail: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddStudent(); } }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="compact-btn"
+                      disabled={!isLikelyEmail(form.studentEmail) || form.studentAdding}
+                      onClick={() => void handleAddStudent()}
+                    >
+                      Add
+                    </Button>
+                  </div>
                   <StudentChipList students={form.students} onRemove={handleRemoveStudent} />
                 </>
               )}

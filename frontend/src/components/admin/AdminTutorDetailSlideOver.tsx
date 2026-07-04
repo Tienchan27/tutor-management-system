@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { AdminTutorDetailResponse } from '../../types/dashboard';
-import Modal from '../ui/Modal';
+import SlideOver from '../ui/SlideOver';
 import SectionBlock from '../ui/SectionBlock';
 import Button from '../ui/Button';
 import { formatVnd } from '../../utils/format';
 
-interface AdminTutorDetailDrawerProps {
+interface AdminTutorDetailSlideOverProps {
   open: boolean;
   detail: AdminTutorDetailResponse | null;
   deleteConfirmTutorId: string;
@@ -14,42 +14,36 @@ interface AdminTutorDetailDrawerProps {
   onRevokeTutorRole: (tutorId: string) => void;
 }
 
-function AdminTutorDetailDrawer({
+function AdminTutorDetailSlideOver({
   open,
   detail,
   deleteConfirmTutorId,
   deleteLoading,
   onClose,
   onRevokeTutorRole,
-}: AdminTutorDetailDrawerProps) {
+}: AdminTutorDetailSlideOverProps) {
   if (!detail) {
     return null;
   }
 
   return (
-    <Modal open={open} title={detail.name} subtitle={detail.email} onClose={onClose} size="lg">
+    <SlideOver open={open} title={detail.name} subtitle={detail.email} size="lg" onClose={onClose}>
       <div className="stack-16">
-        <SectionBlock title="Tutor identity and contact">
+        <SectionBlock title="Contact">
           <div className="grid-3">
-            <div>
-              <strong>Name</strong>
-              <p className="muted mb-0">{detail.name}</p>
-            </div>
-            <div>
-              <strong>Email</strong>
-              <p className="muted mb-0">{detail.email}</p>
-            </div>
             <div>
               <strong>Phone</strong>
               <p className="muted mb-0">{detail.phoneNumber || '—'}</p>
             </div>
+            <div>
+              <strong>Facebook</strong>
+              <p className="muted mb-0">{detail.facebookUrl || '—'}</p>
+            </div>
+            <div>
+              <strong>Address</strong>
+              <p className="muted mb-0">{detail.address || '—'}</p>
+            </div>
           </div>
-          <p className="muted mb-0">
-            <strong>Facebook:</strong> {detail.facebookUrl || '—'}
-          </p>
-          <p className="muted mb-0">
-            <strong>Address:</strong> {detail.address || '—'}
-          </p>
         </SectionBlock>
 
         <SectionBlock title="Payroll">
@@ -136,8 +130,8 @@ function AdminTutorDetailDrawer({
           </div>
         </SectionBlock>
       </div>
-    </Modal>
+    </SlideOver>
   );
 }
 
-export default AdminTutorDetailDrawer;
+export default AdminTutorDetailSlideOver;

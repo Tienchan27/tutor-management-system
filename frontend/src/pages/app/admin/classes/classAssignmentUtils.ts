@@ -49,6 +49,45 @@ export function classStatusLabel(status: string): string {
   return status;
 }
 
+export interface ClassEditSnapshot {
+  displayName: string;
+  pricePerHour: string;
+  note: string;
+}
+
+export function isClassFormDirty(
+  form: ClassFormState,
+  modalMode: 'new' | 'edit' | null,
+  editSnapshot: ClassEditSnapshot | null,
+  baselineForm: ClassFormState,
+  suggestedDisplayName: string
+): boolean {
+  if (!modalMode) {
+    return false;
+  }
+  if (modalMode === 'edit' && editSnapshot) {
+    return (
+      form.displayName !== editSnapshot.displayName ||
+      form.pricePerHour !== editSnapshot.pricePerHour ||
+      form.note !== editSnapshot.note
+    );
+  }
+  if (modalMode === 'new') {
+    const displayNameDirty =
+      form.isDisplayNameManuallyEdited ||
+      (!!form.displayName.trim() && form.displayName.trim() !== suggestedDisplayName.trim());
+    return (
+      form.students.length > 0 ||
+      form.studentEmail.trim() !== '' ||
+      form.note.trim() !== '' ||
+      displayNameDirty ||
+      form.isPriceManuallyEdited ||
+      form.subjectId !== baselineForm.subjectId
+    );
+  }
+  return false;
+}
+
 export function assignedTutor(cls: PublishedClassResponse): string | null {
   return cls.applications.find((a) => a.status === 'APPROVED')?.tutorName ?? null;
 }

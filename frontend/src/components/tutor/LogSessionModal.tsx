@@ -4,7 +4,8 @@ import { CreateSessionRequest, TutorSessionClassOptionResponse } from '../../typ
 import { extractApiErrorMessage } from '../../services/authService';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import StudentTuitionDrawer, { StudentTuitionRow } from '../sessions/StudentTuitionDrawer';
+import ConfirmDialog from '../feedback/ConfirmDialog';
+import StudentTuitionEditor from '../sessions/StudentTuitionEditor';
 import { formatVnd, getCurrentYearMonth } from '../../utils/format';
 
 function getTodayDate(): string {
@@ -22,6 +23,48 @@ function buildInitialForm(classId: string): CreateSessionRequest {
     payrollMonth: getCurrentYearMonth(),
     note: '',
   };
+}
+
+function tuitionsEqual(
+  a: CreateSessionRequest['studentTuitions'],
+  b: CreateSessionRequest['studentTuitions']
+): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  const map = new Map(b.map((tuition) => [tuition.studentId, tuition.tuitionAtLog]));
+  return a.every((tuition) => map.get(tuition.studentId) === tuition.tuitionAtLog);
+}
+
+function sessionFormsEqual(a: CreateSessionRequest, b: CreateSessionRequest): boolean {
+  return (
+    a.classId === b.classId &&
+    a.date === b.date &&
+    a.durationHours === b.durationHours &&
+    a.payrollMonth === b.payrollMonth &&
+    (a.note ?? '') === (b.note ?? '') &&
+    tuitionsEqual(a.studentTuitions, b.studentTuitions)
+  );
+}
+
+function hasCustomTuitions(
+  studentTuitions: CreateSessionRequest['studentTuitions'],
+  tutorClass: TutorSessionClassOptionResponse | null,
+  durationHours: number
+): boolean {
+  if (!tutorClass) {
+    return false;
+  }
+  const defaultPerStudent = Math.round(tutorClass.pricePerHour * durationHours);
+  return studentTuitions.some((tuition) => {
+    const enrolled = tutorClass.students.some((student) => student.id === tuition.studentId);
+    return enrolled && tuition.tuitionAtLog !== defaultPerStudent;
+  });
+}
+
+interface PendingTuitionReset {
+  durationHours: number;
+  classId: string;
 }
 
 interface LogSessionModalProps {
@@ -42,7 +85,8 @@ function LogSessionModal({
   onSuccess,
 }: LogSessionModalProps) {
   const [form, setForm] = useState<CreateSessionRequest>(buildInitialForm(initialClassId));
-  const [tuitionDrawerOpen, setTuitionDrawerOpen] = useState(false);
+  const [baselineForm, setBaselineForm] = useState<CreateSessionRequest | null>(null);
+  const [pendingTuitionReset, setPendingTuitionReset] = useState<PendingTuitionReset | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -56,7 +100,7 @@ function LogSessionModal({
     : 0;
   const totalTuition = form.studentTuitions.reduce((sum, item) => sum + (item.tuitionAtLog || 0), 0);
 
-  const tuitionRows: StudentTuitionRow[] =
+  const tuitionStudents =
     selectedClass?.students.map((student) => {
       const row = form.studentTuitions.find((t) => t.studentId === student.id);
       return {
@@ -68,43 +112,78 @@ function LogSessionModal({
 
   useEffect(() => {
     if (!open) {
+      setBaselineForm(null);
+      setPendingTuitionReset(null);
       return;
     }
     setError('');
-    setTuitionDrawerOpen(false);
     const nextClassId = initialClassId || '';
-    setForm(buildInitialForm(nextClassId));
     const nextClass = classes.find((c) => c.id === nextClassId) || null;
+    let nextForm = buildInitialForm(nextClassId);
     if (nextClass) {
       const tuitionPerStudent = Math.round(nextClass.pricePerHour * 1);
-      setForm((prev) => ({
-        ...prev,
+      nextForm = {
+        ...nextForm,
         classId: nextClassId,
         studentTuitions: nextClass.students.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })),
-      }));
+      };
     }
+    setForm(nextForm);
+    setBaselineForm(nextForm);
     // `classes` intentionally omitted: form should only reset when the modal opens or the initial class changes,
     // not whenever the parent re-renders with a new classes array reference.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialClassId]);
 
+  const isDirty = baselineForm !== null && !sessionFormsEqual(form, baselineForm);
+
   function overwriteAllStudentTuitions(
     nextDurationHours: number,
-    nextClass: TutorSessionClassOptionResponse | null
+    nextClass: TutorSessionClassOptionResponse | null,
+    nextClassId?: string
   ): void {
     const tuitionPerStudent = Math.round((nextClass?.pricePerHour ?? 0) * nextDurationHours);
     setForm((prev) => ({
       ...prev,
+      classId: nextClassId ?? prev.classId,
       durationHours: nextDurationHours,
       studentTuitions: nextClass?.students?.map((s) => ({ studentId: s.id, tuitionAtLog: tuitionPerStudent })) ?? [],
     }));
   }
 
+  function requestTuitionOverwrite(nextDurationHours: number, nextClassId: string): void {
+    const nextClass = classes.find((c) => c.id === nextClassId) || null;
+    const classForCheck =
+      nextClassId === form.classId ? selectedClass : classes.find((c) => c.id === form.classId) || null;
+    if (hasCustomTuitions(form.studentTuitions, classForCheck, form.durationHours)) {
+      setPendingTuitionReset({ durationHours: nextDurationHours, classId: nextClassId });
+      return;
+    }
+    overwriteAllStudentTuitions(nextDurationHours, nextClass, nextClassId);
+  }
+
   function handleClassChange(classId: string): void {
-    const nextClass = classes.find((c) => c.id === classId) || null;
-    setTuitionDrawerOpen(false);
-    setForm((prev) => ({ ...prev, classId }));
-    overwriteAllStudentTuitions(form.durationHours, nextClass);
+    requestTuitionOverwrite(form.durationHours, classId);
+  }
+
+  function handleDurationChange(nextDurationHours: number): void {
+    if (!form.classId) {
+      return;
+    }
+    requestTuitionOverwrite(nextDurationHours, form.classId);
+  }
+
+  function confirmTuitionReset(): void {
+    if (!pendingTuitionReset) {
+      return;
+    }
+    const nextClass = classes.find((c) => c.id === pendingTuitionReset.classId) || null;
+    overwriteAllStudentTuitions(
+      pendingTuitionReset.durationHours,
+      nextClass,
+      pendingTuitionReset.classId
+    );
+    setPendingTuitionReset(null);
   }
 
   function handleResetToDefault(): void {
@@ -112,14 +191,6 @@ function LogSessionModal({
       return;
     }
     overwriteAllStudentTuitions(form.durationHours, selectedClass);
-  }
-
-  function handleTuitionApply(rows: StudentTuitionRow[]): void {
-    setForm((prev) => ({
-      ...prev,
-      studentTuitions: rows.map((row) => ({ studentId: row.studentId, tuitionAtLog: row.tuitionAtLog })),
-    }));
-    setTuitionDrawerOpen(false);
   }
 
   function handleTuitionChange(studentId: string, tuitionAtLog: number): void {
@@ -168,17 +239,18 @@ function LogSessionModal({
         title="Log session"
         subtitle="Record a completed teaching session."
         size="lg"
+        isDirty={isDirty}
         onClose={onClose}
-        footer={
+        footer={(requestClose) => (
           <>
-            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
+            <Button type="button" variant="ghost" onClick={requestClose} disabled={submitting}>
               Cancel
             </Button>
             <Button type="submit" form="log-session-form" loading={submitting} disabled={!form.classId}>
               Log session
             </Button>
           </>
-        }
+        )}
       >
         <form id="log-session-form" onSubmit={(event) => void handleSubmit(event)}>
           <div className="session-form-grid">
@@ -219,9 +291,7 @@ function LogSessionModal({
                 type="number"
                 step="0.25"
                 value={form.durationHours}
-                onChange={(event) =>
-                  overwriteAllStudentTuitions(Number(event.target.value), selectedClass)
-                }
+                onChange={(event) => handleDurationChange(Number(event.target.value))}
                 required
                 disabled={!form.classId}
               />
@@ -265,19 +335,24 @@ function LogSessionModal({
           </details>
 
           {selectedClass ? (
-            <div className="session-tuition-summary mt-12">
-              <div>
-                <p className="mb-0">
-                  <strong>Students ({selectedClass.students.length})</strong>
-                </p>
-                <p className="muted small mb-0">
-                  Default/student: {formatVnd(defaultTuitionPerStudent)} · Total: {formatVnd(totalTuition)}
-                </p>
+            <details className="session-tuition-details mt-12">
+              <summary className="session-tuition-summary">
+                Students ({selectedClass.students.length}) · Default {formatVnd(defaultTuitionPerStudent)} · Total{' '}
+                {formatVnd(totalTuition)}
+              </summary>
+              <StudentTuitionEditor students={tuitionStudents} onTuitionChange={handleTuitionChange} />
+              <div className="mt-12">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="compact-btn"
+                  onClick={handleResetToDefault}
+                  disabled={!form.classId}
+                >
+                  Reset to default
+                </Button>
               </div>
-              <Button type="button" variant="ghost" className="compact-btn" onClick={() => setTuitionDrawerOpen(true)}>
-                Edit tuitions
-              </Button>
-            </div>
+            </details>
           ) : null}
 
           {!classes.length ? (
@@ -287,14 +362,14 @@ function LogSessionModal({
         </form>
       </Modal>
 
-      <StudentTuitionDrawer
-        open={tuitionDrawerOpen}
-        students={tuitionRows}
-        defaultTuitionPerStudent={defaultTuitionPerStudent}
-        onClose={() => setTuitionDrawerOpen(false)}
-        onSave={handleTuitionApply}
-        onResetToDefault={handleResetToDefault}
-        onTuitionChange={handleTuitionChange}
+      <ConfirmDialog
+        open={!!pendingTuitionReset}
+        title="Reset student tuitions?"
+        message="You customized per-student tuitions. Reset them to the new default amounts?"
+        confirmLabel="Reset tuitions"
+        cancelLabel="Keep current"
+        onConfirm={confirmTuitionReset}
+        onCancel={() => setPendingTuitionReset(null)}
       />
     </>
   );

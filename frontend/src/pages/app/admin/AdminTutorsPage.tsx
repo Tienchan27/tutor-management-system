@@ -5,7 +5,7 @@ import { TutorSummaryResponse } from '../../../types/dashboard';
 import { extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
-import AdminTutorDetailDrawer from '../../../components/admin/AdminTutorDetailDrawer';
+import AdminTutorDetailSlideOver from '../../../components/admin/AdminTutorDetailSlideOver';
 import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -170,7 +170,7 @@ function AdminTutorsPage() {
         ) : null}
       </PageSection>
 
-      <AdminTutorDetailDrawer
+      <AdminTutorDetailSlideOver
         open={!!detailTutorId && !!detail}
         detail={detail}
         deleteConfirmTutorId={deleteConfirmTutorId}

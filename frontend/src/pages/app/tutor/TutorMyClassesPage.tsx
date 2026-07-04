@@ -10,7 +10,7 @@ import PageSection from '../../../components/layout/PageSection';
 import Spinner from '../../../components/ui/Spinner';
 import EmptyState from '../../../components/ui/EmptyState';
 import ClassCard from '../../../components/tutor/ClassCard';
-import ClassRosterDrawer from '../../../components/dashboard/ClassRosterDrawer';
+import ClassRosterModal from '../../../components/dashboard/ClassRosterModal';
 import LogSessionModal from '../../../components/tutor/LogSessionModal';
 import { useToast } from '../../../components/feedback/ToastProvider';
 
@@ -135,7 +135,7 @@ function TutorMyClassesPage() {
         ) : null}
       </PageSection>
 
-      <ClassRosterDrawer
+      <ClassRosterModal
         open={!!rosterClassId}
         classLabel={rosterClass ? displayClassLabel(rosterClass) : 'Class'}
         classStatus={rosterClass?.classStatus}

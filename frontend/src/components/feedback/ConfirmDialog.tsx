@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
+import { useOverlayDialog } from '../../hooks/useOverlayDialog';
 import Button from '../ui/Button';
 
 interface ConfirmDialogProps {
@@ -26,18 +27,24 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const resolvedVariant = confirmVariant ?? (danger ? 'danger' : 'primary');
+
+  useOverlayDialog(open, onCancel, panelRef);
+
   if (!open) {
     return null;
   }
 
   return (
-    <div className="dialog-overlay" role="presentation" onClick={onCancel}>
+    <div className="dialog-overlay dialog-overlay-elevated" role="presentation" onClick={onCancel}>
       <div
+        ref={panelRef}
         className="modal-panel"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal-header">
@@ -50,12 +57,7 @@ function ConfirmDialog({
           <Button variant="secondary" type="button" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button
-            variant={resolvedVariant}
-            type="button"
-            onClick={onConfirm}
-            loading={loading}
-          >
+          <Button variant={resolvedVariant} type="button" onClick={onConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </div>

@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import SlideOver from '../ui/SlideOver';
 import { formatVnd } from '../../utils/format';
 
-interface SessionEditDrawerProps {
+interface SessionFinancialSlideOverProps {
   open: boolean;
   item: SessionListItem | null;
   loading?: boolean;
@@ -13,14 +13,14 @@ interface SessionEditDrawerProps {
   onSave: (item: SessionListItem, reason: string) => void;
 }
 
-function SessionFinancialDrawer({
+function SessionFinancialSlideOver({
   open,
   item,
   loading,
   showSalaryRate = false,
   onClose,
   onSave,
-}: SessionEditDrawerProps) {
+}: SessionFinancialSlideOverProps) {
   const [draft, setDraft] = useState<SessionListItem | null>(item);
   const [reason, setReason] = useState('');
 
@@ -35,23 +35,32 @@ function SessionFinancialDrawer({
 
   const current = draft || item;
   const canSave = reason.trim().length > 0;
+  const isDirty =
+    reason.trim().length > 0 ||
+    current.date !== item.date ||
+    current.durationHours !== item.durationHours ||
+    current.tuitionAtLog !== item.tuitionAtLog ||
+    current.salaryRateAtLog !== item.salaryRateAtLog ||
+    current.payrollMonth !== item.payrollMonth ||
+    (current.note || '') !== (item.note || '');
 
   return (
     <SlideOver
       open={open}
       title="Edit session"
       subtitle="Correct a session you logged. A reason is recorded for the audit trail."
+      isDirty={isDirty}
       onClose={onClose}
-      footer={
+      footer={(requestClose) => (
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={requestClose}>
             Cancel
           </Button>
           <Button variant="primary" loading={loading} disabled={!canSave} onClick={() => onSave(current, reason.trim())}>
             Save changes
           </Button>
         </>
-      }
+      )}
     >
       <label className="input-wrapper input-wrapper-tight">
         <span className="input-label">Date</span>
@@ -125,4 +134,4 @@ function SessionFinancialDrawer({
   );
 }
 
-export default SessionFinancialDrawer;
+export default SessionFinancialSlideOver;

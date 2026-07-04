@@ -4,7 +4,7 @@ import Modal from '../ui/Modal';
 import Spinner from '../ui/Spinner';
 import { formatVnd } from '../../utils/format';
 
-interface ClassRosterDrawerProps {
+interface ClassRosterModalProps {
   open: boolean;
   classLabel: string;
   classStatus?: string;
@@ -14,7 +14,7 @@ interface ClassRosterDrawerProps {
   onClose: () => void;
 }
 
-function ClassRosterDrawer({
+function ClassRosterModal({
   open,
   classLabel,
   classStatus,
@@ -22,18 +22,18 @@ function ClassRosterDrawer({
   loading,
   error,
   onClose,
-}: ClassRosterDrawerProps) {
+}: ClassRosterModalProps) {
   return (
     <Modal
       open={open}
       title="Class roster"
       subtitle={`${classLabel}${classStatus ? ` · ${classStatus}` : ''}`}
       onClose={onClose}
-      footer={
-        <Button variant="secondary" onClick={onClose}>
+      footer={(requestClose) => (
+        <Button variant="secondary" onClick={requestClose}>
           Close
         </Button>
-      }
+      )}
     >
       {error ? <p className="error-text">{error}</p> : null}
       {loading ? <Spinner label="Loading roster..." /> : null}
@@ -67,4 +67,4 @@ function ClassRosterDrawer({
   );
 }
 
-export default ClassRosterDrawer;
+export default ClassRosterModal;

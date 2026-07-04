@@ -1,4 +1,9 @@
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useRef } from 'react';
+import { useOverlayDialog } from '../../hooks/useOverlayDialog';
+import { useDismissGuard } from '../../hooks/useDismissGuard';
+import ConfirmDialog from '../feedback/ConfirmDialog';
+
+type ModalFooter = ReactNode | ((requestClose: () => void) => ReactNode);
 
 interface ModalProps {
   open: boolean;
@@ -6,57 +11,76 @@ interface ModalProps {
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
-  footer?: ReactNode;
+  footer?: ModalFooter;
   size?: 'md' | 'lg' | 'xl';
+  isDirty?: boolean;
+  closeOnBackdrop?: boolean;
 }
 
-function Modal({ open, title, subtitle, onClose, children, footer, size = 'md' }: ModalProps) {
+function Modal({
+  open,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  isDirty = false,
+  closeOnBackdrop = true,
+}: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { requestClose, discardDialog } = useDismissGuard(open, isDirty, onClose);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handleKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-    document.addEventListener('keydown', handleKey);
-    panelRef.current?.focus();
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
+  useOverlayDialog(open, requestClose, panelRef);
 
   if (!open) {
     return null;
   }
 
+  const resolvedFooter = typeof footer === 'function' ? footer(requestClose) : footer;
+
   return (
-    <div className="dialog-overlay" role="presentation" onClick={onClose}>
+    <>
       <div
-        ref={panelRef}
-        className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}${size === 'xl' ? ' modal-panel-xl' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
+        className="dialog-overlay"
+        role="presentation"
+        onClick={closeOnBackdrop ? requestClose : undefined}
       >
-        <div className="modal-header">
-          <div>
-            <h2 id="modal-title" className="modal-title">
-              {title}
-            </h2>
-            {subtitle ? <p className="modal-subtitle">{subtitle}</p> : null}
+        <div
+          ref={panelRef}
+          className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}${size === 'xl' ? ' modal-panel-xl' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="modal-header">
+            <div>
+              <h2 id="modal-title" className="modal-title">
+                {title}
+              </h2>
+              {subtitle ? <p className="modal-subtitle">{subtitle}</p> : null}
+            </div>
+            <button type="button" className="modal-close" aria-label="Close" onClick={requestClose}>
+              ✕
+            </button>
           </div>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            ✕
-          </button>
+          <div className="modal-body">{children}</div>
+          {resolvedFooter ? <div className="modal-footer">{resolvedFooter}</div> : null}
         </div>
-        <div className="modal-body">{children}</div>
-        {footer ? <div className="modal-footer">{footer}</div> : null}
       </div>
-    </div>
+      <ConfirmDialog
+        open={discardDialog.open}
+        title="Discard changes?"
+        message="You have unsaved changes. Discard them and close?"
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        danger
+        onConfirm={discardDialog.onConfirm}
+        onCancel={discardDialog.onCancel}
+      />
+    </>
   );
 }
 
