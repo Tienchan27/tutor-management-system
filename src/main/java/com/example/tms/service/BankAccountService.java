@@ -38,6 +38,8 @@ public class BankAccountService {
         account.setBankName(request.bankName());
         account.setAccountNumber(request.accountNumber());
         account.setAccountHolderName(request.accountHolderName());
+        account.setBankBin(request.bankBin());
+        account.setBankCode(request.bankCode());
         account.setPrimary(!hasPrimary); // First account is primary, others are not
         account.setVerified(true);
         account.setVerifiedAt(LocalDateTime.now());

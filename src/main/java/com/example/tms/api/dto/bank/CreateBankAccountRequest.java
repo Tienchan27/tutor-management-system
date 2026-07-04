@@ -16,6 +16,13 @@ public record CreateBankAccountRequest(
 
         @NotBlank(message = "Account holder name is required")
         @Size(max = 100, message = "Account holder name must not exceed 100 characters")
-        String accountHolderName
+        String accountHolderName,
+
+        // NAPAS BIN chosen from the bank catalog; needed to generate a payout VietQR.
+        @Pattern(regexp = "\\d{6}", message = "bankBin must be a 6-digit BIN")
+        String bankBin,
+
+        @Size(max = 20)
+        String bankCode
 ) {
 }

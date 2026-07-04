@@ -47,6 +47,13 @@ public class TutorBankAccount {
     @Column(name = "account_holder_name", nullable = false, length = 100)
     private String accountHolderName;
 
+    // NAPAS BIN of the bank (from the catalog); required to generate a payout VietQR.
+    @Column(name = "bank_bin", length = 6)
+    private String bankBin;
+
+    @Column(name = "bank_code", length = 20)
+    private String bankCode;
+
     @Column(name = "is_primary", nullable = false)
     private boolean isPrimary = true;
 
