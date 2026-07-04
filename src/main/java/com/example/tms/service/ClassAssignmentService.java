@@ -22,6 +22,7 @@ import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.TutorClassApplicationStatus;
 import com.example.tms.entity.enums.UserStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.util.ClassDisplayNames;
 import com.example.tms.realtime.core.ClientEvent;
 import com.example.tms.realtime.core.ClientEventType;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
@@ -491,17 +492,11 @@ public class ClassAssignmentService {
     }
 
     private String buildDisplayName(String requestedName, String subjectName, List<String> studentNames) {
-        if (requestedName != null && !requestedName.isBlank()) {
-            return requestedName.trim();
-        }
-        return defaultClassName(subjectName, studentNames);
+        return ClassDisplayNames.resolve(requestedName, subjectName, studentNames);
     }
 
     private String defaultClassName(String subjectName, List<String> studentNames) {
-        if (studentNames == null || studentNames.isEmpty()) {
-            return "[" + subjectName + "] Class";
-        }
-        return "[" + subjectName + "] " + String.join(" - ", studentNames);
+        return ClassDisplayNames.resolve(null, subjectName, studentNames);
     }
 
     private PublishedClassResponse toPublishedClassResponse(TutorClass tutorClass) {

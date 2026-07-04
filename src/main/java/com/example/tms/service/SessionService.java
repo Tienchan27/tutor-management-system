@@ -19,6 +19,7 @@ import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
+import com.example.tms.util.ClassDisplayNames;
 import com.example.tms.realtime.core.ClientEvent;
 import com.example.tms.realtime.core.ClientEventType;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
@@ -344,12 +345,8 @@ public class SessionService {
                 .map(Enrollment::getStudent)
                 .map(student -> new TutorSessionStudentOptionResponse(student.getId(), student.getName()))
                 .toList();
-        String className = tutorClass.getDisplayName();
-        if (className == null || className.isBlank()) {
-            className = studentNames.isEmpty()
-                    ? "[" + tutorClass.getSubject().getName() + "] Class"
-                    : "[" + tutorClass.getSubject().getName() + "] " + String.join(" - ", studentNames);
-        }
+        String className = ClassDisplayNames.resolve(
+                tutorClass.getDisplayName(), tutorClass.getSubject().getName(), studentNames);
         return new TutorSessionClassOptionResponse(
                 tutorClass.getId(),
                 className,
