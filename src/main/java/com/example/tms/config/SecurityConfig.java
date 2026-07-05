@@ -64,6 +64,9 @@ public class SecurityConfig {
                         // Admin endpoints
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
+                        // Defense-in-depth: mirror the service-layer @PreAuthorize at the URL level.
+                        .requestMatchers("/payouts/**").hasRole("ADMIN")
+                        .requestMatchers("/sessions/**").hasRole("TUTOR")
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
