@@ -129,9 +129,9 @@ public class AuthService {
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         String normalizedEmail = normalizeEmail(request.email());
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new ApiException("INVALID_EMAIL", "Invalid email or password"));
+                .orElseThrow(() -> new ApiException("INVALID_CREDENTIALS", "Invalid email or password"));
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new ApiException("INVALID_PASSWORD", "Invalid email or password");
+            throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password");
         }
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
             throw new ApiException(

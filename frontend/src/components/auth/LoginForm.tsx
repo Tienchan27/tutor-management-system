@@ -32,7 +32,7 @@ function LoginForm({ onSuccess, onError, onPendingVerification }: LoginFormProps
           onPendingVerification(email.trim());
           return;
         }
-        if (code === 'INVALID_EMAIL' || code === 'INVALID_PASSWORD') {
+        if (code === 'INVALID_CREDENTIALS') {
           onError?.('Invalid email or password');
           return;
         }

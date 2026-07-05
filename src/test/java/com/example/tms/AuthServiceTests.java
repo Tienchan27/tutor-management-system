@@ -62,7 +62,7 @@ class AuthServiceTests {
                 ApiException.class,
                 () -> authService.login(new LoginRequest("unknown-at-all@example.com", "password123"), new MockHttpServletRequest())
         );
-        assertEquals("INVALID_EMAIL", ex.getErrorCode());
+        assertEquals("INVALID_CREDENTIALS", ex.getErrorCode());
     }
 
     @Test
@@ -73,7 +73,7 @@ class AuthServiceTests {
                 ApiException.class,
                 () -> authService.login(new LoginRequest("student-wrongpass@example.com", "wrongPassword123"), new MockHttpServletRequest())
         );
-        assertEquals("INVALID_PASSWORD", ex.getErrorCode());
+        assertEquals("INVALID_CREDENTIALS", ex.getErrorCode());
     }
 
     @Test
