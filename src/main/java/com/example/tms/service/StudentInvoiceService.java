@@ -195,7 +195,8 @@ public class StudentInvoiceService {
     public StudentInvoiceResponse confirmPaidByAdmin(User admin, UUID invoiceId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
-        return InvoiceMapper.toResponse(applyExternalPayment(invoice, "MANUAL:" + admin.getId(), invoice.getTotalAmount()));
+        return InvoiceMapper.toResponse(applyExternalPayment(
+                invoice, "MANUAL:" + admin.getId() + ":" + invoice.getId(), invoice.getTotalAmount()));
     }
 
     /**
@@ -214,6 +215,9 @@ public class StudentInvoiceService {
         if (invoice.getStatus() == InvoiceStatus.PAID) {
             throw ApiException.conflict("INVOICE_ALREADY_PAID", "This invoice is already paid");
         }
+        if (amountVnd != invoice.getTotalAmount()) {
+            throw ApiException.conflict("PAYMENT_AMOUNT_MISMATCH", "Payment amount does not match the invoice total");
+        }
 
         Payment payment = new Payment();
         payment.setInvoice(invoice);
@@ -221,6 +225,7 @@ public class StudentInvoiceService {
         payment.setMethod(PaymentMethod.QR);
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setPaidAt(LocalDateTime.now());
+        payment.setReference(externalReference);
         invoice.getPayments().add(payment);
         invoice.setStatus(InvoiceStatus.PAID);
         Invoice saved = invoiceRepository.save(invoice);

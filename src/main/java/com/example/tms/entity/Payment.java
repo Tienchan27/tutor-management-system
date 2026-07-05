@@ -50,4 +50,8 @@ public class Payment {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
+
+    // External idempotency/audit key: "MANUAL:<admin>:<invoice>" for admin confirm, provider txn id for webhooks.
+    @Column(name = "reference", length = 120, unique = true)
+    private String reference;
 }

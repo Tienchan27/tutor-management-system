@@ -146,7 +146,22 @@ class StudentInvoiceServiceTests {
 
         assertEquals(InvoiceStatus.PAID, saved.getStatus());
         assertEquals(1, saved.getPayments().size());
+        assertEquals("MANUAL:x", saved.getPayments().iterator().next().getReference());
         verify(notificationOutboxService).enqueue(eq(student), eq(NotificationType.INVOICE_PAID), any(), any(), any());
+    }
+
+    @Test
+    void applyExternalPayment_rejectsAmountMismatch() {
+        Invoice invoice = new Invoice();
+        invoice.setId(UUID.randomUUID());
+        invoice.setStudent(student);
+        invoice.setTotalAmount(200_000L);
+        invoice.setStatus(InvoiceStatus.UNPAID);
+        when(invoiceRepository.findById(invoice.getId())).thenReturn(Optional.of(invoice));
+
+        assertThrows(ApiException.class,
+                () -> studentInvoiceService.applyExternalPayment(invoice.getId(), "WEBHOOK:1", 100_000L));
+        verify(invoiceRepository, never()).save(any());
     }
 
     @Test
