@@ -12,6 +12,7 @@ import StatusPill from '../../../components/ui/StatusPill';
 import ConfirmDialog from '../../../components/feedback/ConfirmDialog';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { formatDate, formatVnd, formatYearMonth, getCurrentYearMonth } from '../../../utils/format';
+import { invoiceTone } from '../../../utils/statusTone';
 
 function AdminStudentBillingPage() {
   const { showToast } = useToast();
@@ -20,6 +21,7 @@ function AdminStudentBillingPage() {
   const [month, setMonth] = useState(searchParams.get('month') || getCurrentYearMonth());
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null);
+  const [recalculate, setRecalculate] = useState(false);
   const [lastResult, setLastResult] = useState('');
   const [actionError, setActionError] = useState('');
 
@@ -34,7 +36,7 @@ function AdminStudentBillingPage() {
   });
 
   const closeMutation = useMutation({
-    mutationFn: () => closeStudentTuition(month, false),
+    mutationFn: () => closeStudentTuition(month, recalculate),
     onSuccess: (result) => {
       queryClient.setQueryData(['adminInvoices', month], result.invoices);
       setLastResult(`Created ${result.createdCount}, skipped ${result.skippedCount}.`);
@@ -100,7 +102,7 @@ function AdminStudentBillingPage() {
                     <td>{formatVnd(item.totalAmount)}</td>
                     <td>{formatDate(item.dueDate)}</td>
                     <td>
-                      <StatusPill label={item.status} tone={item.status === 'PAID' ? 'success' : 'warning'} />
+                      <StatusPill label={item.status} tone={invoiceTone(item.status)} />
                     </td>
                     <td>
                       {item.status !== 'PAID' ? (
@@ -126,9 +128,15 @@ function AdminStudentBillingPage() {
         open={confirmClose}
         title="Close student billing?"
         message={
-          <>
-            Generate invoices for <strong>{formatYearMonth(month)}</strong> from logged sessions?
-          </>
+          <div className="stack-8">
+            <p className="mb-0">
+              Generate invoices for <strong>{formatYearMonth(month)}</strong> from logged sessions?
+            </p>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" checked={recalculate} onChange={(e) => setRecalculate(e.target.checked)} />
+              Recalculate unpaid invoices
+            </label>
+          </div>
         }
         confirmLabel="Close student billing"
         confirmVariant="success"

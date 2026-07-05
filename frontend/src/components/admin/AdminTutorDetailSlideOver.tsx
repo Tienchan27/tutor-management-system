@@ -68,7 +68,6 @@ function AdminTutorDetailSlideOver({
                     <th>Account</th>
                     <th>Holder</th>
                     <th>Primary</th>
-                    <th>Verified</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -78,7 +77,6 @@ function AdminTutorDetailSlideOver({
                       <td>{account.maskedAccountNumber}</td>
                       <td>{account.accountHolderName}</td>
                       <td>{account.primary ? 'Yes' : 'No'}</td>
-                      <td>{account.verified ? 'Yes' : 'No'}</td>
                     </tr>
                   ))}
                 </tbody>

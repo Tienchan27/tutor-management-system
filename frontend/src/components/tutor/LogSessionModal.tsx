@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { createSession } from '../../services/sessionService';
 import { CreateSessionRequest, TutorSessionClassOptionResponse } from '../../types/sessions';
 import { extractApiErrorMessage } from '../../services/authService';
@@ -87,7 +88,6 @@ function LogSessionModal({
   const [form, setForm] = useState<CreateSessionRequest>(buildInitialForm(initialClassId));
   const [baselineForm, setBaselineForm] = useState<CreateSessionRequest | null>(null);
   const [pendingTuitionReset, setPendingTuitionReset] = useState<PendingTuitionReset | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const selectedClass = useMemo(
@@ -211,25 +211,23 @@ function LogSessionModal({
     });
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  const createMutation = useMutation({
+    mutationFn: (rate: number) => createSession({ ...form, salaryRateAtLog: rate }),
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
+    onError: (err) => setError(extractApiErrorMessage(err, 'Failed to create session')),
+  });
+  const submitting = createMutation.isPending;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     if (!selectedClass) {
       return;
     }
-    setSubmitting(true);
     setError('');
-    try {
-      await createSession({
-        ...form,
-        salaryRateAtLog: selectedClass.defaultSalaryRate,
-      });
-      onSuccess();
-      onClose();
-    } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to create session'));
-    } finally {
-      setSubmitting(false);
-    }
+    createMutation.mutate(selectedClass.defaultSalaryRate);
   }
 
   return (
@@ -355,9 +353,6 @@ function LogSessionModal({
             </details>
           ) : null}
 
-          {!classes.length ? (
-            <p className="muted mt-12">You need at least one assigned class before logging a session.</p>
-          ) : null}
           {error ? <p className="error-text mt-12">{error}</p> : null}
         </form>
       </Modal>

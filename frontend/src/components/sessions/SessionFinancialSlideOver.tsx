@@ -36,7 +36,6 @@ function SessionFinancialSlideOver({
   const current = draft || item;
   const canSave = reason.trim().length > 0;
   const isDirty =
-    reason.trim().length > 0 ||
     current.date !== item.date ||
     current.durationHours !== item.durationHours ||
     current.tuitionAtLog !== item.tuitionAtLog ||

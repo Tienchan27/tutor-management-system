@@ -166,7 +166,6 @@ function TutorBankAccountsPage() {
                   <th scope="col">Account</th>
                   <th scope="col">Holder</th>
                   <th scope="col">Primary</th>
-                  <th scope="col">Verified</th>
                   <th scope="col"></th>
                 </tr>
               </thead>
@@ -185,12 +184,6 @@ function TutorBankAccountsPage() {
                       <StatusPill
                         label={item.isPrimary ? 'Primary' : 'Secondary'}
                         tone={item.isPrimary ? 'success' : 'neutral'}
-                      />
-                    </td>
-                    <td>
-                      <StatusPill
-                        label={item.isVerified ? 'Verified' : 'Pending'}
-                        tone={item.isVerified ? 'success' : 'warning'}
                       />
                     </td>
                     <td>
