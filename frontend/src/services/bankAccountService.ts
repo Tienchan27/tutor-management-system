@@ -1,6 +1,6 @@
 import api from './api';
 import { ApiMessageResponse } from '../types/common';
-import { BankAccountResponse, CreateBankAccountRequest } from '../types/bankAccounts';
+import { BankAccountResponse, CreateBankAccountRequest, UpdateBankAccountRequest } from '../types/bankAccounts';
 
 export async function listMyBankAccounts(): Promise<BankAccountResponse[]> {
   const response = await api.get<BankAccountResponse[]>('/bank-accounts/me');
@@ -9,6 +9,11 @@ export async function listMyBankAccounts(): Promise<BankAccountResponse[]> {
 
 export async function createBankAccount(payload: CreateBankAccountRequest): Promise<BankAccountResponse> {
   const response = await api.post<BankAccountResponse>('/bank-accounts', payload);
+  return response.data;
+}
+
+export async function updateBankAccount(id: string, payload: UpdateBankAccountRequest): Promise<BankAccountResponse> {
+  const response = await api.patch<BankAccountResponse>(`/bank-accounts/${id}`, payload);
   return response.data;
 }
 

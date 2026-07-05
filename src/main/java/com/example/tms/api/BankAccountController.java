@@ -2,6 +2,7 @@ package com.example.tms.api;
 
 import com.example.tms.api.dto.bank.BankAccountResponse;
 import com.example.tms.api.dto.bank.CreateBankAccountRequest;
+import com.example.tms.api.dto.bank.UpdateBankAccountRequest;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.BankAccountService;
 import jakarta.validation.Valid;
@@ -42,6 +43,14 @@ public class BankAccountController {
     @PatchMapping("/{id}/set-primary")
     public BankAccountResponse setPrimaryAccount(@PathVariable UUID id) {
         return bankAccountService.setPrimaryAccount(currentUserResolver.requireUserId(), id);
+    }
+
+    @PatchMapping("/{id}")
+    public BankAccountResponse updateBankAccount(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateBankAccountRequest request
+    ) {
+        return bankAccountService.updateBankAccount(currentUserResolver.requireUserId(), id, request);
     }
 
     @DeleteMapping("/{id}")

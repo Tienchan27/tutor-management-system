@@ -6,6 +6,7 @@ import java.util.UUID;
 public record BankAccountResponse(
         UUID id,
         String bankName,
+        String bankBin,
         String maskedAccountNumber,
         String accountHolderName,
         boolean isPrimary,

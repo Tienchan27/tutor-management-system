@@ -5,9 +5,10 @@ import {
   deleteBankAccount,
   listMyBankAccounts,
   setPrimaryBankAccount,
+  updateBankAccount,
 } from '../../../../services/bankAccountService';
 import { listBankCatalog } from '../../../../services/bankCatalogService';
-import { CreateBankAccountRequest } from '../../../../types/bankAccounts';
+import { BankAccountResponse, CreateBankAccountRequest } from '../../../../types/bankAccounts';
 import { extractApiErrorMessage } from '../../../../services/authService';
 import PageSection from '../../../../components/layout/PageSection';
 import SectionBlock from '../../../../components/ui/SectionBlock';
@@ -15,6 +16,7 @@ import Button from '../../../../components/ui/Button';
 import Spinner from '../../../../components/ui/Spinner';
 import EmptyState from '../../../../components/ui/EmptyState';
 import StatusPill from '../../../../components/ui/StatusPill';
+import Modal from '../../../../components/ui/Modal';
 import BankSelect from '../../../../components/payments/BankSelect';
 import { useToast } from '../../../../components/feedback/ToastProvider';
 
@@ -24,11 +26,20 @@ const initialForm: CreateBankAccountRequest = {
   accountHolderName: '',
 };
 
+interface EditForm {
+  bankBin: string;
+  bankName: string;
+  bankCode: string;
+  accountHolderName: string;
+}
+
 function TutorBankAccountsPage() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CreateBankAccountRequest>(initialForm);
   const [bankError, setBankError] = useState('');
+  const [editing, setEditing] = useState<BankAccountResponse | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ bankBin: '', bankName: '', bankCode: '', accountHolderName: '' });
 
   const { data: items = [], isLoading: bankLoading } = useQuery({
     queryKey: ['tutorBankAccounts'],
@@ -71,11 +82,39 @@ function TutorBankAccountsPage() {
     onError: (err) => setBankError(extractApiErrorMessage(err, 'Failed to delete account')),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateBankAccount(editing!.id, {
+        bankBin: editForm.bankBin,
+        bankName: editForm.bankName,
+        bankCode: editForm.bankCode || undefined,
+        accountHolderName: editForm.accountHolderName,
+      }),
+    onSuccess: () => {
+      showToast('Bank account updated', 'success');
+      setEditing(null);
+      void invalidateBanks();
+    },
+    onError: (err) => showToast(extractApiErrorMessage(err, 'Failed to update account'), 'error'),
+  });
+
   function handleCreate(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     setBankError('');
     createMutation.mutate();
   }
+
+  function openEdit(account: BankAccountResponse): void {
+    setEditing(account);
+    setEditForm({
+      bankBin: account.bankBin ?? '',
+      bankName: account.bankName,
+      bankCode: '',
+      accountHolderName: account.accountHolderName,
+    });
+  }
+
+  const canSaveEdit = !!editForm.bankBin && !!editForm.accountHolderName.trim();
 
   return (
     <PageSection title="Bank accounts">
@@ -134,7 +173,12 @@ function TutorBankAccountsPage() {
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.bankName}</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        {item.bankName}
+                        {!item.bankBin ? <StatusPill label="Needs update" tone="warning" /> : null}
+                      </span>
+                    </td>
                     <td>{item.maskedAccountNumber}</td>
                     <td>{item.accountHolderName}</td>
                     <td>
@@ -151,6 +195,9 @@ function TutorBankAccountsPage() {
                     </td>
                     <td>
                       <div className="table-actions">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(item)}>
+                          Edit
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -171,6 +218,44 @@ function TutorBankAccountsPage() {
           </div>
         ) : null}
       </SectionBlock>
+
+      <Modal
+        open={!!editing}
+        title="Edit bank account"
+        subtitle={editing ? editing.maskedAccountNumber : undefined}
+        onClose={() => setEditing(null)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={updateMutation.isPending}
+              disabled={!canSaveEdit}
+              onClick={() => updateMutation.mutate()}
+            >
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="stack-12">
+          <BankSelect
+            banks={banks}
+            valueBin={editForm.bankBin}
+            onSelect={(bank) =>
+              setEditForm((prev) => ({ ...prev, bankBin: bank.bin, bankName: bank.shortName, bankCode: bank.code }))
+            }
+          />
+          <input
+            className="text-input"
+            placeholder="Account holder name"
+            value={editForm.accountHolderName}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, accountHolderName: e.target.value }))}
+          />
+        </div>
+      </Modal>
     </PageSection>
   );
 }

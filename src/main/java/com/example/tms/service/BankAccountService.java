@@ -2,6 +2,7 @@ package com.example.tms.service;
 
 import com.example.tms.api.dto.bank.BankAccountResponse;
 import com.example.tms.api.dto.bank.CreateBankAccountRequest;
+import com.example.tms.api.dto.bank.UpdateBankAccountRequest;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.User;
 import com.example.tms.exception.ApiException;
@@ -84,6 +85,23 @@ public class BankAccountService {
     }
 
     @Transactional
+    public BankAccountResponse updateBankAccount(UUID userId, UUID accountId, UpdateBankAccountRequest request) {
+        TutorBankAccount account = bankAccountRepository.findById(accountId)
+                .orElseThrow(() -> ApiException.notFound("BANK_ACCOUNT_NOT_FOUND", "Bank account not found"));
+
+        if (!account.getUser().getId().equals(userId)) {
+            throw ApiException.forbidden("FORBIDDEN", "Not authorized to modify this account");
+        }
+
+        // Account number / primary / verified are preserved; this only attaches the correct bank + BIN.
+        account.setBankBin(request.bankBin());
+        account.setBankCode(request.bankCode());
+        account.setBankName(request.bankName());
+        account.setAccountHolderName(request.accountHolderName());
+        return mapToResponse(bankAccountRepository.save(account));
+    }
+
+    @Transactional
     public void deleteBankAccount(UUID userId, UUID accountId) {
         TutorBankAccount account = bankAccountRepository.findById(accountId)
                 .orElseThrow(() -> ApiException.notFound("BANK_ACCOUNT_NOT_FOUND", "Bank account not found"));
@@ -108,6 +126,7 @@ public class BankAccountService {
         return new BankAccountResponse(
                 account.getId(),
                 account.getBankName(),
+                account.getBankBin(),
                 account.getMaskedAccountNumber(),
                 account.getAccountHolderName(),
                 account.isPrimary(),
