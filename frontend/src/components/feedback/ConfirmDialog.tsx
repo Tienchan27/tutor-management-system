@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from 'react';
+import { ReactNode, useId, useRef } from 'react';
 import { useOverlayDialog } from '../../hooks/useOverlayDialog';
 import Button from '../ui/Button';
 
@@ -28,6 +28,7 @@ function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const resolvedVariant = confirmVariant ?? (danger ? 'danger' : 'primary');
 
   useOverlayDialog(open, onCancel, panelRef);
@@ -43,12 +44,12 @@ function ConfirmDialog({
         className="modal-panel"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal-header">
-          <h2 id="confirm-dialog-title" className="modal-title">
+          <h2 id={titleId} className="modal-title">
             {title}
           </h2>
         </div>

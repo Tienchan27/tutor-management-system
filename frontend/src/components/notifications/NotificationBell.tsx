@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import { useOverlayDialog } from '../../hooks/useOverlayDialog';
 import SlideOver from '../ui/SlideOver';
 import NotificationPanel from './NotificationPanel';
 
@@ -8,7 +9,11 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const unreadCount = useUnreadNotifications();
+
+  // Focus trap + restore + top-most Escape for the desktop popover (mobile uses SlideOver, already handled).
+  useOverlayDialog(open && !isMobile, () => setOpen(false), popoverRef);
 
   useEffect(() => {
     function handleResize(): void {
@@ -26,17 +31,8 @@ function NotificationBell() {
         setOpen(false);
       }
     }
-    function handleKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
     document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [open, isMobile]);
 
   const badgeLabel =
@@ -61,7 +57,13 @@ function NotificationBell() {
           ) : null}
         </button>
         {open && !isMobile ? (
-          <div className="notification-bell-popover" role="dialog" aria-label="Notifications">
+          <div
+            ref={popoverRef}
+            className="notification-bell-popover"
+            role="dialog"
+            aria-label="Notifications"
+            tabIndex={-1}
+          >
             <NotificationPanel onNavigate={() => setOpen(false)} />
           </div>
         ) : null}

@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from 'react';
+import { ReactNode, useId, useRef } from 'react';
 import { useOverlayDialog } from '../../hooks/useOverlayDialog';
 import { useDismissGuard } from '../../hooks/useDismissGuard';
 import ConfirmDialog from '../feedback/ConfirmDialog';
@@ -29,6 +29,7 @@ function Modal({
   closeOnBackdrop = true,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const { requestClose, discardDialog } = useDismissGuard(open, isDirty, onClose);
 
   useOverlayDialog(open, requestClose, panelRef);
@@ -51,13 +52,13 @@ function Modal({
           className={`modal-panel${size === 'lg' ? ' modal-panel-lg' : ''}${size === 'xl' ? ' modal-panel-xl' : ''}`}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="modal-title"
+          aria-labelledby={titleId}
           tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="modal-header">
             <div>
-              <h2 id="modal-title" className="modal-title">
+              <h2 id={titleId} className="modal-title">
                 {title}
               </h2>
               {subtitle ? <p className="modal-subtitle">{subtitle}</p> : null}

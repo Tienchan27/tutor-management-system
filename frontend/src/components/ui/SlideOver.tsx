@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from 'react';
+import { ReactNode, useId, useRef } from 'react';
 import { useOverlayDialog } from '../../hooks/useOverlayDialog';
 import { useDismissGuard } from '../../hooks/useDismissGuard';
 import ConfirmDialog from '../feedback/ConfirmDialog';
@@ -29,6 +29,7 @@ function SlideOver({
   closeOnBackdrop = true,
 }: SlideOverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const { requestClose, discardDialog } = useDismissGuard(open, isDirty, onClose);
 
   useOverlayDialog(open, requestClose, panelRef);
@@ -51,12 +52,12 @@ function SlideOver({
         className={`slide-over-panel${size === 'lg' ? ' slide-over-panel-lg' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="slide-over-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
       >
         <div className="slide-over-header">
           <div>
-            <h2 id="slide-over-title" className="slide-over-title">
+            <h2 id={titleId} className="slide-over-title">
               {title}
             </h2>
             {subtitle ? <p className="muted mb-0">{subtitle}</p> : null}
