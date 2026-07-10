@@ -49,7 +49,7 @@ jobs:
       - name: Run build
         run: npm run build
       - name: Run tests
-        run: CI=true npm test -- --watchAll=false
+        run: npm test
     
   docker-build:
     runs-on: ubuntu-latest

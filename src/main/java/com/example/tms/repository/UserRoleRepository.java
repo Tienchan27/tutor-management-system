@@ -8,6 +8,9 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,4 +48,10 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
            where ur.user.id = :userId and ur.role.name = :role
            """)
     Optional<UserRole> findByUserIdAndRole(UUID userId, RoleName role);
+
+    @Query("""
+           select count(ur) from UserRole ur
+           where ur.role.name = :role and ur.status = :status
+           """)
+    long countByRoleAndStatus(@Param("role") RoleName role, @Param("status") UserRoleStatus status);
 }

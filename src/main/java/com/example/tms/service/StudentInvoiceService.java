@@ -20,8 +20,10 @@ import com.example.tms.realtime.core.ClientEvent;
 import com.example.tms.realtime.core.ClientEventType;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.InvoiceRepository;
+import com.example.tms.repository.PaymentRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.util.AdvisoryLockService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -43,32 +46,38 @@ import java.util.UUID;
 public class StudentInvoiceService {
     private final SessionStudentTuitionRepository sessionStudentTuitionRepository;
     private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
     private final NotificationOutboxService notificationOutboxService;
     private final RealtimeOutboxService realtimeOutboxService;
     private final VietQrGenerator vietQrGenerator;
     private final CenterBankAccountService centerBankAccountService;
+    private final AdvisoryLockService advisoryLockService;
     private final int dueDays;
     private final String tuitionRefPrefix;
 
     public StudentInvoiceService(
             SessionStudentTuitionRepository sessionStudentTuitionRepository,
             InvoiceRepository invoiceRepository,
+            PaymentRepository paymentRepository,
             UserRepository userRepository,
             NotificationOutboxService notificationOutboxService,
             RealtimeOutboxService realtimeOutboxService,
             VietQrGenerator vietQrGenerator,
             CenterBankAccountService centerBankAccountService,
+            AdvisoryLockService advisoryLockService,
             @Value("${app.invoice.due-days:15}") int dueDays,
             @Value("${app.payments.tuition-ref-prefix:HP}") String tuitionRefPrefix
     ) {
         this.sessionStudentTuitionRepository = sessionStudentTuitionRepository;
         this.invoiceRepository = invoiceRepository;
+        this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
         this.notificationOutboxService = notificationOutboxService;
         this.realtimeOutboxService = realtimeOutboxService;
         this.vietQrGenerator = vietQrGenerator;
         this.centerBankAccountService = centerBankAccountService;
+        this.advisoryLockService = advisoryLockService;
         this.dueDays = dueDays;
         this.tuitionRefPrefix = tuitionRefPrefix;
     }
@@ -97,6 +106,8 @@ public class StudentInvoiceService {
 
     @Transactional
     public InvoiceGenerationResultResponse generateForMonthInternal(YearMonth month, boolean allowRecalculate) {
+        advisoryLockService.acquireTransactionLock("student-invoice:" + month);
+
         String payrollMonth = month.toString();
         List<SessionStudentTuition> rows = sessionStudentTuitionRepository.findByPayrollMonth(payrollMonth);
         Map<UUID, StudentAggregate> aggregates = new HashMap<>();
@@ -193,7 +204,7 @@ public class StudentInvoiceService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public StudentInvoiceResponse confirmPaidByAdmin(User admin, UUID invoiceId) {
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+        Invoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
         return InvoiceMapper.toResponse(applyExternalPayment(
                 invoice, "MANUAL:" + admin.getId() + ":" + invoice.getId(), invoice.getTotalAmount()));
@@ -202,17 +213,20 @@ public class StudentInvoiceService {
     /**
      * Single source of truth for marking an invoice paid — reused by the admin manual
      * confirm and (Phase 2) the webhook adapter via {@code PaymentConfirmationPort}.
-     * Idempotent: a settled invoice is a conflict rather than a double payment.
+     * Idempotent when the same external reference is replayed on an already-paid invoice.
      */
     @Transactional
     public Invoice applyExternalPayment(UUID invoiceId, String externalReference, long amountVnd) {
-        Invoice invoice = invoiceRepository.findById(invoiceId)
+        Invoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> ApiException.notFound("INVOICE_NOT_FOUND", "Invoice not found"));
         return applyExternalPayment(invoice, externalReference, amountVnd);
     }
 
     private Invoice applyExternalPayment(Invoice invoice, String externalReference, long amountVnd) {
         if (invoice.getStatus() == InvoiceStatus.PAID) {
+            if (isIdempotentReplay(invoice, externalReference)) {
+                return invoice;
+            }
             throw ApiException.conflict("INVOICE_ALREADY_PAID", "This invoice is already paid");
         }
         if (amountVnd != invoice.getTotalAmount()) {
@@ -248,6 +262,11 @@ public class StudentInvoiceService {
         );
         realtimeOutboxService.enqueue("user:" + student.getId(), "invoice:" + saved.getId(), event);
         return saved;
+    }
+
+    private boolean isIdempotentReplay(Invoice invoice, String externalReference) {
+        Optional<Payment> existing = paymentRepository.findByReference(externalReference);
+        return existing.isPresent() && existing.get().getInvoice().getId().equals(invoice.getId());
     }
 
     private String newTuitionRef() {

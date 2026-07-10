@@ -32,6 +32,18 @@ export interface TutorMonthSnapshotResponse {
   totalTuition: number;
 }
 
+export interface AdminDashboardSnapshotResponse {
+  activeClasses: number;
+  awaitingTutor: number;
+  pendingApplications: number;
+  tutorCount: number;
+  openPayouts: number;
+  paidPayouts: number;
+  payoutTotal: number;
+  unpaidInvoices: number;
+  invoiceTotal: number;
+}
+
 export interface TutorClassRosterStudentResponse {
   studentId: string;
   studentName: string;

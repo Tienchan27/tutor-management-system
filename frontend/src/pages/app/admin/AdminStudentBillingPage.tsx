@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { closeStudentTuition, confirmInvoicePaid, listAdminInvoices } from '../../../services/adminInvoiceService';
@@ -13,6 +14,12 @@ import ConfirmDialog from '../../../components/feedback/ConfirmDialog';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { formatDate, formatVnd, formatYearMonth, getCurrentYearMonth } from '../../../utils/format';
 import { invoiceTone } from '../../../utils/statusTone';
+import { queryKeys } from '../../../lib/queryKeys';
+
+function closeBillingDialogReset(setConfirmClose: (open: boolean) => void, setRecalculate: (v: boolean) => void) {
+  setConfirmClose(false);
+  setRecalculate(false);
+}
 
 function AdminStudentBillingPage() {
   const { showToast } = useToast();
@@ -31,16 +38,16 @@ function AdminStudentBillingPage() {
   }, [searchParams]);
 
   const { data: items = [], isLoading: viewLoading, error: loadErrorObj } = useQuery({
-    queryKey: ['adminInvoices', month],
+    queryKey: queryKeys.adminInvoices.month(month),
     queryFn: () => listAdminInvoices(month),
   });
 
   const closeMutation = useMutation({
     mutationFn: () => closeStudentTuition(month, recalculate),
     onSuccess: (result) => {
-      queryClient.setQueryData(['adminInvoices', month], result.invoices);
+      queryClient.setQueryData(queryKeys.adminInvoices.month(month), result.invoices);
       setLastResult(`Created ${result.createdCount}, skipped ${result.skippedCount}.`);
-      setConfirmClose(false);
+      closeBillingDialogReset(setConfirmClose, setRecalculate);
       showToast('Student billing closed for ' + formatYearMonth(month), 'success');
     },
     onError: (err) => setActionError(extractApiErrorMessage(err, 'Failed to close student billing')),
@@ -51,7 +58,7 @@ function AdminStudentBillingPage() {
     onSuccess: () => {
       setConfirmPaidId(null);
       showToast('Payment confirmed', 'success');
-      void queryClient.invalidateQueries({ queryKey: ['adminInvoices', month] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminInvoices.month(month) });
     },
     onError: (err) => {
       setConfirmPaidId(null);
@@ -74,6 +81,10 @@ function AdminStudentBillingPage() {
         </>
       }
     >
+      <p className="muted mb-0">
+        <Link to="/app/admin/center-account">Configure center receiving account</Link>
+      </p>
+
       <PageSection title={`${formatYearMonth(month)} invoices`}>
         {error ? <p className="error-text">{error}</p> : null}
         {lastResult ? <p className="muted">{lastResult}</p> : null}
@@ -130,11 +141,18 @@ function AdminStudentBillingPage() {
         message={
           <div className="stack-8">
             <p className="mb-0">
-              Generate invoices for <strong>{formatYearMonth(month)}</strong> from logged sessions?
+              Generate invoices for <strong>{formatYearMonth(month)}</strong> from logged sessions. Paid invoices are
+              never changed.
             </p>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <input type="checkbox" checked={recalculate} onChange={(e) => setRecalculate(e.target.checked)} />
-              Recalculate unpaid invoices
+            <label className="input-wrapper input-wrapper-tight">
+              <span className="input-label checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={recalculate}
+                  onChange={(e) => setRecalculate(e.target.checked)}
+                />
+                Recalculate unpaid invoices
+              </span>
             </label>
           </div>
         }
@@ -142,7 +160,7 @@ function AdminStudentBillingPage() {
         confirmVariant="success"
         loading={closeMutation.isPending}
         onConfirm={() => closeMutation.mutate()}
-        onCancel={() => setConfirmClose(false)}
+        onCancel={() => closeBillingDialogReset(setConfirmClose, setRecalculate)}
       />
 
       <ConfirmDialog

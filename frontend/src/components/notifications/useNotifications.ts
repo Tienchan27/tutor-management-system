@@ -7,6 +7,7 @@ import {
 } from '../../services/notificationService';
 import { extractApiErrorMessage } from '../../services/authService';
 import { emitLocalEvent } from '../../services/realtimeEventBus';
+import { queryKeys } from '../../lib/queryKeys';
 
 interface UseNotificationsOptions {
   unreadOnly?: boolean;
@@ -30,8 +31,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   function afterChange(): void {
     emitLocalEvent('NOTIFICATIONS_CHANGED');
-    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    void queryClient.invalidateQueries({ queryKey: ['unreadNotifications'] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.unreadNotifications });
   }
 
   const markReadMutation = useMutation({

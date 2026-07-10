@@ -21,6 +21,7 @@ import VietQrView from '../../../components/payments/VietQrView';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { formatVnd, formatYearMonth, getCurrentYearMonth } from '../../../utils/format';
 import { payoutTone } from '../../../utils/statusTone';
+import { queryKeys } from '../../../lib/queryKeys';
 
 function AdminPayoutsPage() {
   const { showToast } = useToast();
@@ -38,11 +39,11 @@ function AdminPayoutsPage() {
   }, [searchParams]);
 
   const { data: items = [], isLoading: viewLoading, error: loadErrorObj } = useQuery({
-    queryKey: ['adminPayouts', month],
+    queryKey: queryKeys.adminPayouts.month(month),
     queryFn: () => listPayoutsByMonth(month),
   });
 
-  const refreshPayouts = () => queryClient.invalidateQueries({ queryKey: ['adminPayouts', month] });
+  const refreshPayouts = () => queryClient.invalidateQueries({ queryKey: queryKeys.adminPayouts.month(month) });
   const error = actionError || (loadErrorObj ? extractApiErrorMessage(loadErrorObj, 'Failed to load payouts') : '');
 
   const closeMutation = useMutation({

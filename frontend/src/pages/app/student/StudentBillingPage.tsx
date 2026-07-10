@@ -12,12 +12,13 @@ import Modal from '../../../components/ui/Modal';
 import VietQrView from '../../../components/payments/VietQrView';
 import { formatDate, formatVnd, formatYearMonth } from '../../../utils/format';
 import { invoiceTone } from '../../../utils/statusTone';
+import { queryKeys } from '../../../lib/queryKeys';
 
 function StudentBillingPage() {
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
 
   const { data: items = [], isLoading, error } = useQuery({
-    queryKey: ['studentInvoices'],
+    queryKey: queryKeys.studentInvoices,
     queryFn: listMyInvoices,
   });
 

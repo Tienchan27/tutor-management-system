@@ -2,19 +2,28 @@ package com.example.tms;
 
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
 import com.example.tms.api.dto.dashboard.TutorMonthSnapshotResponse;
+import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.Subject;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.ClassStatus;
+import com.example.tms.entity.enums.EnrollmentStatus;
+import com.example.tms.entity.enums.TutorClassApplicationStatus;
+import com.example.tms.entity.enums.InvoiceStatus;
+import com.example.tms.entity.enums.PayoutStatus;
+import com.example.tms.entity.enums.RoleName;
+import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.repository.EnrollmentRepository;
+import com.example.tms.repository.InvoiceRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
+import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
-import com.example.tms.repository.UserRepository;
 import com.example.tms.exception.ApiException;
+import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
 import com.example.tms.service.DashboardService;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +65,10 @@ class DashboardServiceTests {
     private UserRepository userRepository;
     @Mock
     private UserRoleRepository userRoleRepository;
+    @Mock
+    private TutorClassApplicationRepository tutorClassApplicationRepository;
+    @Mock
+    private InvoiceRepository invoiceRepository;
     private DashboardService dashboardService;
 
     @BeforeEach
@@ -68,7 +81,9 @@ class DashboardServiceTests {
                 enrollmentRepository,
                 sessionStudentTuitionRepository,
                 userRepository,
-                userRoleRepository
+                userRoleRepository,
+                tutorClassApplicationRepository,
+                invoiceRepository
         );
     }
 
@@ -88,12 +103,11 @@ class DashboardServiceTests {
         tutorClass.setPricePerHour(250000L);
         tutorClass.setDefaultSalaryRate(new BigDecimal("0.7500"));
 
-        Session latest = new Session();
-        latest.setDate(LocalDate.of(2026, 3, 20));
-
         when(tutorClassRepository.findByTutorId(tutor.getId())).thenReturn(List.of(tutorClass));
-        when(sessionRepository.countByTutorClassId(tutorClass.getId())).thenReturn(5L);
-        when(sessionRepository.findTopByTutorClassIdOrderByDateDesc(tutorClass.getId())).thenReturn(Optional.of(latest));
+        when(sessionRepository.countAndLatestDateByClassIds(List.of(tutorClass.getId())))
+                .thenReturn(List.<Object[]>of(new Object[]{tutorClass.getId(), 5L, LocalDate.of(2026, 3, 20)}));
+        when(enrollmentRepository.findByClassIdsAndStatus(List.of(tutorClass.getId()), EnrollmentStatus.ACTIVE))
+                .thenReturn(List.of());
 
         List<TutorClassOverviewResponse> response = dashboardService.tutorClassOverview(tutor);
 
@@ -129,5 +143,87 @@ class DashboardServiceTests {
         ApiException ex = assertThrows(ApiException.class,
                 () -> dashboardService.adminTutorDetail(admin, tutorId, YearMonth.of(2026, 3)));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatus());
+    }
+
+    @Test
+    void adminDashboardSnapshotAggregatesCounts() {
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        YearMonth month = YearMonth.of(2026, 3);
+
+        when(tutorClassRepository.countByStatus(ClassStatus.ACTIVE)).thenReturn(10L);
+        when(tutorClassRepository.countByStatus(ClassStatus.AVAILABLE)).thenReturn(3L);
+        when(tutorClassApplicationRepository.countByStatus(TutorClassApplicationStatus.PENDING)).thenReturn(5L);
+        when(userRoleRepository.countByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE)).thenReturn(8L);
+        when(tutorPayoutRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of(
+                new Object[]{PayoutStatus.PAID, 4L},
+                new Object[]{PayoutStatus.OPEN, 2L}
+        ));
+        when(invoiceRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of(
+                new Object[]{InvoiceStatus.PAID, 20L},
+                new Object[]{InvoiceStatus.UNPAID, 7L}
+        ));
+
+        var snapshot = dashboardService.adminDashboardSnapshot(admin, month);
+
+        assertEquals(10L, snapshot.activeClasses());
+        assertEquals(3L, snapshot.awaitingTutor());
+        assertEquals(5L, snapshot.pendingApplications());
+        assertEquals(8L, snapshot.tutorCount());
+        assertEquals(2L, snapshot.openPayouts());
+        assertEquals(4L, snapshot.paidPayouts());
+        assertEquals(6L, snapshot.payoutTotal());
+        assertEquals(7L, snapshot.unpaidInvoices());
+        assertEquals(27L, snapshot.invoiceTotal());
+    }
+
+    @Test
+    void adminDashboardSnapshotReturnsZerosWhenNoData() {
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        YearMonth month = YearMonth.of(2026, 3);
+
+        when(tutorClassRepository.countByStatus(ClassStatus.ACTIVE)).thenReturn(0L);
+        when(tutorClassRepository.countByStatus(ClassStatus.AVAILABLE)).thenReturn(0L);
+        when(tutorClassApplicationRepository.countByStatus(TutorClassApplicationStatus.PENDING)).thenReturn(0L);
+        when(userRoleRepository.countByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE)).thenReturn(0L);
+        when(tutorPayoutRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of());
+        when(invoiceRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of());
+
+        var snapshot = dashboardService.adminDashboardSnapshot(admin, month);
+
+        assertEquals(0L, snapshot.activeClasses());
+        assertEquals(0L, snapshot.awaitingTutor());
+        assertEquals(0L, snapshot.pendingApplications());
+        assertEquals(0L, snapshot.tutorCount());
+        assertEquals(0L, snapshot.openPayouts());
+        assertEquals(0L, snapshot.paidPayouts());
+        assertEquals(0L, snapshot.payoutTotal());
+        assertEquals(0L, snapshot.unpaidInvoices());
+        assertEquals(0L, snapshot.invoiceTotal());
+    }
+
+    @Test
+    void adminDashboardSnapshotCountsLockedPayoutAsOpen() {
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        YearMonth month = YearMonth.of(2026, 3);
+
+        when(tutorClassRepository.countByStatus(ClassStatus.ACTIVE)).thenReturn(0L);
+        when(tutorClassRepository.countByStatus(ClassStatus.AVAILABLE)).thenReturn(0L);
+        when(tutorClassApplicationRepository.countByStatus(TutorClassApplicationStatus.PENDING)).thenReturn(0L);
+        when(userRoleRepository.countByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE)).thenReturn(0L);
+        when(tutorPayoutRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of(
+                new Object[]{PayoutStatus.PAID, 2L},
+                new Object[]{PayoutStatus.LOCKED, 1L},
+                new Object[]{PayoutStatus.OPEN, 3L}
+        ));
+        when(invoiceRepository.countGroupedByStatusForMonth(2026, 3)).thenReturn(List.of());
+
+        var snapshot = dashboardService.adminDashboardSnapshot(admin, month);
+
+        assertEquals(2L, snapshot.paidPayouts());
+        assertEquals(6L, snapshot.payoutTotal());
+        assertEquals(4L, snapshot.openPayouts());
     }
 }

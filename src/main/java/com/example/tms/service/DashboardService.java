@@ -1,5 +1,6 @@
 package com.example.tms.service;
 
+import com.example.tms.api.dto.dashboard.AdminDashboardSnapshotResponse;
 import com.example.tms.api.dto.dashboard.AdminTutorBankAccountResponse;
 import com.example.tms.api.dto.dashboard.AdminTutorDetailResponse;
 import com.example.tms.api.dto.dashboard.AdminTutorPayoutSnapshotResponse;
@@ -9,27 +10,33 @@ import com.example.tms.api.dto.dashboard.TutorClassRosterResponse;
 import com.example.tms.api.dto.dashboard.TutorClassRosterStudentResponse;
 import com.example.tms.api.dto.dashboard.TutorMonthSnapshotResponse;
 import com.example.tms.api.dto.dashboard.TutorSummaryResponse;
+import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.Session;
+import com.example.tms.entity.SessionStudentTuition;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.TutorPayout;
-import com.example.tms.entity.Enrollment;
 import com.example.tms.entity.User;
 import com.example.tms.entity.UserRole;
-import com.example.tms.entity.SessionStudentTuition;
-import com.example.tms.entity.enums.RoleName;
+import com.example.tms.entity.enums.ClassStatus;
 import com.example.tms.entity.enums.EnrollmentStatus;
+import com.example.tms.entity.enums.InvoiceStatus;
+import com.example.tms.entity.enums.PayoutStatus;
+import com.example.tms.entity.enums.RoleName;
+import com.example.tms.entity.enums.TutorClassApplicationStatus;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.exception.ApiException;
-import com.example.tms.util.ClassDisplayNames;
 import com.example.tms.repository.EnrollmentRepository;
+import com.example.tms.repository.InvoiceRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
+import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.repository.UserRoleRepository;
+import com.example.tms.util.ClassDisplayNames;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -37,6 +44,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +62,8 @@ public class DashboardService {
     private final SessionStudentTuitionRepository sessionStudentTuitionRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
+    private final TutorClassApplicationRepository tutorClassApplicationRepository;
+    private final InvoiceRepository invoiceRepository;
 
     public DashboardService(
             TutorPayoutRepository tutorPayoutRepository,
@@ -63,7 +73,9 @@ public class DashboardService {
             EnrollmentRepository enrollmentRepository,
             SessionStudentTuitionRepository sessionStudentTuitionRepository,
             UserRepository userRepository,
-            UserRoleRepository userRoleRepository
+            UserRoleRepository userRoleRepository,
+            TutorClassApplicationRepository tutorClassApplicationRepository,
+            InvoiceRepository invoiceRepository
     ) {
         this.tutorPayoutRepository = tutorPayoutRepository;
         this.tutorClassRepository = tutorClassRepository;
@@ -73,6 +85,38 @@ public class DashboardService {
         this.sessionStudentTuitionRepository = sessionStudentTuitionRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
+        this.tutorClassApplicationRepository = tutorClassApplicationRepository;
+        this.invoiceRepository = invoiceRepository;
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminDashboardSnapshotResponse adminDashboardSnapshot(User admin, YearMonth month) {
+        long activeClasses = tutorClassRepository.countByStatus(ClassStatus.ACTIVE);
+        long awaitingTutor = tutorClassRepository.countByStatus(ClassStatus.AVAILABLE);
+        long pendingApplications = tutorClassApplicationRepository.countByStatus(TutorClassApplicationStatus.PENDING);
+        long tutorCount = userRoleRepository.countByRoleAndStatus(RoleName.TUTOR, UserRoleStatus.ACTIVE);
+
+        Map<PayoutStatus, Long> payoutCounts = countPayoutsByStatus(month);
+        long paidPayouts = payoutCounts.getOrDefault(PayoutStatus.PAID, 0L);
+        long payoutTotal = payoutCounts.values().stream().mapToLong(Long::longValue).sum();
+        long openPayouts = payoutTotal - paidPayouts;
+
+        Map<InvoiceStatus, Long> invoiceCounts = countInvoicesByStatus(month);
+        long invoiceTotal = invoiceCounts.values().stream().mapToLong(Long::longValue).sum();
+        long unpaidInvoices = invoiceTotal - invoiceCounts.getOrDefault(InvoiceStatus.PAID, 0L);
+
+        return new AdminDashboardSnapshotResponse(
+                activeClasses,
+                awaitingTutor,
+                pendingApplications,
+                tutorCount,
+                openPayouts,
+                paidPayouts,
+                payoutTotal,
+                unpaidInvoices,
+                invoiceTotal
+        );
     }
 
     @Transactional(readOnly = true)
@@ -130,10 +174,7 @@ public class DashboardService {
                 .stream()
                 .map(this::toBankAccountResponse)
                 .toList();
-        List<TutorClassOverviewResponse> managedClasses = tutorClassRepository.findByTutorId(tutorId)
-                .stream()
-                .map(this::toClassOverview)
-                .toList();
+        List<TutorClassOverviewResponse> managedClasses = buildClassOverviews(tutorClassRepository.findByTutorId(tutorId));
 
         return new AdminTutorDetailResponse(
                 tutor.getId(),
@@ -166,10 +207,7 @@ public class DashboardService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('TUTOR')")
     public List<TutorClassOverviewResponse> tutorClassOverview(User tutor) {
-        return tutorClassRepository.findByTutorId(tutor.getId())
-                .stream()
-                .map(this::toClassOverview)
-                .toList();
+        return buildClassOverviews(tutorClassRepository.findByTutorId(tutor.getId()));
     }
 
     @PreAuthorize("hasRole('TUTOR')")
@@ -184,17 +222,17 @@ public class DashboardService {
         List<Enrollment> activeEnrollments = enrollmentRepository.findByTutorClassIdAndStatus(classId, EnrollmentStatus.ACTIVE);
 
         Session latestSession = sessionRepository.findTopByTutorClassIdOrderByDateDesc(classId).orElse(null);
-        java.util.Map<UUID, Long> tuitionByStudentIdComputed;
+        Map<UUID, Long> tuitionByStudentIdComputed;
         if (latestSession != null) {
             List<SessionStudentTuition> lines = sessionStudentTuitionRepository.findBySessionIdWithStudent(latestSession.getId());
             tuitionByStudentIdComputed = lines.stream()
-                    .collect(java.util.stream.Collectors.toMap(
+                    .collect(Collectors.toMap(
                             l -> l.getStudent().getId(),
                             SessionStudentTuition::getTuitionAtLog,
                             (a, b) -> a
                     ));
         } else {
-            tuitionByStudentIdComputed = java.util.Map.of();
+            tuitionByStudentIdComputed = Map.of();
         }
 
         List<TutorClassRosterStudentResponse> students = activeEnrollments.stream()
@@ -220,6 +258,68 @@ public class DashboardService {
         return new TutorMonthSnapshotResponse(sessionCount, totalTuition);
     }
 
+    private Map<PayoutStatus, Long> countPayoutsByStatus(YearMonth month) {
+        Map<PayoutStatus, Long> counts = new HashMap<>();
+        for (Object[] row : tutorPayoutRepository.countGroupedByStatusForMonth(month.getYear(), month.getMonthValue())) {
+            counts.put((PayoutStatus) row[0], ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    private Map<InvoiceStatus, Long> countInvoicesByStatus(YearMonth month) {
+        Map<InvoiceStatus, Long> counts = new HashMap<>();
+        for (Object[] row : invoiceRepository.countGroupedByStatusForMonth(month.getYear(), month.getMonthValue())) {
+            counts.put((InvoiceStatus) row[0], ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    private List<TutorClassOverviewResponse> buildClassOverviews(List<TutorClass> classes) {
+        if (classes.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> classIds = classes.stream().map(TutorClass::getId).toList();
+
+        Map<UUID, Long> sessionCountByClassId = new HashMap<>();
+        Map<UUID, LocalDate> latestSessionDateByClassId = new HashMap<>();
+        for (Object[] row : sessionRepository.countAndLatestDateByClassIds(classIds)) {
+            UUID classId = (UUID) row[0];
+            sessionCountByClassId.put(classId, ((Number) row[1]).longValue());
+            latestSessionDateByClassId.put(classId, row[2] == null ? null : (LocalDate) row[2]);
+        }
+
+        Map<UUID, List<String>> studentNamesByClassId = enrollmentRepository
+                .findByClassIdsAndStatus(classIds, EnrollmentStatus.ACTIVE)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        enrollment -> enrollment.getTutorClass().getId(),
+                        Collectors.mapping(enrollment -> enrollment.getStudent().getName(), Collectors.toList())
+                ));
+
+        return classes.stream()
+                .map(tutorClass -> {
+                    UUID classId = tutorClass.getId();
+                    List<String> studentNames = studentNamesByClassId.getOrDefault(classId, List.of());
+                    String displayName = ClassDisplayNames.resolve(
+                            tutorClass.getDisplayName(),
+                            tutorClass.getSubject().getName(),
+                            studentNames
+                    );
+                    return new TutorClassOverviewResponse(
+                            classId,
+                            displayName,
+                            tutorClass.getSubject().getName(),
+                            tutorClass.getStatus().name(),
+                            tutorClass.getPricePerHour(),
+                            tutorClass.getDefaultSalaryRate(),
+                            sessionCountByClassId.getOrDefault(classId, 0L),
+                            latestSessionDateByClassId.get(classId)
+                    );
+                })
+                .toList();
+    }
+
     private TutorDashboardResponse toDashboard(TutorPayout payout) {
         return new TutorDashboardResponse(
                 payout.getYear(),
@@ -228,30 +328,6 @@ public class DashboardService {
                 payout.getNetSalary(),
                 payout.getStatus().name()
         );
-    }
-
-    private TutorClassOverviewResponse toClassOverview(TutorClass tutorClass) {
-        long sessionCount = sessionRepository.countByTutorClassId(tutorClass.getId());
-        Session latestSession = sessionRepository.findTopByTutorClassIdOrderByDateDesc(tutorClass.getId()).orElse(null);
-        return new TutorClassOverviewResponse(
-                tutorClass.getId(),
-                resolveClassDisplayName(tutorClass),
-                tutorClass.getSubject().getName(),
-                tutorClass.getStatus().name(),
-                tutorClass.getPricePerHour(),
-                tutorClass.getDefaultSalaryRate(),
-                sessionCount,
-                latestSession == null ? null : latestSession.getDate()
-        );
-    }
-
-    private String resolveClassDisplayName(TutorClass tutorClass) {
-        List<String> studentNames = enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE)
-                .stream()
-                .map(Enrollment::getStudent)
-                .map(User::getName)
-                .toList();
-        return ClassDisplayNames.resolve(tutorClass.getDisplayName(), tutorClass.getSubject().getName(), studentNames);
     }
 
     private AdminTutorBankAccountResponse toBankAccountResponse(TutorBankAccount bankAccount) {

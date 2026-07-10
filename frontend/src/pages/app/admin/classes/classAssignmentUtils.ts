@@ -1,4 +1,4 @@
-import { PublishedClassResponse } from '../../../../types/classAssignment';
+import { PublishedClassResponse, SubjectOptionResponse } from '../../../../types/classAssignment';
 
 export interface StudentEntry {
   email: string;
@@ -90,4 +90,19 @@ export function isClassFormDirty(
 
 export function assignedTutor(cls: PublishedClassResponse): string | null {
   return cls.applications.find((a) => a.status === 'APPROVED')?.tutorName ?? null;
+}
+
+export function emptyForm(subjects: SubjectOptionResponse[]): ClassFormState {
+  const firstSubject = subjects[0];
+  return {
+    students: [],
+    studentEmail: '',
+    studentAdding: false,
+    subjectId: firstSubject?.id ?? '',
+    pricePerHour: firstSubject ? String(firstSubject.defaultPricePerHour) : '',
+    isPriceManuallyEdited: false,
+    displayName: '',
+    isDisplayNameManuallyEdited: false,
+    note: '',
+  };
 }

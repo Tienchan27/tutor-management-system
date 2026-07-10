@@ -7,10 +7,11 @@ import PageSection from '../../../components/layout/PageSection';
 import StatCard from '../../../components/tutor/StatCard';
 import Spinner from '../../../components/ui/Spinner';
 import { formatDate } from '../../../utils/format';
+import { queryKeys } from '../../../lib/queryKeys';
 
 function StudentHomePage() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['studentHome'],
+    queryKey: queryKeys.studentHome,
     queryFn: async () => {
       const [classes, invoices] = await Promise.all([listStudentClasses(), listMyInvoices()]);
       const unpaid = invoices.filter((i) => i.status !== 'PAID');

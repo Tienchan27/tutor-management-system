@@ -1,6 +1,7 @@
 package com.example.tms.service;
 
 import com.example.tms.repository.RefreshTokenRepository;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,6 +20,7 @@ public class RefreshTokenCleanupScheduler {
     }
 
     @Scheduled(cron = "0 30 2 * * *", zone = "Asia/Ho_Chi_Minh")
+    @SchedulerLock(name = "refresh-token-cleanup", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     @Transactional
     public void cleanupExpiredAndRevokedTokens() {
         LocalDateTime now = LocalDateTime.now();

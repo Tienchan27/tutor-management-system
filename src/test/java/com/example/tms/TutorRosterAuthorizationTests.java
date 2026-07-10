@@ -8,9 +8,11 @@ import com.example.tms.entity.TutorClass;
 import com.example.tms.entity.User;
 import com.example.tms.entity.enums.EnrollmentStatus;
 import com.example.tms.repository.EnrollmentRepository;
+import com.example.tms.repository.InvoiceRepository;
 import com.example.tms.repository.SessionRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.TutorBankAccountRepository;
+import com.example.tms.repository.TutorClassApplicationRepository;
 import com.example.tms.repository.TutorClassRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
@@ -81,6 +83,16 @@ class TutorRosterAuthorizationTests {
         }
 
         @Bean
+        TutorClassApplicationRepository tutorClassApplicationRepository() {
+            return mock(TutorClassApplicationRepository.class);
+        }
+
+        @Bean
+        InvoiceRepository invoiceRepository() {
+            return mock(InvoiceRepository.class);
+        }
+
+        @Bean
         DashboardService dashboardService(
                 TutorPayoutRepository tutorPayoutRepository,
                 TutorClassRepository tutorClassRepository,
@@ -89,7 +101,9 @@ class TutorRosterAuthorizationTests {
                 EnrollmentRepository enrollmentRepository,
                 SessionStudentTuitionRepository sessionStudentTuitionRepository,
                 UserRepository userRepository,
-                UserRoleRepository userRoleRepository
+                UserRoleRepository userRoleRepository,
+                TutorClassApplicationRepository tutorClassApplicationRepository,
+                InvoiceRepository invoiceRepository
         ) {
             return new DashboardService(
                     tutorPayoutRepository,
@@ -99,7 +113,9 @@ class TutorRosterAuthorizationTests {
                     enrollmentRepository,
                     sessionStudentTuitionRepository,
                     userRepository,
-                    userRoleRepository
+                    userRoleRepository,
+                    tutorClassApplicationRepository,
+                    invoiceRepository
             );
         }
     }

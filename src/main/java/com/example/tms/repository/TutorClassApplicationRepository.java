@@ -50,4 +50,6 @@ public interface TutorClassApplicationRepository extends JpaRepository<TutorClas
            """)
     List<TutorClassApplication> findByTutorIdAndStatus(UUID tutorId, TutorClassApplicationStatus status);
 
+    long countByStatus(TutorClassApplicationStatus status);
+
 }

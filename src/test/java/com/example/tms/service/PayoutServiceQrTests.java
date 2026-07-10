@@ -3,6 +3,7 @@ package com.example.tms.service;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.TutorPayout;
 import com.example.tms.entity.User;
+import com.example.tms.entity.enums.PayoutStatus;
 import com.example.tms.exception.ApiException;
 import com.example.tms.payment.VietQrGenerator;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
@@ -11,6 +12,7 @@ import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorPayoutPaymentRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.util.AdvisoryLockService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -32,11 +34,12 @@ class PayoutServiceQrTests {
     @Mock private TutorBankAccountRepository tutorBankAccountRepository;
     @Mock private NotificationOutboxService notificationOutboxService;
     @Mock private RealtimeOutboxService realtimeOutboxService;
+    @Mock private AdvisoryLockService advisoryLockService;
 
     private PayoutService service() {
         return new PayoutService(sessionRepository, tutorPayoutRepository, payoutPaymentRepository, userRepository,
                 tutorBankAccountRepository, notificationOutboxService, realtimeOutboxService, new VietQrGenerator(),
-                "LUONG");
+                advisoryLockService, "LUONG");
     }
 
     @Test
@@ -56,5 +59,18 @@ class PayoutServiceQrTests {
         when(tutorBankAccountRepository.findByUserIdAndIsPrimaryTrue(tutor.getId())).thenReturn(Optional.of(account));
 
         assertThrows(ApiException.class, () -> service().generateQr(tutor, payoutId));
+    }
+
+    @Test
+    void confirmPaid_rejectsWhenNotLocked() {
+        UUID payoutId = UUID.randomUUID();
+        User admin = new User();
+        admin.setId(UUID.randomUUID());
+        TutorPayout payout = new TutorPayout();
+        payout.setId(payoutId);
+        payout.setStatus(PayoutStatus.OPEN);
+        when(tutorPayoutRepository.findById(payoutId)).thenReturn(Optional.of(payout));
+
+        assertThrows(ApiException.class, () -> service().confirmPaid(admin, payoutId));
     }
 }

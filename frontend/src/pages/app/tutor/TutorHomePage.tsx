@@ -11,6 +11,7 @@ import Button from '../../../components/ui/Button';
 import LogSessionModal from '../../../components/tutor/LogSessionModal';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { formatVnd, getCurrentYearMonth } from '../../../utils/format';
+import { queryKeys } from '../../../lib/queryKeys';
 
 function TutorHomePage() {
   const { showToast } = useToast();
@@ -19,12 +20,12 @@ function TutorHomePage() {
   const [logModalOpen, setLogModalOpen] = useState(false);
 
   const { data: sessionClasses = [] } = useQuery({
-    queryKey: ['tutorSessionClasses'],
+    queryKey: queryKeys.tutorSessionClasses,
     queryFn: listMySessionClasses,
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['tutorHome', currentMonth],
+    queryKey: queryKeys.tutorHome.month(currentMonth),
     queryFn: async () => {
       const [classes, snapshot] = await Promise.all([
         getTutorClassOverview(),
@@ -42,6 +43,13 @@ function TutorHomePage() {
   const sessionCount = data?.sessionCount ?? 0;
   const estimatedTuition = data?.estimatedTuition ?? 0;
   const activeClassCount = classes.filter((c) => c.classStatus === 'ACTIVE').length;
+
+  function refreshAfterLogSession(): void {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tutorHome.month(currentMonth) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tutorSessions.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tutorSessionClasses });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tutorMyClasses });
+  }
 
   return (
     <PageLayout
@@ -70,7 +78,7 @@ function TutorHomePage() {
         onClose={() => setLogModalOpen(false)}
         onSuccess={() => {
           showToast('Session logged successfully', 'success');
-          void queryClient.invalidateQueries({ queryKey: ['tutorHome', currentMonth] });
+          refreshAfterLogSession();
         }}
       />
     </PageLayout>

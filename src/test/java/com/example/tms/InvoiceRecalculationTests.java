@@ -9,11 +9,13 @@ import com.example.tms.entity.enums.InvoiceStatus;
 import com.example.tms.payment.VietQrGenerator;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.InvoiceRepository;
+import com.example.tms.repository.PaymentRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.service.CenterBankAccountService;
 import com.example.tms.service.NotificationOutboxService;
 import com.example.tms.service.StudentInvoiceService;
+import com.example.tms.util.AdvisoryLockService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -28,6 +30,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,10 +46,14 @@ class InvoiceRecalculationTests {
     @Mock private RealtimeOutboxService realtimeOutboxService;
     @Mock private VietQrGenerator vietQrGenerator;
     @Mock private CenterBankAccountService centerBankAccountService;
+    @Mock private AdvisoryLockService advisoryLockService;
+    @Mock private PaymentRepository paymentRepository;
 
     private StudentInvoiceService service() {
-        return new StudentInvoiceService(sessionStudentTuitionRepository, invoiceRepository, userRepository,
-                notificationOutboxService, realtimeOutboxService, vietQrGenerator, centerBankAccountService, 15, "HP");
+        return new StudentInvoiceService(sessionStudentTuitionRepository, invoiceRepository, paymentRepository,
+                userRepository,
+                notificationOutboxService, realtimeOutboxService, vietQrGenerator, centerBankAccountService,
+                advisoryLockService, 15, "HP");
     }
 
     private User student() {
@@ -81,6 +88,7 @@ class InvoiceRecalculationTests {
 
     @Test
     void recalculationLeavesAPaidInvoiceUntouched() {
+        doNothing().when(advisoryLockService).acquireTransactionLock(any());
         User student = student();
         when(sessionStudentTuitionRepository.findByPayrollMonth("2026-06"))
                 .thenReturn(List.of(tuitionRow(student, 500000L)));
@@ -97,6 +105,7 @@ class InvoiceRecalculationTests {
 
     @Test
     void recalculationUpdatesAnUnpaidInvoice() {
+        doNothing().when(advisoryLockService).acquireTransactionLock(any());
         User student = student();
         when(sessionStudentTuitionRepository.findByPayrollMonth("2026-06"))
                 .thenReturn(List.of(tuitionRow(student, 500000L)));

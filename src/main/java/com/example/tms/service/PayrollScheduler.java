@@ -1,5 +1,6 @@
 package com.example.tms.service;
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,6 +20,7 @@ public class PayrollScheduler {
     }
 
     @Scheduled(cron = "0 0 0 1 * *", zone = "Asia/Ho_Chi_Minh")
+    @SchedulerLock(name = "monthly-payroll", lockAtMostFor = "60m", lockAtLeastFor = "1m")
     public void runMonthlyPayrollPlaceholder() {
         YearMonth targetMonth = YearMonth.now(ZoneId.of("Asia/Ho_Chi_Minh")).minusMonths(1);
         log.info("Monthly payroll scheduler triggered for {}", targetMonth);

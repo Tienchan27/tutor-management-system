@@ -1,6 +1,7 @@
 package com.example.tms.service;
 
 import com.example.tms.entity.Invoice;
+import com.example.tms.entity.Payment;
 import com.example.tms.entity.Session;
 import com.example.tms.entity.SessionStudentTuition;
 import com.example.tms.entity.Subject;
@@ -13,8 +14,10 @@ import com.example.tms.exception.ApiException;
 import com.example.tms.payment.VietQrGenerator;
 import com.example.tms.realtime.outbox.RealtimeOutboxService;
 import com.example.tms.repository.InvoiceRepository;
+import com.example.tms.repository.PaymentRepository;
 import com.example.tms.repository.SessionStudentTuitionRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.util.AdvisoryLockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +46,8 @@ class StudentInvoiceServiceTests {
     @Mock
     private InvoiceRepository invoiceRepository;
     @Mock
+    private PaymentRepository paymentRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private NotificationOutboxService notificationOutboxService;
@@ -51,6 +57,8 @@ class StudentInvoiceServiceTests {
     private VietQrGenerator vietQrGenerator;
     @Mock
     private CenterBankAccountService centerBankAccountService;
+    @Mock
+    private AdvisoryLockService advisoryLockService;
 
     private StudentInvoiceService studentInvoiceService;
 
@@ -62,11 +70,13 @@ class StudentInvoiceServiceTests {
         studentInvoiceService = new StudentInvoiceService(
                 sessionStudentTuitionRepository,
                 invoiceRepository,
+                paymentRepository,
                 userRepository,
                 notificationOutboxService,
                 realtimeOutboxService,
                 vietQrGenerator,
                 centerBankAccountService,
+                advisoryLockService,
                 15,
                 "HP"
         );
@@ -99,7 +109,18 @@ class StudentInvoiceServiceTests {
     }
 
     @Test
+    void generateForMonthInternal_acquiresAdvisoryLock() {
+        doNothing().when(advisoryLockService).acquireTransactionLock("student-invoice:2026-04");
+        when(sessionStudentTuitionRepository.findByPayrollMonth("2026-04")).thenReturn(List.of());
+
+        studentInvoiceService.generateForMonthInternal(YearMonth.of(2026, 4), false);
+
+        verify(advisoryLockService).acquireTransactionLock("student-invoice:2026-04");
+    }
+
+    @Test
     void generateForMonthInternal_createsInvoice() {
+        doNothing().when(advisoryLockService).acquireTransactionLock(any());
         SessionStudentTuition sst = buildSst();
         when(sessionStudentTuitionRepository.findByPayrollMonth("2026-04")).thenReturn(List.of(sst));
         when(invoiceRepository.findByStudentIdAndYearAndMonth(student.getId(), 2026, 4)).thenReturn(Optional.empty());
@@ -113,6 +134,7 @@ class StudentInvoiceServiceTests {
 
     @Test
     void generateForMonthInternal_skipsWhenExists() {
+        doNothing().when(advisoryLockService).acquireTransactionLock(any());
         SessionStudentTuition sst = buildSst();
         when(sessionStudentTuitionRepository.findByPayrollMonth("2026-04")).thenReturn(List.of(sst));
         Invoice existing = new Invoice();
@@ -139,7 +161,7 @@ class StudentInvoiceServiceTests {
         invoice.setMonth(4);
         invoice.setTotalAmount(200_000L);
         invoice.setStatus(InvoiceStatus.UNPAID);
-        when(invoiceRepository.findById(invoice.getId())).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.findByIdForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
         when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Invoice saved = studentInvoiceService.applyExternalPayment(invoice.getId(), "MANUAL:x", 200_000L);
@@ -157,7 +179,7 @@ class StudentInvoiceServiceTests {
         invoice.setStudent(student);
         invoice.setTotalAmount(200_000L);
         invoice.setStatus(InvoiceStatus.UNPAID);
-        when(invoiceRepository.findById(invoice.getId())).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.findByIdForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
 
         assertThrows(ApiException.class,
                 () -> studentInvoiceService.applyExternalPayment(invoice.getId(), "WEBHOOK:1", 100_000L));
@@ -165,15 +187,35 @@ class StudentInvoiceServiceTests {
     }
 
     @Test
-    void applyExternalPayment_isIdempotentWhenAlreadyPaid() {
+    void applyExternalPayment_idempotentReplayWhenPaidWithSameReference() {
         Invoice invoice = new Invoice();
         invoice.setId(UUID.randomUUID());
         invoice.setStudent(student);
         invoice.setStatus(InvoiceStatus.PAID);
-        when(invoiceRepository.findById(invoice.getId())).thenReturn(Optional.of(invoice));
+        Payment payment = new Payment();
+        payment.setInvoice(invoice);
+        payment.setReference("WEBHOOK:txn-1");
+        when(invoiceRepository.findByIdForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
+        when(paymentRepository.findByReference("WEBHOOK:txn-1")).thenReturn(Optional.of(payment));
+
+        Invoice result = studentInvoiceService.applyExternalPayment(invoice.getId(), "WEBHOOK:txn-1", 200_000L);
+
+        assertEquals(InvoiceStatus.PAID, result.getStatus());
+        verify(invoiceRepository, never()).save(any());
+        verify(notificationOutboxService, never()).enqueue(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void applyExternalPayment_rejectsWhenPaidWithDifferentReference() {
+        Invoice invoice = new Invoice();
+        invoice.setId(UUID.randomUUID());
+        invoice.setStudent(student);
+        invoice.setStatus(InvoiceStatus.PAID);
+        when(invoiceRepository.findByIdForUpdate(invoice.getId())).thenReturn(Optional.of(invoice));
+        when(paymentRepository.findByReference("WEBHOOK:other")).thenReturn(Optional.empty());
 
         assertThrows(ApiException.class,
-                () -> studentInvoiceService.applyExternalPayment(invoice.getId(), "MANUAL:x", 200_000L));
+                () -> studentInvoiceService.applyExternalPayment(invoice.getId(), "WEBHOOK:other", 200_000L));
         verify(invoiceRepository, never()).save(any());
     }
 }

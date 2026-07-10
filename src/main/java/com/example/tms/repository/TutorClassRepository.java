@@ -41,4 +41,6 @@ public interface TutorClassRepository extends JpaRepository<TutorClass, UUID> {
            where tc.id = :classId
            """)
     Optional<TutorClass> findDetailedById(UUID classId);
+
+    long countByStatus(ClassStatus status);
 }

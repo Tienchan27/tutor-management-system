@@ -21,6 +21,7 @@ import com.example.tms.repository.TutorBankAccountRepository;
 import com.example.tms.repository.TutorPayoutPaymentRepository;
 import com.example.tms.repository.TutorPayoutRepository;
 import com.example.tms.repository.UserRepository;
+import com.example.tms.util.AdvisoryLockService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class PayoutService {
     private final NotificationOutboxService notificationOutboxService;
     private final RealtimeOutboxService realtimeOutboxService;
     private final VietQrGenerator vietQrGenerator;
+    private final AdvisoryLockService advisoryLockService;
     private final String payoutRefPrefix;
 
     public PayoutService(
@@ -59,6 +61,7 @@ public class PayoutService {
             NotificationOutboxService notificationOutboxService,
             RealtimeOutboxService realtimeOutboxService,
             VietQrGenerator vietQrGenerator,
+            AdvisoryLockService advisoryLockService,
             @Value("${app.payments.payout-ref-prefix:LUONG}") String payoutRefPrefix
     ) {
         this.sessionRepository = sessionRepository;
@@ -69,6 +72,7 @@ public class PayoutService {
         this.notificationOutboxService = notificationOutboxService;
         this.realtimeOutboxService = realtimeOutboxService;
         this.vietQrGenerator = vietQrGenerator;
+        this.advisoryLockService = advisoryLockService;
         this.payoutRefPrefix = payoutRefPrefix;
     }
 
@@ -90,6 +94,8 @@ public class PayoutService {
 
     @Transactional
     List<TutorPayout> generateMonthlyPayoutsInternal(YearMonth month) {
+        advisoryLockService.acquireTransactionLock("tutor-payout:" + month);
+
         String payrollMonth = month.toString();
         List<Session> sessions = sessionRepository.findByPayrollMonth(payrollMonth);
         Map<UUID, List<Session>> byTutor = sessions.stream()
@@ -210,6 +216,9 @@ public class PayoutService {
     public TutorPayoutResponse confirmPaid(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
+        if (payout.getStatus() != PayoutStatus.LOCKED) {
+            throw ApiException.conflict("PAYOUT_NOT_LOCKED", "Payout can only be marked paid while LOCKED");
+        }
         payout.setStatus(PayoutStatus.PAID);
         payout.setPaidAt(LocalDateTime.now());
         payout.setPaidBy(admin);

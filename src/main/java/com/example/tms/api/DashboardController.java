@@ -1,6 +1,7 @@
 package com.example.tms.api;
 
 import com.example.tms.api.dto.common.SliceResponse;
+import com.example.tms.api.dto.dashboard.AdminDashboardSnapshotResponse;
 import com.example.tms.api.dto.dashboard.AdminTutorDetailResponse;
 import com.example.tms.api.dto.dashboard.TutorDashboardResponse;
 import com.example.tms.api.dto.dashboard.TutorClassOverviewResponse;
@@ -33,6 +34,14 @@ public class DashboardController {
     public DashboardController(DashboardService dashboardService, CurrentUserResolver currentUserResolver) {
         this.dashboardService = dashboardService;
         this.currentUserResolver = currentUserResolver;
+    }
+
+    @GetMapping("/admin/snapshot")
+    public AdminDashboardSnapshotResponse adminSnapshot(@RequestParam String month) {
+        return dashboardService.adminDashboardSnapshot(
+                currentUserResolver.requireUser(),
+                YearMonth.parse(month)
+        );
     }
 
     @GetMapping("/admin/tutors/summary")

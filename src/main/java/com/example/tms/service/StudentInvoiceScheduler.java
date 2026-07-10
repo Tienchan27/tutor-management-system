@@ -1,5 +1,6 @@
 package com.example.tms.service;
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class StudentInvoiceScheduler {
     }
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Ho_Chi_Minh")
+    @SchedulerLock(name = "student-invoice-auto-close", lockAtMostFor = "60m", lockAtLeastFor = "1m")
     public void runAutoCloseIfConfiguredDay() {
         int today = LocalDate.now(ZONE).getDayOfMonth();
         if (today != autoDay) {

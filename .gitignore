@@ -34,10 +34,16 @@ build/
 ### VS Code ###
 .vscode/
 
+### JVM crash dumps (IDE / local Java runs) ###
+hs_err_pid*.log
+replay_pid*.log
+
 ### Claude ###
 .claude/
 
 # Local environment overrides
 .env
 frontend/.env
+frontend/dist/
+frontend/node_modules/
 docs/audit

@@ -16,6 +16,7 @@ import SessionFinancialSlideOver from '../../../components/sessions/SessionFinan
 import ConfirmDialog from '../../../components/feedback/ConfirmDialog';
 import { useToast } from '../../../components/feedback/ToastProvider';
 import { getCurrentYearMonth } from '../../../utils/format';
+import { queryKeys } from '../../../lib/queryKeys';
 import TutorSessionMonthList from '../sessions/TutorSessionMonthList';
 
 function TutorSessionsPage() {
@@ -29,7 +30,7 @@ function TutorSessionsPage() {
   const [actionError, setActionError] = useState<string>('');
 
   const { data: classes = [], error: classesErrorObj } = useQuery({
-    queryKey: ['tutorSessionClasses'],
+    queryKey: queryKeys.tutorSessionClasses,
     queryFn: listMySessionClasses,
   });
 
@@ -41,7 +42,7 @@ function TutorSessionsPage() {
     hasNextPage: sessionHasNext,
     isFetchingNextPage: sessionLoadingMore,
   } = useInfiniteQuery({
-    queryKey: ['tutorSessions', month],
+    queryKey: queryKeys.tutorSessions.month(month),
     queryFn: ({ pageParam }) => listSessionsByPayrollMonth(month, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => (lastPage.hasNext ? allPages.length : undefined),
@@ -71,7 +72,7 @@ function TutorSessionsPage() {
     (sessionsErrorObj ? extractApiErrorMessage(sessionsErrorObj, 'Failed to load sessions') : '') ||
     (classesErrorObj ? extractApiErrorMessage(classesErrorObj, 'Failed to load tutor classes') : '');
 
-  const refreshSessions = () => queryClient.invalidateQueries({ queryKey: ['tutorSessions', month] });
+  const refreshSessions = () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorSessions.month(month) });
 
   const editMutation = useMutation({
     mutationFn: ({ item, reason }: { item: SessionListItem; reason: string }) =>

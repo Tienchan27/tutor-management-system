@@ -13,6 +13,8 @@ import ClassCard from '../../../components/tutor/ClassCard';
 import ClassRosterModal from '../../../components/dashboard/ClassRosterModal';
 import LogSessionModal from '../../../components/tutor/LogSessionModal';
 import { useToast } from '../../../components/feedback/ToastProvider';
+import { getCurrentYearMonth } from '../../../utils/format';
+import { queryKeys } from '../../../lib/queryKeys';
 
 function TutorMyClassesPage() {
   const { showToast } = useToast();
@@ -23,7 +25,7 @@ function TutorMyClassesPage() {
   const [rosterClassId, setRosterClassId] = useState('');
 
   const { data, isLoading: loading, error: loadError } = useQuery({
-    queryKey: ['tutorMyClasses'],
+    queryKey: queryKeys.tutorMyClasses,
     queryFn: async () => {
       const [classResponse, sessionClassesResponse] = await Promise.all([
         getTutorClassOverview(),
@@ -156,7 +158,11 @@ function TutorMyClassesPage() {
         }}
         onSuccess={() => {
           showToast('Session logged successfully', 'success');
-          void queryClient.invalidateQueries({ queryKey: ['tutorMyClasses'] });
+          const currentMonth = getCurrentYearMonth();
+          void queryClient.invalidateQueries({ queryKey: queryKeys.tutorMyClasses });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.tutorHome.month(currentMonth) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.tutorSessions.all });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.tutorSessionClasses });
         }}
       />
     </PageLayout>

@@ -8,11 +8,16 @@ RUN mvn -B -q dependency:go-offline
 # Build the application (deps already cached above).
 COPY src ./src
 RUN mvn -B -q clean package -DskipTests
+RUN cp target/*.jar application.jar
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
 FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
+WORKDIR /application
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-COPY --chown=appuser:appgroup --from=build /app/target/*.jar app.jar
+COPY --chown=appuser:appgroup --from=build /app/extracted/dependencies/ ./
+COPY --chown=appuser:appgroup --from=build /app/extracted/spring-boot-loader/ ./
+COPY --chown=appuser:appgroup --from=build /app/extracted/snapshot-dependencies/ ./
+COPY --chown=appuser:appgroup --from=build /app/extracted/application/ ./
 USER appuser
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "application.jar"]

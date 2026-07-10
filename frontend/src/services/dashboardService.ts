@@ -1,5 +1,6 @@
 import api from './api';
 import {
+  AdminDashboardSnapshotResponse,
   AdminTutorDetailResponse,
   InviteTutorRequest,
   InviteTutorResponse,
@@ -10,6 +11,13 @@ import {
   TutorSummaryResponse,
 } from '../types/dashboard';
 import { SliceResponse } from '../types/pagination';
+
+export async function getAdminDashboardSnapshot(month: string): Promise<AdminDashboardSnapshotResponse> {
+  const response = await api.get<AdminDashboardSnapshotResponse>('/dashboard/admin/snapshot', {
+    params: { month },
+  });
+  return response.data;
+}
 
 export async function getAdminTutorSummary(
   month: string,
