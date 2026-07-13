@@ -28,6 +28,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -98,8 +100,10 @@ class ClassRosterServiceTests {
         User student = existingStudent("stu@x.com");
         when(tutorClassRepository.findDetailedById(tutorClass.getId())).thenReturn(Optional.of(tutorClass));
         when(userRepository.findByEmail("stu@x.com")).thenReturn(Optional.of(student));
-        when(enrollmentRepository.findByTutorClassIdAndStudentIdAndStatus(tutorClass.getId(), student.getId(), EnrollmentStatus.ACTIVE))
-                .thenReturn(Optional.of(new Enrollment()));
+        Enrollment active = new Enrollment();
+        active.setStatus(EnrollmentStatus.ACTIVE);
+        when(enrollmentRepository.findByTutorClassIdAndStudentId(tutorClass.getId(), student.getId()))
+                .thenReturn(Optional.of(active));
 
         ApiException ex = assertThrows(ApiException.class,
                 () -> service().addStudentToClass(new User(), tutorClass.getId(), "stu@x.com", "Stu"));
@@ -113,7 +117,7 @@ class ClassRosterServiceTests {
         User student = existingStudent("stu@x.com");
         when(tutorClassRepository.findDetailedById(tutorClass.getId())).thenReturn(Optional.of(tutorClass));
         when(userRepository.findByEmail("stu@x.com")).thenReturn(Optional.of(student));
-        when(enrollmentRepository.findByTutorClassIdAndStudentIdAndStatus(tutorClass.getId(), student.getId(), EnrollmentStatus.ACTIVE))
+        when(enrollmentRepository.findByTutorClassIdAndStudentId(tutorClass.getId(), student.getId()))
                 .thenReturn(Optional.empty());
         stubEmptyRosterResponse(tutorClass.getId());
 
@@ -122,6 +126,27 @@ class ClassRosterServiceTests {
         ArgumentCaptor<Enrollment> captor = ArgumentCaptor.forClass(Enrollment.class);
         verify(enrollmentRepository).save(captor.capture());
         assertEquals(EnrollmentStatus.ACTIVE, captor.getValue().getStatus());
+        assertNull(captor.getValue().getLeftAt());
+    }
+
+    @Test
+    void addRevivesLeftEnrollmentForExistingMember() {
+        TutorClass tutorClass = classWithStatus(ClassStatus.ACTIVE);
+        User student = existingStudent("stu@x.com");
+        Enrollment leftEnrollment = new Enrollment();
+        leftEnrollment.setStatus(EnrollmentStatus.LEFT);
+        when(tutorClassRepository.findDetailedById(tutorClass.getId())).thenReturn(Optional.of(tutorClass));
+        when(userRepository.findByEmail("stu@x.com")).thenReturn(Optional.of(student));
+        when(enrollmentRepository.findByTutorClassIdAndStudentId(tutorClass.getId(), student.getId()))
+                .thenReturn(Optional.of(leftEnrollment));
+        stubEmptyRosterResponse(tutorClass.getId());
+
+        service().addStudentToClass(new User(), tutorClass.getId(), "stu@x.com", "Stu");
+
+        assertEquals(EnrollmentStatus.ACTIVE, leftEnrollment.getStatus());
+        assertNotNull(leftEnrollment.getJoinedAt());
+        assertNull(leftEnrollment.getLeftAt());
+        verify(enrollmentRepository).save(leftEnrollment);
     }
 
     @Test
@@ -138,6 +163,7 @@ class ClassRosterServiceTests {
         service().removeStudentFromClass(new User(), tutorClass.getId(), student.getId());
 
         assertEquals(EnrollmentStatus.LEFT, enrollment.getStatus());
+        assertNotNull(enrollment.getLeftAt());
         verify(enrollmentRepository).save(enrollment);
     }
 

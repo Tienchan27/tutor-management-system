@@ -3,6 +3,7 @@ package com.example.tms.service;
 import com.example.tms.api.dto.bank.BankAccountResponse;
 import com.example.tms.api.dto.bank.CreateBankAccountRequest;
 import com.example.tms.api.dto.bank.UpdateBankAccountRequest;
+import com.example.tms.entity.BankCatalogEntry;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.User;
 import com.example.tms.exception.ApiException;
@@ -20,10 +21,16 @@ import java.util.stream.Collectors;
 public class BankAccountService {
     private final TutorBankAccountRepository bankAccountRepository;
     private final UserRepository userRepository;
+    private final BankCatalogService bankCatalogService;
 
-    public BankAccountService(TutorBankAccountRepository bankAccountRepository, UserRepository userRepository) {
+    public BankAccountService(
+            TutorBankAccountRepository bankAccountRepository,
+            UserRepository userRepository,
+            BankCatalogService bankCatalogService
+    ) {
         this.bankAccountRepository = bankAccountRepository;
         this.userRepository = userRepository;
+        this.bankCatalogService = bankCatalogService;
     }
 
     @Transactional
@@ -31,17 +38,17 @@ public class BankAccountService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found"));
 
-        // Check if user already has a primary account
+        BankCatalogEntry bank = bankCatalogService.requireTransferable(request.bankBin());
         boolean hasPrimary = bankAccountRepository.existsByUserIdAndIsPrimaryTrue(userId);
 
         TutorBankAccount account = new TutorBankAccount();
         account.setUser(user);
-        account.setBankName(request.bankName());
+        account.setBankName(bank.getShortName());
         account.setAccountNumber(request.accountNumber());
         account.setAccountHolderName(request.accountHolderName());
-        account.setBankBin(request.bankBin());
-        account.setBankCode(request.bankCode());
-        account.setPrimary(!hasPrimary); // First account is primary, others are not
+        account.setBankBin(bank.getBin());
+        account.setBankCode(bank.getCode());
+        account.setPrimary(!hasPrimary);
         account.setVerified(true);
         account.setVerifiedAt(LocalDateTime.now());
 
@@ -70,14 +77,12 @@ public class BankAccountService {
             throw ApiException.conflict("ALREADY_PRIMARY", "This account is already primary");
         }
 
-        // Unset current primary account
         bankAccountRepository.findByUserIdAndIsPrimaryTrue(userId)
                 .ifPresent(currentPrimary -> {
                     currentPrimary.setPrimary(false);
                     bankAccountRepository.save(currentPrimary);
                 });
 
-        // Set new primary
         account.setPrimary(true);
         account = bankAccountRepository.save(account);
 
@@ -93,10 +98,10 @@ public class BankAccountService {
             throw ApiException.forbidden("FORBIDDEN", "Not authorized to modify this account");
         }
 
-        // Account number / primary / verified are preserved; this only attaches the correct bank + BIN.
-        account.setBankBin(request.bankBin());
-        account.setBankCode(request.bankCode());
-        account.setBankName(request.bankName());
+        BankCatalogEntry bank = bankCatalogService.requireTransferable(request.bankBin());
+        account.setBankBin(bank.getBin());
+        account.setBankCode(bank.getCode());
+        account.setBankName(bank.getShortName());
         account.setAccountHolderName(request.accountHolderName());
         return mapToResponse(bankAccountRepository.save(account));
     }
@@ -119,8 +124,6 @@ public class BankAccountService {
 
         bankAccountRepository.delete(account);
     }
-
-    // === ADMIN METHODS ===
 
     private BankAccountResponse mapToResponse(TutorBankAccount account) {
         return new BankAccountResponse(

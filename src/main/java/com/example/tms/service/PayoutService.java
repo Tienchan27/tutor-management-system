@@ -162,6 +162,12 @@ public class PayoutService {
         if (payout.getStatus() != PayoutStatus.LOCKED) {
             throw ApiException.conflict("PAYOUT_NOT_LOCKED", "Payout net salary can only be overridden while LOCKED");
         }
+        if (payoutPaymentRepository.existsByTutorPayoutIdAndStatus(payoutId, PaymentStatus.PENDING)) {
+            throw ApiException.conflict(
+                    "PAYOUT_QR_ALREADY_GENERATED",
+                    "A payout QR has already been generated. Net salary can no longer be overridden."
+            );
+        }
 
         payout.setNetSalary(netSalary);
         TutorPayout saved = tutorPayoutRepository.save(payout);
@@ -190,6 +196,15 @@ public class PayoutService {
     public TutorPayoutPaymentResponse generateQr(User admin, UUID payoutId) {
         TutorPayout payout = tutorPayoutRepository.findById(payoutId)
                 .orElseThrow(() -> ApiException.notFound("PAYOUT_NOT_FOUND", "Payout not found"));
+        if (payout.getStatus() != PayoutStatus.LOCKED) {
+            throw ApiException.conflict("PAYOUT_NOT_LOCKED", "Payout QR can only be generated while LOCKED");
+        }
+
+        var existingPending = payoutPaymentRepository
+                .findTopByTutorPayoutIdAndStatusOrderByCreatedAtDesc(payoutId, PaymentStatus.PENDING);
+        if (existingPending.isPresent()) {
+            return PayoutMapper.toPaymentResponse(existingPending.get());
+        }
 
         TutorBankAccount account = tutorBankAccountRepository.findByUserIdAndIsPrimaryTrue(payout.getTutor().getId())
                 .orElseThrow(() -> ApiException.conflict("TUTOR_BANK_ACCOUNT_MISSING",
@@ -224,11 +239,13 @@ public class PayoutService {
         payout.setPaidBy(admin);
         TutorPayout saved = tutorPayoutRepository.save(payout);
 
-        payoutPaymentRepository.findTopByTutorPayoutIdOrderByCreatedAtDesc(payoutId).ifPresent(pp -> {
-            pp.setStatus(PaymentStatus.SUCCESS);
-            pp.setPaidAt(LocalDateTime.now());
-            payoutPaymentRepository.save(pp);
-        });
+        payoutPaymentRepository
+                .findTopByTutorPayoutIdAndStatusOrderByCreatedAtDesc(payoutId, PaymentStatus.PENDING)
+                .ifPresent(pp -> {
+                    pp.setStatus(PaymentStatus.SUCCESS);
+                    pp.setPaidAt(LocalDateTime.now());
+                    payoutPaymentRepository.save(pp);
+                });
 
         notificationOutboxService.enqueue(
                 payout.getTutor(),

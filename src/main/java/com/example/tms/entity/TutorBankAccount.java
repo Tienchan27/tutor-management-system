@@ -38,7 +38,7 @@ public class TutorBankAccount {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "bank_name", nullable = false, length = 50)
+    @Column(name = "bank_name", nullable = false, length = 120)
     private String bankName;
 
     @Column(name = "account_number", nullable = false, length = 30)

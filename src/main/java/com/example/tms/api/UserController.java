@@ -2,6 +2,7 @@ package com.example.tms.api;
 
 import com.example.tms.api.dto.user.ProfileResponse;
 import com.example.tms.api.dto.user.UpdateProfileRequest;
+import com.example.tms.api.dto.user.UserAccessResponse;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.UserService;
 import jakarta.validation.Valid;
@@ -25,6 +26,14 @@ public class UserController {
     @GetMapping("/me/profile")
     public ProfileResponse getMyProfile() {
         return userService.getProfile(currentUserResolver.requireUserId());
+    }
+
+    @GetMapping("/me/access")
+    public UserAccessResponse getMyAccess() {
+        return userService.getAccess(
+                currentUserResolver.requireUserId(),
+                currentUserResolver.requireActiveRole()
+        );
     }
 
     @PatchMapping("/me/profile")

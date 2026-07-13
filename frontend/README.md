@@ -1,49 +1,35 @@
 # Frontend Overview
 
-This frontend provides:
-
-- Authentication and account onboarding flows.
-- A minimal white UI style system.
-- An API Tester page for running backend requests from the browser.
-
-## Routes
-
-- `/` Authentication page (sign in, sign up, OTP, Google sign-in)
-- `/profile-completion` Profile completion form for new users
-- `/dashboard` User dashboard after authentication
-- `/api-tester` Postman-like API testing page
+React 19 frontend for the Tutor Management System. The app is built with Vite and talks to the Spring Boot API through the shared `/api` prefix in the Nginx deployment.
 
 ## Environment
 
-Create `frontend/.env`:
+Create `frontend/.env` for local development:
 
 ```env
-REACT_APP_API_URL=/api
-REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_API_URL=/api
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
-`REACT_APP_API_URL=/api` is recommended when frontend is served behind Nginx reverse proxy.
+Use `VITE_API_URL=/api` when the frontend is served behind the repo's Nginx reverse proxy. For a standalone local Vite server, point it at the backend origin if you are not using the proxy.
 
 ## Scripts
 
-From `frontend/`:
+Run from `frontend/`:
 
-- `npm start` start local development server
-- `npm run build` create production build
-- `npm test` run tests
+- `npm run dev` starts the Vite dev server.
+- `npm run build` runs TypeScript and creates the production build in `dist/`.
+- `npm test` runs the frontend test suite.
 
-## API Tester workflow
+## Routes
 
-1. Open `/api-tester`.
-2. Select a domain and endpoint template.
-3. Optionally edit path params, query, headers, and body JSON.
-4. Choose auth mode:
-   - `No Auth` for public endpoints.
-   - `Bearer Token` for protected endpoints.
-5. Click **Send Request** to view:
-   - status code
-   - response headers
-   - response body
-6. Use the request history panel to review recent calls.
+- `/` authentication page for sign in, sign up, OTP, password reset, and Google sign-in.
+- `/profile-completion` profile completion flow for newly activated users.
+- `/tutor-onboarding` tutor bank-account onboarding flow.
+- `/app/*` authenticated application shell for role-specific dashboards and workflows.
 
-For protected requests, the page can auto-fill token from local storage after login.
+## Session And Role Access
+
+The browser session is backed by httpOnly auth cookies. Access tokens are JWTs; refresh tokens are opaque secrets whose hashes live server-side. Local storage keeps non-secret user metadata only. Role access is refreshed from `GET /users/me/access`, which returns the server-authoritative active roles, active role, and onboarding flags.
+
+When a multi-role user switches role, the backend issues a token scoped to that active role. Frontend route guards should refetch access metadata after role-change realtime events.

@@ -32,6 +32,7 @@ function AdminPayoutsPage() {
   const [netSalaryDraftById, setNetSalaryDraftById] = useState<Record<string, number>>({});
   const [actionError, setActionError] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmPaidPayout, setConfirmPaidPayout] = useState<TutorPayout | null>(null);
 
   useEffect(() => {
     const fromUrl = searchParams.get('month');
@@ -69,6 +70,8 @@ function AdminPayoutsPage() {
     mutationFn: (payoutId: string) => confirmPayoutPaid(payoutId),
     onSuccess: () => {
       void refreshPayouts();
+      setConfirmPaidPayout(null);
+      setSelectedPayment(null);
       showToast('Payout marked as paid', 'success');
     },
     onError: (err) => setActionError(extractApiErrorMessage(err, 'Failed to confirm payout')),
@@ -124,7 +127,9 @@ function AdminPayoutsPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {items.map((item) => {
+                  const hasSelectedPendingQr = selectedPayment?.tutorPayout.id === item.id && selectedPayment.status === 'PENDING';
+                  return (
                   <tr key={item.id}>
                     <td>{item.tutor?.email || 'Tutor'}</td>
                     <td className="money-cell">{formatVnd(item.grossRevenue)}</td>
@@ -139,14 +144,14 @@ function AdminPayoutsPage() {
                             variant="secondary"
                             size="sm"
                             onClick={() => qrMutation.mutate(item.id)}
-                            disabled={item.status === 'PAID'}
+                            disabled={item.status !== 'LOCKED'}
                           >
                             Generate QR
                           </Button>
                           <Button
                             variant="success"
                             size="sm"
-                            onClick={() => confirmPaidMutation.mutate(item.id)}
+                            onClick={() => setConfirmPaidPayout(item)}
                             disabled={item.status === 'PAID'}
                           >
                             Confirm paid
@@ -171,6 +176,7 @@ function AdminPayoutsPage() {
                             variant="secondary"
                             size="sm"
                             loading={overrideMutation.isPending && overrideMutation.variables?.payout.id === item.id}
+                            disabled={hasSelectedPendingQr}
                             onClick={() =>
                               overrideMutation.mutate({
                                 payout: item,
@@ -184,7 +190,8 @@ function AdminPayoutsPage() {
                       ) : null}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -210,6 +217,20 @@ function AdminPayoutsPage() {
         loading={closeMutation.isPending}
         onConfirm={() => closeMutation.mutate()}
         onCancel={() => setConfirmClose(false)}
+      />
+      <ConfirmDialog
+        open={!!confirmPaidPayout}
+        title="Confirm payout paid?"
+        message={
+          <>
+            This will mark the payout for <strong>{confirmPaidPayout?.tutor?.email || 'this tutor'}</strong> as paid.
+          </>
+        }
+        confirmLabel="Confirm paid"
+        confirmVariant="success"
+        loading={confirmPaidMutation.isPending}
+        onConfirm={() => confirmPaidPayout && confirmPaidMutation.mutate(confirmPaidPayout.id)}
+        onCancel={() => setConfirmPaidPayout(null)}
       />
     </PageLayout>
   );

@@ -16,13 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class TokenService {
+    private static final int REFRESH_TOKEN_BYTES = 32;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JwtService jwtService;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -60,11 +63,12 @@ public class TokenService {
                 : roleOrThrow(user, requestedRole);
 
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), activeRole.name());
-        String refreshToken = jwtService.generateRefreshToken(user.getId(), user.getEmail(), activeRole.name());
+        String refreshToken = generateOpaqueRefreshToken();
 
         RefreshToken token = new RefreshToken();
         token.setTokenHash(hashToken(refreshToken));
         token.setUser(user);
+        token.setActiveRole(activeRole);
         token.setExpiresAt(LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenTtlSeconds()));
         token.setIpAddress(request.getRemoteAddr());
         token.setUserAgent(request.getHeader("User-Agent"));
@@ -85,9 +89,6 @@ public class TokenService {
 
     @Transactional
     public AuthResponse refresh(String refreshTokenValue, HttpServletRequest request) {
-        jwtService.validateRefreshToken(refreshTokenValue);
-        UUID userId = jwtService.extractUserId(refreshTokenValue);
-
         String tokenHash = hashToken(refreshTokenValue);
         if (refreshTokenRedisService.isBlacklisted(tokenHash)) {
             throw new ApiException("Invalid refresh token");
@@ -95,15 +96,15 @@ public class TokenService {
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHashAndRevokedFalseForUpdate(tokenHash)
                 .orElseThrow(() -> new ApiException("Invalid refresh token"));
 
-        if (!refreshToken.getUser().getId().equals(userId)) {
-            throw new ApiException("Invalid refresh token");
-        }
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new ApiException("Refresh token expired");
         }
 
         User user = refreshToken.getUser();
-        RoleName requestedRole = parseRoleName(jwtService.extractActiveRole(refreshTokenValue));
+        RoleName requestedRole = refreshToken.getActiveRole();
+        if (requestedRole == null) {
+            throw new ApiException("Invalid refresh token");
+        }
 
         refreshToken.setRevoked(true);
         refreshToken.setRevokedAt(LocalDateTime.now());
@@ -131,6 +132,12 @@ public class TokenService {
         }
     }
 
+    private String generateOpaqueRefreshToken() {
+        byte[] bytes = new byte[REFRESH_TOKEN_BYTES];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
     private List<RoleName> getActiveRoles(User user) {
         return userRoleRepository.findByUserIdAndStatus(user.getId(), UserRoleStatus.ACTIVE)
                 .stream()
@@ -152,15 +159,6 @@ public class TokenService {
             throw new ApiException("Forbidden for role " + roleName);
         }
         return roleName;
-    }
-
-    private RoleName parseRoleName(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            return RoleName.valueOf(value);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
     }
 
     private boolean needsProfileCompletion(User user) {

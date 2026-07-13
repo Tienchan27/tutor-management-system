@@ -23,6 +23,15 @@ public class BankCatalogController {
         return bankCatalogService.list();
     }
 
+    /**
+     * Authenticated: populate the catalog once if empty (used by bank pickers / onboarding).
+     * Returns {@code synced} count (0 when already populated).
+     */
+    @PostMapping("/bank-catalog/ensure")
+    public Map<String, Integer> ensure() {
+        return Map.of("synced", bankCatalogService.ensureSynced());
+    }
+
     /** Admin-only: refresh the catalog from the provider (vietqr.io). */
     @PostMapping("/admin/bank-catalog/sync")
     public Map<String, Integer> sync() {

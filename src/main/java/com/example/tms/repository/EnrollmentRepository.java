@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
+    Optional<Enrollment> findByTutorClassIdAndStudentId(UUID classId, UUID studentId);
     Optional<Enrollment> findByTutorClassIdAndStudentIdAndStatus(UUID classId, UUID studentId, EnrollmentStatus status);
     @Query("""
            select e from Enrollment e

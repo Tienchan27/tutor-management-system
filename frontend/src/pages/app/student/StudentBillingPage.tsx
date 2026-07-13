@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getInvoiceQr, listMyInvoices } from '../../../services/studentInvoiceService';
-import { extractApiErrorMessage } from '../../../services/authService';
+import { extractApiErrorCode, extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
 import Spinner from '../../../components/ui/Spinner';
@@ -13,6 +13,13 @@ import VietQrView from '../../../components/payments/VietQrView';
 import { formatDate, formatVnd, formatYearMonth } from '../../../utils/format';
 import { invoiceTone } from '../../../utils/statusTone';
 import { queryKeys } from '../../../lib/queryKeys';
+
+function qrErrorMessage(error: unknown): string {
+  if (extractApiErrorCode(error) === 'CENTER_ACCOUNT_NOT_SET') {
+    return 'Tuition payments are not available yet. The center has not configured a receiving bank account. Please try again later or contact the center.';
+  }
+  return extractApiErrorMessage(error, 'Failed to prepare payment');
+}
 
 function StudentBillingPage() {
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
@@ -84,9 +91,7 @@ function StudentBillingPage() {
         }
       >
         {qrQuery.isLoading ? <Spinner label="Preparing QR..." /> : null}
-        {qrQuery.error ? (
-          <p className="error-text">{extractApiErrorMessage(qrQuery.error, 'Failed to prepare payment')}</p>
-        ) : null}
+        {qrQuery.error ? <p className="error-text">{qrErrorMessage(qrQuery.error)}</p> : null}
         {qrQuery.data ? (
           <VietQrView
             qrPayload={qrQuery.data.qrPayload}

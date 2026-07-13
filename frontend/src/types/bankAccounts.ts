@@ -2,7 +2,7 @@ export interface CreateBankAccountRequest {
   bankName: string;
   accountNumber: string;
   accountHolderName: string;
-  bankBin?: string;
+  bankBin: string;
   bankCode?: string;
 }
 

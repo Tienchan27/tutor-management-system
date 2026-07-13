@@ -1,6 +1,6 @@
 package com.example.tms.security;
 
-import com.example.tms.entity.UserRole;
+import com.example.tms.entity.enums.RoleName;
 import com.example.tms.entity.enums.UserStatus;
 import com.example.tms.entity.enums.UserRoleStatus;
 import com.example.tms.repository.UserRepository;
@@ -67,13 +67,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 filterChain.doFilter(request, response);
                 return;
             }
-            List<GrantedAuthority> authorities = userRoleRepository
-                    .findByUserIdAndStatus(userId, UserRoleStatus.ACTIVE)
-                    .stream()
-                    .map(UserRole::getRole)
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().name()))
-                    .map(GrantedAuthority.class::cast)
-                    .toList();
+            RoleName activeRole = parseActiveRole(jwtService.extractActiveRole(token));
+            if (activeRole == null || !userRoleRepository.hasRole(userId, activeRole, UserRoleStatus.ACTIVE)) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            List<GrantedAuthority> authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_" + activeRole.name())
+            );
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userId,
@@ -108,5 +111,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         return null;
+    }
+
+    private RoleName parseActiveRole(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return RoleName.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

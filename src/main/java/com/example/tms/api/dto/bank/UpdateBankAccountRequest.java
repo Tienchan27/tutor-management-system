@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 public record UpdateBankAccountRequest(
         @NotBlank @Pattern(regexp = "\\d{6}", message = "bankBin must be a 6-digit BIN") String bankBin,
 
-        @NotBlank @Size(max = 50) String bankName,
+        @Size(max = 120) String bankName,
 
         @Size(max = 20) String bankCode,
 

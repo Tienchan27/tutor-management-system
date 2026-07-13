@@ -7,15 +7,25 @@ import com.example.tms.entity.enums.UserStatus;
 import com.example.tms.exception.ApiException;
 import com.example.tms.repository.UserRepository;
 import com.example.tms.service.AuthService;
+import com.example.tms.service.OtpRedisService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import java.time.Duration;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -24,6 +34,20 @@ class AuthServiceTests {
     private AuthService authService;
     @Autowired
     private UserRepository userRepository;
+
+    /** Avoid requiring a live Redis for OTP fail-closed paths in unit/integration tests. */
+    @MockitoBean
+    private OtpRedisService otpRedisService;
+
+    @BeforeEach
+    void stubOtpRedis() {
+        when(otpRedisService.incrementSendCount(anyString(), anyString(), any(Duration.class))).thenReturn(1L);
+        when(otpRedisService.getSendCount(anyString(), anyString())).thenReturn(Optional.empty());
+        when(otpRedisService.getOtpHash(anyString(), anyString())).thenReturn(Optional.empty());
+        when(otpRedisService.incrementAttempts(anyString(), anyString(), any(Duration.class))).thenReturn(1L);
+        doNothing().when(otpRedisService).storeOtp(anyString(), anyString(), anyString(), any(Duration.class));
+        doNothing().when(otpRedisService).clearOtp(anyString(), anyString());
+    }
 
     @Test
     void registerCreatesPendingUser() {

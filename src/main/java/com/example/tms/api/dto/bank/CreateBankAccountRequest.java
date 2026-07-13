@@ -5,8 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record CreateBankAccountRequest(
-        @NotBlank(message = "Bank name is required")
-        @Size(max = 50, message = "Bank name must not exceed 50 characters")
+        @Size(max = 120, message = "Bank name must not exceed 120 characters")
         String bankName,
 
         @NotBlank(message = "Account number is required")
@@ -18,7 +17,7 @@ public record CreateBankAccountRequest(
         @Size(max = 100, message = "Account holder name must not exceed 100 characters")
         String accountHolderName,
 
-        // NAPAS BIN chosen from the bank catalog; needed to generate a payout VietQR.
+        @NotBlank(message = "Bank is required")
         @Pattern(regexp = "\\d{6}", message = "bankBin must be a 6-digit BIN")
         String bankBin,
 

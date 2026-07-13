@@ -97,3 +97,8 @@ export function extractApiErrorMessage(error: unknown, fallback: string): string
   const maybeError = error as { response?: { data?: ApiErrorResponse } };
   return maybeError?.response?.data?.message || fallback;
 }
+
+export function extractApiErrorCode(error: unknown): string | undefined {
+  const maybeError = error as { response?: { data?: ApiErrorResponse } };
+  return maybeError?.response?.data?.code;
+}

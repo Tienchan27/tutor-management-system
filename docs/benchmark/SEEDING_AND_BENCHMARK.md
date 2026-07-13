@@ -32,7 +32,7 @@ docker compose up -d --build app
 ```
 
 Notes:
-- The `app` container runs Flyway migrations on startup (single `V1__init_schema.sql`).
+- The `app` container runs all Flyway migrations on startup (`V1` through the latest available migration).
 - This ensures the schema exists before seeding.
 - For large seed runs, it's recommended to stop the `app` container before executing the seed script to avoid DB locks from background jobs:
   - `docker compose stop app nginx`

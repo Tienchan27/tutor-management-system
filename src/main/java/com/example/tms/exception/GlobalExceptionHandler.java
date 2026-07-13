@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -64,32 +63,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(error("FORBIDDEN", "You are not allowed to perform this action"));
+                .body(ApiErrorBodies.of("FORBIDDEN", "You are not allowed to perform this action"));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<?> handleAuthentication(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(error("UNAUTHORIZED", "Authentication is required"));
+                .body(ApiErrorBodies.of("UNAUTHENTICATED", "Authentication required"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<?> handleDataIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(error("CONFLICT", "The request conflicts with existing data"));
+                .body(ApiErrorBodies.of("CONFLICT", "The request conflicts with existing data"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleUnhandled(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(error("INTERNAL_ERROR", "An unexpected error occurred"));
+                .body(ApiErrorBodies.of("INTERNAL_ERROR", "An unexpected error occurred"));
     }
 
     private Map<String, Object> error(String code, String message) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("code", code);
-        body.put("message", message);
-        body.put("timestamp", LocalDateTime.now().toString());
-        return body;
+        return ApiErrorBodies.of(code, message);
     }
 }

@@ -1,7 +1,9 @@
 package com.example.tms.service;
 
 import com.example.tms.api.dto.bank.BankAccountResponse;
+import com.example.tms.api.dto.bank.CreateBankAccountRequest;
 import com.example.tms.api.dto.bank.UpdateBankAccountRequest;
+import com.example.tms.entity.BankCatalogEntry;
 import com.example.tms.entity.TutorBankAccount;
 import com.example.tms.entity.User;
 import com.example.tms.exception.ApiException;
@@ -28,9 +30,10 @@ class BankAccountServiceTests {
 
     @Mock private TutorBankAccountRepository bankAccountRepository;
     @Mock private UserRepository userRepository;
+    @Mock private BankCatalogService bankCatalogService;
 
     private BankAccountService service() {
-        return new BankAccountService(bankAccountRepository, userRepository);
+        return new BankAccountService(bankAccountRepository, userRepository, bankCatalogService);
     }
 
     private TutorBankAccount account(User owner) {
@@ -42,6 +45,46 @@ class BankAccountServiceTests {
         return account;
     }
 
+    private BankCatalogEntry vietin() {
+        BankCatalogEntry entry = new BankCatalogEntry();
+        entry.setBin("970415");
+        entry.setCode("ICB");
+        entry.setShortName("VietinBank");
+        entry.setTransferSupported(true);
+        return entry;
+    }
+
+    @Test
+    void createBankAccount_requiresTransferableBinFromCatalog() {
+        UUID userId = UUID.randomUUID();
+        User owner = new User();
+        owner.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(bankCatalogService.requireTransferable("970415")).thenReturn(vietin());
+        when(bankAccountRepository.existsByUserIdAndIsPrimaryTrue(userId)).thenReturn(false);
+        when(bankAccountRepository.save(any(TutorBankAccount.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        BankAccountResponse res = service().createBankAccount(userId, new CreateBankAccountRequest(
+                "ignored", "113366668888", "Holder", "970415", "ignored"));
+
+        assertEquals("970415", res.bankBin());
+        assertEquals("VietinBank", res.bankName());
+    }
+
+    @Test
+    void createBankAccount_rejectsMissingBinViaCatalog() {
+        UUID userId = UUID.randomUUID();
+        User owner = new User();
+        owner.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(bankCatalogService.requireTransferable("000000"))
+                .thenThrow(ApiException.notFound("BANK_NOT_FOUND", "Bank is not in the catalog"));
+
+        assertThrows(ApiException.class, () -> service().createBankAccount(userId,
+                new CreateBankAccountRequest(null, "113366668888", "Holder", "000000", null)));
+        verify(bankAccountRepository, never()).save(any());
+    }
+
     @Test
     void updateBankAccountAttachesBinAndKeepsAccountNumber() {
         UUID userId = UUID.randomUUID();
@@ -50,13 +93,14 @@ class BankAccountServiceTests {
         owner.setId(userId);
         TutorBankAccount account = account(owner);
         when(bankAccountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(bankCatalogService.requireTransferable("970415")).thenReturn(vietin());
         when(bankAccountRepository.save(any(TutorBankAccount.class))).thenAnswer(inv -> inv.getArgument(0));
 
         BankAccountResponse res = service().updateBankAccount(userId, accountId,
-                new UpdateBankAccountRequest("970415", "Vietinbank", "ICB", "New Holder"));
+                new UpdateBankAccountRequest("970415", "ignored", "ICB", "New Holder"));
 
         assertEquals("970415", res.bankBin());
-        assertEquals("Vietinbank", res.bankName());
+        assertEquals("VietinBank", res.bankName());
         assertEquals("New Holder", res.accountHolderName());
         assertEquals("113366668888", account.getAccountNumber(), "account number is preserved");
     }
@@ -73,5 +117,6 @@ class BankAccountServiceTests {
                 UUID.randomUUID(), accountId, new UpdateBankAccountRequest("970415", "Vietinbank", "ICB", "Holder")));
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatus());
         verify(bankAccountRepository, never()).save(any());
+        verify(bankCatalogService, never()).requireTransferable(any());
     }
 }

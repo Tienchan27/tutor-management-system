@@ -30,6 +30,12 @@ public class CenterBankAccountController {
         return centerBankAccountService.get();
     }
 
+    /** Prefill suggestion only — does not persist the center account. */
+    @GetMapping("/prefill-from-primary")
+    public CenterBankAccountResponse prefillFromPrimary() {
+        return centerBankAccountService.prefillFromPrimary(currentUserResolver.requireUser());
+    }
+
     @PutMapping
     public CenterBankAccountResponse update(@Valid @RequestBody UpdateCenterBankAccountRequest request) {
         return centerBankAccountService.update(currentUserResolver.requireUser(), request);

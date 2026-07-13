@@ -34,6 +34,9 @@ export const queryKeys = {
   availableClasses: ['availableClasses'] as const,
   publishedClasses: ['publishedClasses'] as const,
   subjects: ['subjects'] as const,
+  bankCatalog: ['bankCatalog'] as const,
+  centerAccount: ['centerAccount'] as const,
+  tutorBankAccounts: ['tutorBankAccounts'] as const,
 } as const;
 
 type QueryKeyPrefix = readonly unknown[];

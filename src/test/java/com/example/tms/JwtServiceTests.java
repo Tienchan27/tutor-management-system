@@ -18,11 +18,4 @@ class JwtServiceTests {
         assertEquals("ADMIN", jwtService.extractActiveRole(token));
     }
 
-    @Test
-    void refreshTokenStoresActiveRoleClaim() {
-        JwtService jwtService = new JwtService(TEST_SECRET);
-        String token = jwtService.generateRefreshToken(UUID.randomUUID(), "user@example.com", "TUTOR");
-        jwtService.validateRefreshToken(token);
-        assertEquals("TUTOR", jwtService.extractActiveRole(token));
-    }
 }

@@ -1,5 +1,7 @@
 package com.example.tms.config;
 
+import com.example.tms.security.JsonAccessDeniedHandler;
+import com.example.tms.security.JsonAuthenticationEntryPoint;
 import com.example.tms.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,13 +25,19 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JsonAuthenticationEntryPoint authenticationEntryPoint;
+    private final JsonAccessDeniedHandler accessDeniedHandler;
     private final String allowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
+            JsonAuthenticationEntryPoint authenticationEntryPoint,
+            JsonAccessDeniedHandler accessDeniedHandler,
             @Value("${app.cors.allowed-origins:http://localhost:3000}") String allowedOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -40,6 +48,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .anonymous(anonymous -> anonymous.disable())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         // ASYNC and ERROR dispatcher types must be permitted — Spring Security
                         // re-runs the filter chain on async dispatches (e.g. SSE stream cleanup),

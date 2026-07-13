@@ -21,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -106,6 +107,7 @@ public class AdminTutorRoleService {
                     enrollmentRepository.findByTutorClassIdAndStatus(tutorClass.getId(), EnrollmentStatus.ACTIVE);
             for (Enrollment enrollment : activeEnrollments) {
                 enrollment.setStatus(EnrollmentStatus.LEFT);
+                enrollment.setLeftAt(LocalDateTime.now());
             }
             enrollmentRepository.saveAll(activeEnrollments);
 
@@ -120,4 +122,3 @@ public class AdminTutorRoleService {
         }
     }
 }
-

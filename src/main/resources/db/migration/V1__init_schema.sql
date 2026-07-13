@@ -1,4 +1,4 @@
--- Tutor Management System — consolidated schema (Flyway V1 only).
+-- Tutor Management System consolidated baseline schema.
 -- OTP is stored in Redis; no otp_verifications table.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -240,7 +240,7 @@ CREATE TABLE tutor_bank_accounts (
 );
 
 -- ---------------------------------------------------------------------------
--- Kafka outbox & idempotency
+-- Notification/realtime outbox & idempotency
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE notification_events_outbox (

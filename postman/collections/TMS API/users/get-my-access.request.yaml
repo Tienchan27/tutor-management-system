@@ -1,9 +1,9 @@
 $kind: http-request
-name: Get Pending Bank Accounts
+name: Get My Access
 method: GET
-url: '{{baseUrl}}/admin/bank-accounts/pending'
-order: 2000
-description: Admin endpoint to list bank accounts pending verification
+url: '{{baseUrl}}/users/me/access'
+order: 900
+description: Get current authenticated user's server-authoritative roles, active role, and onboarding flags
 auth:
   type: bearer
   credentials:
@@ -25,7 +25,9 @@ scripts:
           pm.response.to.be.json;
       });
 
-      pm.test("Response is an array", function () {
+      pm.test("Response includes active access fields", function () {
           const jsonData = pm.response.json();
-          pm.expect(jsonData).to.be.an("array");
+          pm.expect(jsonData).to.be.an("object");
+          pm.expect(jsonData.roles).to.be.an("array");
+          pm.expect(jsonData.activeRole).to.be.a("string");
       });

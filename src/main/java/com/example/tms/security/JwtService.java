@@ -21,7 +21,6 @@ public class JwtService {
     private static final String TOKEN_TYPE_CLAIM = "type";
     private static final String ACTIVE_ROLE_CLAIM = "activeRole";
     private static final String ACCESS_TOKEN_TYPE = "access";
-    private static final String REFRESH_TOKEN_TYPE = "refresh";
     private static final long ACCESS_TOKEN_TTL_SECONDS = 900L; //15 minutes
     private static final long REFRESH_TOKEN_TTL_SECONDS = 2592000L; //30 days
 
@@ -43,21 +42,6 @@ public class JwtService {
                 .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(ACCESS_TOKEN_TTL_SECONDS)))
-                .signWith(key)
-                .compact();
-    }
-
-    public String generateRefreshToken(UUID userId, String email, String activeRole) {
-        Instant now = Instant.now();
-        return Jwts.builder()
-                .subject(userId.toString())
-                .claim("email", email)
-                .claim(ACTIVE_ROLE_CLAIM, activeRole)
-                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
-                // Ensure each refresh token is unique even for back-to-back issuance.
-                .id(UUID.randomUUID().toString())
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(REFRESH_TOKEN_TTL_SECONDS)))
                 .signWith(key)
                 .compact();
     }
@@ -84,14 +68,6 @@ public class JwtService {
         Claims claims = validateToken(token);
         String type = claims.get(TOKEN_TYPE_CLAIM, String.class);
         if (!ACCESS_TOKEN_TYPE.equals(type)) {
-            throw new ApiException("Invalid token type");
-        }
-    }
-
-    public void validateRefreshToken(String token) {
-        Claims claims = validateToken(token);
-        String type = claims.get(TOKEN_TYPE_CLAIM, String.class);
-        if (!REFRESH_TOKEN_TYPE.equals(type)) {
             throw new ApiException("Invalid token type");
         }
     }

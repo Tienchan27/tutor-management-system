@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { closeStudentTuition, confirmInvoicePaid, listAdminInvoices } from '../../../services/adminInvoiceService';
+import { getCenterAccount } from '../../../services/centerAccountService';
 import { extractApiErrorMessage } from '../../../services/authService';
 import PageLayout from '../../../components/layout/PageLayout';
 import PageSection from '../../../components/layout/PageSection';
@@ -41,6 +42,12 @@ function AdminStudentBillingPage() {
     queryKey: queryKeys.adminInvoices.month(month),
     queryFn: () => listAdminInvoices(month),
   });
+
+  const { data: centerAccount, isLoading: centerLoading } = useQuery({
+    queryKey: queryKeys.centerAccount,
+    queryFn: getCenterAccount,
+  });
+  const centerConfigured = !!centerAccount;
 
   const closeMutation = useMutation({
     mutationFn: () => closeStudentTuition(month, recalculate),
@@ -81,9 +88,16 @@ function AdminStudentBillingPage() {
         </>
       }
     >
-      <p className="muted mb-0">
-        <Link to="/app/admin/center-account">Configure center receiving account</Link>
-      </p>
+      {!centerLoading && !centerConfigured ? (
+        <div className="error-text mb-0" role="status">
+          Center receiving account is not configured. Students cannot pay tuition via VietQR until you{' '}
+          <Link to="/app/admin/center-account">set the center account</Link>.
+        </div>
+      ) : (
+        <p className="muted mb-0">
+          <Link to="/app/admin/center-account">Configure center receiving account</Link>
+        </p>
+      )}
 
       <PageSection title={`${formatYearMonth(month)} invoices`}>
         {error ? <p className="error-text">{error}</p> : null}

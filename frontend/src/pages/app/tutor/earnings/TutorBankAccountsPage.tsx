@@ -7,7 +7,6 @@ import {
   setPrimaryBankAccount,
   updateBankAccount,
 } from '../../../../services/bankAccountService';
-import { listBankCatalog } from '../../../../services/bankCatalogService';
 import { BankAccountResponse, CreateBankAccountRequest } from '../../../../types/bankAccounts';
 import { extractApiErrorMessage } from '../../../../services/authService';
 import PageSection from '../../../../components/layout/PageSection';
@@ -19,11 +18,14 @@ import StatusPill from '../../../../components/ui/StatusPill';
 import Modal from '../../../../components/ui/Modal';
 import BankSelect from '../../../../components/payments/BankSelect';
 import { useToast } from '../../../../components/feedback/ToastProvider';
+import { useBankCatalog } from '../../../../hooks/useBankCatalog';
+import { queryKeys } from '../../../../lib/queryKeys';
 
 const initialForm: CreateBankAccountRequest = {
   bankName: '',
   accountNumber: '',
   accountHolderName: '',
+  bankBin: '',
 };
 
 interface EditForm {
@@ -41,17 +43,14 @@ function TutorBankAccountsPage() {
   const [editing, setEditing] = useState<BankAccountResponse | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ bankBin: '', bankName: '', bankCode: '', accountHolderName: '' });
 
+  const { banks, isLoading: banksLoading, error: banksError, refetch: refetchBanks } = useBankCatalog();
+
   const { data: items = [], isLoading: bankLoading } = useQuery({
-    queryKey: ['tutorBankAccounts'],
+    queryKey: queryKeys.tutorBankAccounts,
     queryFn: listMyBankAccounts,
   });
 
-  const { data: banks = [] } = useQuery({
-    queryKey: ['bankCatalog'],
-    queryFn: listBankCatalog,
-  });
-
-  const invalidateBanks = () => queryClient.invalidateQueries({ queryKey: ['tutorBankAccounts'] });
+  const invalidateBanks = () => queryClient.invalidateQueries({ queryKey: queryKeys.tutorBankAccounts });
 
   const createMutation = useMutation({
     mutationFn: () => createBankAccount(form),
@@ -100,6 +99,10 @@ function TutorBankAccountsPage() {
 
   function handleCreate(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
+    if (!form.bankBin) {
+      setBankError('Select a bank from the catalog.');
+      return;
+    }
     setBankError('');
     createMutation.mutate();
   }
@@ -114,16 +117,19 @@ function TutorBankAccountsPage() {
     });
   }
 
+  const canCreate = !!form.bankBin && !!form.accountNumber.trim() && !!form.accountHolderName.trim();
   const canSaveEdit = !!editForm.bankBin && !!editForm.accountHolderName.trim();
 
   return (
     <PageSection title="Bank accounts">
       <SectionBlock title="Add account">
         <form onSubmit={handleCreate} className="stack-16">
+          {banksLoading && !banks.length ? <p className="muted">Loading bank catalog…</p> : null}
           <div className="grid-form">
             <BankSelect
               banks={banks}
               valueBin={form.bankBin ?? ''}
+              disabled={banksLoading && !banks.length}
               onSelect={(bank) =>
                 setForm((prev) => ({ ...prev, bankName: bank.shortName, bankBin: bank.bin, bankCode: bank.code }))
               }
@@ -144,12 +150,17 @@ function TutorBankAccountsPage() {
             />
           </div>
           <div className="form-actions">
-            <Button type="submit" loading={createMutation.isPending}>
+            <Button type="submit" loading={createMutation.isPending} disabled={!canCreate}>
               Add account
             </Button>
+            {banksError ? (
+              <Button type="button" variant="secondary" onClick={() => refetchBanks()}>
+                Retry banks
+              </Button>
+            ) : null}
           </div>
         </form>
-        {bankError ? <p className="error-text">{bankError}</p> : null}
+        {bankError || banksError ? <p className="error-text">{bankError || banksError}</p> : null}
       </SectionBlock>
 
       <SectionBlock title="Your accounts">
@@ -233,7 +244,7 @@ function TutorBankAccountsPage() {
           </>
         }
       >
-        <div className="stack-12">
+        <div className="stack-16">
           <BankSelect
             banks={banks}
             valueBin={editForm.bankBin}

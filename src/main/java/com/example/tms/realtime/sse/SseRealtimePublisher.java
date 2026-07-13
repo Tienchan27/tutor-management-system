@@ -42,7 +42,7 @@ public class SseRealtimePublisher implements RealtimePublisher {
 
     @Override
     public void publishToScope(String scope, ClientEvent event) {
-        // Scope-based routing is handled upstream (Kafka consumer/router).
+        // Scope-based routing is handled upstream by the realtime outbox dispatcher.
         // This method exists to keep the transport interface stable for future WebSocket additions.
         log.debug("publishToScope called for scope={} eventType={}", scope, event.type());
     }

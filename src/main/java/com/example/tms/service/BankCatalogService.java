@@ -4,6 +4,7 @@ import com.example.tms.api.dto.bank.BankCatalogResponse;
 import com.example.tms.entity.BankCatalogEntry;
 import com.example.tms.exception.ApiException;
 import com.example.tms.repository.BankCatalogRepository;
+import com.example.tms.util.AdvisoryLockService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,10 +21,16 @@ import java.util.List;
 public class BankCatalogService {
     private final BankCatalogRepository repository;
     private final RestClient vietQrRestClient;
+    private final AdvisoryLockService advisoryLockService;
 
-    public BankCatalogService(BankCatalogRepository repository, RestClient vietQrRestClient) {
+    public BankCatalogService(
+            BankCatalogRepository repository,
+            RestClient vietQrRestClient,
+            AdvisoryLockService advisoryLockService
+    ) {
         this.repository = repository;
         this.vietQrRestClient = vietQrRestClient;
+        this.advisoryLockService = advisoryLockService;
     }
 
     @Cacheable("bankCatalog")
@@ -35,10 +42,28 @@ public class BankCatalogService {
                 .toList();
     }
 
+    /**
+     * Syncs from vietqr.io only when the catalog is empty. Safe for any authenticated user
+     * (tutor onboarding) so first open of a bank picker does not require an admin visit.
+     */
+    @Transactional
+    @CacheEvict(value = "bankCatalog", allEntries = true)
+    public int ensureSynced() {
+        advisoryLockService.acquireTransactionLock("bank-catalog-ensure");
+        if (repository.count() > 0) {
+            return 0;
+        }
+        return syncFromProvider();
+    }
+
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     @CacheEvict(value = "bankCatalog", allEntries = true)
     public int sync() {
+        return syncFromProvider();
+    }
+
+    private int syncFromProvider() {
         VietQrBanksResponse response;
         try {
             response = vietQrRestClient.get().uri("/v2/banks").retrieve().body(VietQrBanksResponse.class);

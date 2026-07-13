@@ -409,18 +409,18 @@ public class ClassAssignmentService {
         }
 
         User student = resolveStudent(email, name, admin);
-        boolean alreadyEnrolled = enrollmentRepository
-                .findByTutorClassIdAndStudentIdAndStatus(classId, student.getId(), EnrollmentStatus.ACTIVE)
-                .isPresent();
-        if (alreadyEnrolled) {
+        var existingEnrollment = enrollmentRepository.findByTutorClassIdAndStudentId(classId, student.getId());
+        Enrollment enrollment = existingEnrollment.orElseGet(Enrollment::new);
+        if (existingEnrollment.isPresent() && enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
             throw ApiException.conflict("STUDENT_ALREADY_ENROLLED", "This student is already in the class");
         }
 
-        Enrollment enrollment = new Enrollment();
+        LocalDateTime now = LocalDateTime.now();
         enrollment.setTutorClass(tutorClass);
         enrollment.setStudent(student);
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
-        enrollment.setJoinedAt(LocalDateTime.now());
+        enrollment.setJoinedAt(now);
+        enrollment.setLeftAt(null);
         enrollmentRepository.save(enrollment);
 
         enqueueAdminClassInvalidate(classId);
@@ -437,6 +437,7 @@ public class ClassAssignmentService {
                 .orElseThrow(() -> ApiException.notFound("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class"));
 
         enrollment.setStatus(EnrollmentStatus.LEFT);
+        enrollment.setLeftAt(LocalDateTime.now());
         enrollmentRepository.save(enrollment);
 
         enqueueAdminClassInvalidate(classId);

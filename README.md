@@ -12,7 +12,7 @@ Production-style deployment uses one public entrypoint. The stack is 5 container
 - `nginx` reverse proxies API requests from `/api/*` to Spring Boot.
 - `app`, `postgres-db`, and `redis` stay on the internal Docker network.
 
-This avoids routing conflicts between SPA routes (for example `/dashboard`) and API endpoints by using a clear API prefix (`/api`).
+This avoids routing conflicts between SPA routes (for example `/app/dashboard`) and API endpoints by using a clear API prefix (`/api`).
 
 ## One-command startup (prod-like)
 
@@ -69,7 +69,7 @@ Notes:
 - `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in root `.env` must match.
 - `JWT_SECRET` should be a strong secret (at least 32 bytes for HS256).
 - Docker dev stack includes Mailpit for OTP delivery.
-- Database schema is managed by **Flyway only** (`V1__init_schema.sql`); Hibernate uses `ddl-auto=validate` (no silent schema drift).
+- Database schema is managed by **Flyway migrations** (`V1` through `V7` at the time of writing); Hibernate uses `ddl-auto=validate` (no silent schema drift).
 - After changing migrations locally, reset Postgres: `docker compose down -v` then `docker compose up --build -d`.
 
 For non-Docker local backend run, use host SMTP values in root `.env`:
@@ -92,6 +92,12 @@ MAIL_PORT=1025
 - Login is only available after OTP verification activates the account.
 - Google login: `POST /auth/google`.
 - If a Google sign-in needs to be linked to an existing account, the backend uses an OTP link challenge (`POST /auth/google/verify-link-otp`).
+- Access and refresh tokens are set as **httpOnly cookies**.
+- Access tokens are JWTs scoped by `activeRole`.
+- Refresh tokens are opaque random secrets, stored server-side only as SHA-256 hashes with their active-role scope.
+- Auth responses may include token fields for API-client compatibility, but browser code should treat the cookie session plus `/users/me/access` as the source of truth.
+- Multi-role users operate with one active role at a time. The access token's `activeRole` claim is enforced by the backend security filter, so a token scoped to `ADMIN` does not also authorize `TUTOR` endpoints until the user switches role.
+- The frontend refreshes authoritative session metadata from `GET /users/me/access`, including active roles, active role, profile-completion state, and tutor-onboarding state.
 
 ## Security baseline in this deployment
 
@@ -99,11 +105,29 @@ MAIL_PORT=1025
 - Postgres is internal (no host DB port exposure by default).
 - PgAdmin is isolated under a non-default profile.
 - Nginx adds baseline hardening headers and rate limits `/api/auth/*`.
-- JWT auth is stateless; refresh token rotation remains enabled.
-- `/admin/**` and `/dashboard/admin/**` require `ROLE_ADMIN`.
+- Access-token auth is stateless JWT; refresh token rotation is stateful via hashed opaque refresh tokens.
+- Backend role checks use the token's active role as the security scope. `/admin/**` requires `ROLE_ADMIN`; tutor/student routes require their matching active role.
+- Unauthenticated / forbidden responses from the security filter chain use the same JSON envelope as API errors: `{ "code", "message", "timestamp" }` (`UNAUTHENTICATED` / `FORBIDDEN`).
 - Sensitive production defaults tightened:
   - `server.error.include-message=never` (unless overridden)
   - SQL logging off by default
+
+### Cookie auth, CORS, and CSRF
+
+Auth cookies are set by the API (`CookieUtils`):
+
+- `accessToken`: `httpOnly`, `Secure`, `SameSite=Strict`, path `/`, ~15 minutes.
+- `refreshToken`: `httpOnly`, `Secure`, `SameSite=Strict`, path `/auth/refresh`, ~30 days.
+
+`Secure` requires HTTPS in real browsers. Production is expected behind TLS (or a TLS-terminating proxy). Local HTTP may need a documented cookie override if cookies do not stick.
+
+CSRF protection is **disabled** in Spring Security on purpose for the current deployment model:
+
+- Browser and API share one public origin via Nginx (`/` SPA + `/api/*`).
+- Cookies use `SameSite=Strict`, so cross-site navigations do not send them.
+- CORS is an allowlist (`CORS_ALLOWED_ORIGINS`) with `allowCredentials=true` for local Vite (`http://localhost:3000`) and the nginx origin.
+
+If the frontend and API are later split across different sites, add CSRF tokens for unsafe methods (or a same-origin BFF) before relying on cookie auth alone.
 
 ## Frontend build
 

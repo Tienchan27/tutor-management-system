@@ -19,12 +19,12 @@ VietQR is Vietnam's national QR standard (NAPAS, EMVCo-based). We build the QR s
 
 ### Bank catalog + BIN
 - Source: `https://api.vietqr.io/v2/banks` (free, public) → `bin`, `code`, `shortName`, `name`, `logo`, `transferSupported`, `lookupSupported`.
-- **Seed once into the DB** (migration or an admin "sync banks" action) — do NOT call the API at runtime. Store all fields.
+- Catalog is **not** Flyway-seeded. First time a bank picker needs data, the app calls `POST /bank-catalog/ensure` (authenticated; syncs only if empty). Admins can force-refresh via `POST /admin/bank-catalog/sync`. Do not call vietqr.io on every request.
 - In any **receiving-account picker**, **disable** banks with `transferSupported = 0` (show them with a `*` + tooltip, but block selection — picking one produces a QR nobody can pay).
 
 ### Center receiving account
 - A dedicated `center_bank_account` config (bank code + account number + holder name).
-- **Default: seeded from the admin's primary bank account**; admin can edit it later in Settings. Decoupled — changing the admin's personal account does not silently change the center account.
+- **Not auto-saved.** Fresh installs use a setup gate: admin configures Center account in Settings. Optional UI prefill from the admin's primary personal bank account (review + Save). Decoupled afterward — changing the admin's personal account does not silently change the center account.
 
 ### Reference code (the reconciliation key)
 - Each invoice/payout gets a unique, short, **alphanumeric-only (no spaces/diacritics)** `qr_ref` (e.g. `HP<shortId>` for tuition, `LUONG<shortId>` for payout), embedded in the QR description (`62/08`).
@@ -32,16 +32,21 @@ VietQR is Vietnam's national QR standard (NAPAS, EMVCo-based). We build the QR s
 
 ## Phase 1 — self-generated VietQR + manual confirmation (free, no signup) ← current plan
 
-Data model (migration **V2**; V1 is immutable):
-- Bank catalog (seeded from vietqr.io), storing all fields.
-- `center_bank_account` config (seeded from admin primary account, admin-editable).
+Data model (Flyway migrations; `V1` remains the immutable baseline and later migrations extend it):
+- Bank catalog table (populated via ensure/sync from vietqr.io), storing all fields.
+- `center_bank_account` config (admin-editable; setup gate until configured).
 - Add `bank_code`/BIN to `tutor_bank_accounts` (bank chosen from the catalog, not free text).
-- Add `qr_ref` to `invoices` and `tutor_payouts` (amounts already exist: `invoice.totalAmount`, `payout.netSalary`).
+- Add `qr_ref` to `invoices` and `tutor_payout_payments` (amounts already exist: `invoice.totalAmount`, `payout.netSalary`).
 
 Backend:
 - `VietQrGenerator` + `BankCatalog` (+ CRC unit tests).
 - Tuition: expose a VietQR for an invoice (center account + amount + ref); `POST /admin/invoices/{id}/confirm-paid` → create `Payment(SUCCESS)` + invoice `PAID` + notify.
-- Payout: replace the placeholder QR payload in `PayoutService.generateQr` with a real VietQR (tutor primary account + `netSalary` + ref); existing `confirm-paid` stays.
+- Payout: `PayoutService.generateQr` builds a real VietQR from the tutor's primary account + `netSalary` + ref.
+- Payout QR lifecycle:
+  - QR generation is allowed only while the payout is `LOCKED`.
+  - If a `PENDING` QR already exists, generating again returns the existing QR instead of creating another payment row.
+  - Once a `PENDING` QR exists, admin net-salary override is blocked because the QR amount has already been issued.
+  - Manual `confirm-paid` remains allowed without a QR. If a pending QR exists, confirmation marks that QR `SUCCESS`.
 - `PaymentConfirmationPort` interface — manual confirmation is one implementation; webhook is a future one.
 
 Frontend:
@@ -51,6 +56,8 @@ Frontend:
 - Admin Settings: manage the center receiving account.
 - Bank forms (tutor + admin): bank **dropdown** from the catalog (BIN required for VietQR).
 - Payout page: "Show QR" (admin scans to pay the tutor) + "Confirm paid".
+
+Tutor bank-account `isVerified` is currently auto-set by the tutor bank-account flow. There is no admin bank-verification workflow in the MVP; tutors are responsible for checking their own payout details before relying on them.
 
 ## Phase 2 — automatic reconciliation (deferred)
 
