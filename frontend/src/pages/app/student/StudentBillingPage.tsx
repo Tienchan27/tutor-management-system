@@ -36,7 +36,10 @@ function StudentBillingPage() {
   });
 
   return (
-    <PageLayout title="Billing" subtitle="Monthly tuition statements.">
+    <PageLayout
+      title="Billing"
+      subtitle="View invoices and pay by scanning VietQR with your banking app."
+    >
       <PageSection>
         {error ? <p className="error-text">{extractApiErrorMessage(error, 'Failed to load invoices')}</p> : null}
         {isLoading ? <Spinner label="Loading invoices..." /> : null}

@@ -958,6 +958,10 @@ a {
   box-shadow: var(--shadow-soft);
 }
 
+.quick-action-card--attention {
+  border-color: var(--warning);
+}
+
 .subnav-tabs {
   display: flex;
   flex-wrap: wrap;

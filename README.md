@@ -73,6 +73,16 @@ Notes:
 - CI rehearses Flyway + compose via the `compose-smoke` job (copies committed `.env.ci` dummies, `docker compose up --build`, waits for healthy app, asserts latest Flyway version `7`).
 - After changing migrations locally, reset Postgres: `docker compose down -v` then `docker compose up --build -d`.
 
+## Demo seed (presentations)
+
+Load loginable demo users (5 tutors, 12 students, payments edge cases):
+
+```powershell
+.\scripts\seed\run-demo-seed.ps1
+```
+
+See [scripts/seed/README.md](scripts/seed/README.md) for credentials and scenario map. Dev/demo only — wipes domain data.
+
 For non-Docker local backend run, use host SMTP values in root `.env`:
 
 ```env
@@ -99,6 +109,12 @@ MAIL_PORT=1025
 - Auth responses may include token fields for API-client compatibility, but browser code should treat the cookie session plus `/users/me/access` as the source of truth.
 - Multi-role users operate with one active role at a time. The access token's `activeRole` claim is enforced by the backend security filter, so a token scoped to `ADMIN` does not also authorize `TUTOR` endpoints until the user switches role.
 - The frontend refreshes authoritative session metadata from `GET /users/me/access`, including active roles, active role, profile-completion state, and tutor-onboarding state.
+
+### Student tuition payments (VietQR)
+
+- Students pay at **`/app/student/billing`** (menu **Billing**): open an unpaid invoice → **Pay** → scan VietQR with a banking app.
+- Legacy SPA paths `/app/student/payments` and `/app/student/invoices` redirect to billing.
+- Pay is blocked until an admin configures the **center receiving account** (`/app/admin/center-account`). Confirmation of received transfers remains a manual admin step on Student billing.
 
 ## Security baseline in this deployment
 

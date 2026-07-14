@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { listStudentClasses } from '../../../services/studentClassService';
 import { listMyInvoices } from '../../../services/studentInvoiceService';
@@ -42,6 +43,16 @@ function StudentHomePage() {
               hint={data.unpaidCount ? `${data.unpaidCount} open` : 'All paid'}
             />
           </div>
+          {data.unpaidCount > 0 ? (
+            <div className="form-actions mt-12">
+              <Link to="/app/student/billing" className="btn btn-primary btn-sm">
+                Pay tuition
+              </Link>
+              <p className="muted mb-0">
+                Open Billing and scan the VietQR with your banking app to transfer.
+              </p>
+            </div>
+          ) : null}
         </PageSection>
       ) : null}
     </PageLayout>

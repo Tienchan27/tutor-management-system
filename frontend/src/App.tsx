@@ -13,7 +13,6 @@ import { useRoleAccess } from './hooks/useRoleAccess';
 import AppHomeRedirect from './pages/app/AppHomeRedirect';
 import UnauthorizedPage from './pages/app/UnauthorizedPage';
 import NotFoundPage from './pages/app/NotFoundPage';
-import StudentComingSoon from './pages/app/StudentComingSoon';
 import { getAuthUser, isAuthenticated } from './utils/storage';
 import AppErrorBoundary from './components/layout/AppErrorBoundary';
 import { startRealtime, stopRealtime } from './services/realtimeClient';
@@ -289,17 +288,7 @@ function App() {
           }
         />
         <Route path="student/invoices" element={<Navigate to="/app/student/billing" replace />} />
-        <Route
-          path="student/payments"
-          element={
-            <RoleGate allowed={['STUDENT']}>
-              <StudentComingSoon
-                title="Payments"
-                description="Online payment and bank confirmation will be available in a future release."
-              />
-            </RoleGate>
-          }
-        />
+        <Route path="student/payments" element={<Navigate to="/app/student/billing" replace />} />
 
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="account" element={<AccountPage />} />
