@@ -70,6 +70,7 @@ Notes:
 - `JWT_SECRET` should be a strong secret (at least 32 bytes for HS256).
 - Docker dev stack includes Mailpit for OTP delivery.
 - Database schema is managed by **Flyway migrations** (`V1` through `V7` at the time of writing); Hibernate uses `ddl-auto=validate` (no silent schema drift).
+- CI rehearses Flyway + compose via the `compose-smoke` job (copies committed `.env.ci` dummies, `docker compose up --build`, waits for healthy app, asserts latest Flyway version `7`).
 - After changing migrations locally, reset Postgres: `docker compose down -v` then `docker compose up --build -d`.
 
 For non-Docker local backend run, use host SMTP values in root `.env`:
@@ -104,8 +105,10 @@ MAIL_PORT=1025
 - Only Nginx is publicly exposed.
 - Postgres is internal (no host DB port exposure by default).
 - PgAdmin is isolated under a non-default profile.
-- Nginx adds baseline hardening headers and rate limits `/api/auth/*`.
+- Nginx rate limits: `/api/auth/*` at `10r/m` (`auth_limit`); `/api/payouts/`, `/api/sessions/`, and `/api/admin/` at `30r/m` (`money_limit`, burst 20).
 - Access-token auth is stateless JWT; refresh token rotation is stateful via hashed opaque refresh tokens.
+- Redis: OTP verification is **fail-closed** (Redis errors block OTP flows). Refresh-token blacklist is **fail-open** (Redis errors do not block refresh); DB `revoked` + rotation remain authoritative. Warn codes: `REFRESH_BLACKLIST_CHECK_FAILED` / `REFRESH_BLACKLIST_STORE_FAILED`.
+- SSE connect rate-limit IP uses `request.getRemoteAddr()` after Tomcat RemoteIpValve (`server.forward-headers-strategy` + `trusted-proxies` for Docker/private ranges only). Nginx already sets `X-Forwarded-*`; the app does not parse raw `X-Forwarded-For`.
 - Backend role checks use the token's active role as the security scope. `/admin/**` requires `ROLE_ADMIN`; tutor/student routes require their matching active role.
 - Unauthenticated / forbidden responses from the security filter chain use the same JSON envelope as API errors: `{ "code", "message", "timestamp" }` (`UNAUTHENTICATED` / `FORBIDDEN`).
 - Sensitive production defaults tightened:

@@ -48,7 +48,8 @@ public class RealtimeController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(HttpServletRequest request) {
         UUID userId = currentUserResolver.requireUserId();
-        String ip = clientIp(request);
+        // Use remoteAddr after Tomcat RemoteIpValve (trusted-proxies only) — never parse XFF raw.
+        String ip = request.getRemoteAddr() == null ? "" : request.getRemoteAddr();
         if (!rateLimiter.allow(userId, ip, connectLimitPerMinute)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many realtime connections");
         }
@@ -72,16 +73,4 @@ public class RealtimeController {
 
         return emitter;
     }
-
-    private static String clientIp(HttpServletRequest request) {
-        if (request == null) {
-            return "";
-        }
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }
-
