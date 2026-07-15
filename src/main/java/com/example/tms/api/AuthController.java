@@ -12,10 +12,10 @@ import com.example.tms.api.dto.auth.VerifyGoogleLinkOtpRequest;
 import com.example.tms.api.dto.auth.VerifyOtpRequest;
 import com.example.tms.entity.enums.RoleName;
 import com.example.tms.exception.ApiException;
+import com.example.tms.security.AuthCookieService;
 import com.example.tms.security.CurrentUserResolver;
 import com.example.tms.service.AuthService;
 import com.example.tms.service.GoogleAuthService;
-import com.example.tms.util.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -35,15 +35,18 @@ public class AuthController {
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
     private final CurrentUserResolver currentUserResolver;
+    private final AuthCookieService authCookieService;
 
     public AuthController(
             AuthService authService,
             GoogleAuthService googleAuthService,
-            CurrentUserResolver currentUserResolver
+            CurrentUserResolver currentUserResolver,
+            AuthCookieService authCookieService
     ) {
         this.authService = authService;
         this.googleAuthService = googleAuthService;
         this.currentUserResolver = currentUserResolver;
+        this.authCookieService = authCookieService;
     }
 
     @PostMapping("/register")
@@ -59,7 +62,7 @@ public class AuthController {
             HttpServletResponse httpResponse
     ) {
         AuthResponse auth = authService.verifyOtp(request, httpRequest);
-        CookieUtils.setAuthCookies(httpResponse, auth);
+        authCookieService.setAuthCookies(httpResponse, auth);
         return auth;
     }
 
@@ -76,7 +79,7 @@ public class AuthController {
             HttpServletResponse httpResponse
     ) {
         AuthResponse auth = authService.login(request, httpRequest);
-        CookieUtils.setAuthCookies(httpResponse, auth);
+        authCookieService.setAuthCookies(httpResponse, auth);
         return auth;
     }
 
@@ -102,14 +105,14 @@ public class AuthController {
             throw new ApiException("Refresh token required");
         }
         AuthResponse auth = authService.refreshToken(refreshToken, httpRequest);
-        CookieUtils.setAuthCookies(httpResponse, auth);
+        authCookieService.setAuthCookies(httpResponse, auth);
         return auth;
     }
 
     @PostMapping("/logout")
     public Map<String, String> logout(HttpServletResponse httpResponse) {
         authService.logout(currentUserResolver.requireUserId());
-        CookieUtils.clearAuthCookies(httpResponse);
+        authCookieService.clearAuthCookies(httpResponse);
         return Map.of("message", "Logged out successfully");
     }
 
@@ -121,7 +124,7 @@ public class AuthController {
     ) {
         RoleName role = request.activeRole();
         AuthResponse auth = authService.switchRole(currentUserResolver.requireUserId(), role, httpRequest);
-        CookieUtils.setAuthCookies(httpResponse, auth);
+        authCookieService.setAuthCookies(httpResponse, auth);
         return auth;
     }
 
@@ -133,7 +136,7 @@ public class AuthController {
     ) {
         GoogleAuthResponse googleAuth = googleAuthService.googleLogin(request, httpRequest);
         if (googleAuth.accessToken() != null) {
-            CookieUtils.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
+            authCookieService.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
         }
         return googleAuth;
     }
@@ -146,7 +149,7 @@ public class AuthController {
     ) {
         GoogleAuthResponse googleAuth = googleAuthService.verifyGoogleLinkOtp(request, httpRequest);
         if (googleAuth.accessToken() != null) {
-            CookieUtils.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
+            authCookieService.setAuthCookies(httpResponse, toAuthResponse(googleAuth));
         }
         return googleAuth;
     }

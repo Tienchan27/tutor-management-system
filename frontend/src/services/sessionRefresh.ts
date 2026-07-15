@@ -7,7 +7,7 @@ const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
 export type RefreshSessionResult = 'ok' | 'no_refresh_token' | 'failed';
 
 /**
- * Calls POST /auth/refresh using the httpOnly refreshToken cookie.
+ * Calls POST /api/auth/refresh using the httpOnly refreshToken cookie (Path=/api/auth/refresh).
  * Does not import the shared axios `api` instance to avoid circular dependency with its interceptor.
  */
 export async function refreshSessionFromStorage(): Promise<RefreshSessionResult> {

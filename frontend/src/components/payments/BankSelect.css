@@ -1,0 +1,124 @@
+.bank-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.bank-select-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bank-select-input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.bank-select-chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #78716c);
+  cursor: pointer;
+}
+
+.bank-select-chevron:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text);
+}
+
+.bank-select-chevron:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.bank-select-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-surface, #fff);
+  box-shadow: var(--shadow-soft, 0 8px 24px rgba(0, 0, 0, 0.08));
+}
+
+.bank-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.bank-select-option:hover:not(.is-disabled),
+.bank-select-option.is-highlighted:not(.is-disabled) {
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.bank-select-option.is-selected {
+  background: rgba(249, 115, 22, 0.14);
+}
+
+.bank-select-option.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bank-select-option-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bank-select-option-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bank-select-option-sub {
+  font-size: 12px;
+  color: var(--text-muted, #78716c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bank-select-check {
+  flex-shrink: 0;
+  color: var(--brand-amber, #f97316);
+}
+
+.bank-select-empty,
+.bank-select-footnote {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-muted, #78716c);
+}
+
+.bank-select--disabled {
+  opacity: 0.7;
+}

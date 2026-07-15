@@ -5,13 +5,7 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 
-/**
- * Builds a VietQR (NAPAS, EMVCo-based) payload string that any Vietnamese banking
- * app can scan to pre-fill a free Napas 24/7 interbank transfer.
- *
- * <p>Pure and deterministic — no I/O, no external calls. The image is rendered on
- * the frontend (qrcode.react) from the returned string.
- */
+
 @Component
 public class VietQrGenerator {
 

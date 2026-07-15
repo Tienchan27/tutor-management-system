@@ -133,12 +133,12 @@ MAIL_PORT=1025
 
 ### Cookie auth, CORS, and CSRF
 
-Auth cookies are set by the API (`CookieUtils`):
+Auth cookies are set by the API (`AuthCookieService`):
 
 - `accessToken`: `httpOnly`, `Secure`, `SameSite=Strict`, path `/`, ~15 minutes.
-- `refreshToken`: `httpOnly`, `Secure`, `SameSite=Strict`, path `/auth/refresh`, ~30 days.
+- `refreshToken`: `httpOnly`, `Secure`, `SameSite=Strict`, path `{public-api-prefix}/auth/refresh` (default `/api/auth/refresh`), ~30 days.
 
-`Secure` requires HTTPS in real browsers. Production is expected behind TLS (or a TLS-terminating proxy). Local HTTP may need a documented cookie override if cookies do not stick.
+The refresh cookie path must match the **browser** URL (after Nginx/Vite `/api` prefix), not the Spring path after rewrite. Override with `COOKIE_PUBLIC_API_PREFIX` (empty for direct-to-Spring). `COOKIE_SECURE=false` only for local HTTP if cookies do not stick.
 
 CSRF protection is **disabled** in Spring Security on purpose for the current deployment model:
 

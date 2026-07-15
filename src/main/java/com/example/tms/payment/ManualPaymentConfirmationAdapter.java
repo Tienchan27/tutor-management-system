@@ -5,11 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/**
- * The default {@link PaymentConfirmationPort} implementation. Marking an invoice
- * paid always flows through {@link StudentInvoiceService#applyExternalPayment} so
- * the manual admin confirm and a future bank webhook (Phase 2) share one code path.
- */
+
 @Component
 public class ManualPaymentConfirmationAdapter implements PaymentConfirmationPort {
     private final StudentInvoiceService studentInvoiceService;
